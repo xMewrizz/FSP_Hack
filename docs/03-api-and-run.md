@@ -1,21 +1,41 @@
-# 03 — API и запуск (черновик)
+# API и локальный запуск
 
-## API
-- Источник правды — Swagger: `http://localhost:8000/docs` (генерируется из FastAPI).
-- Префикс `/api/v1`: `/auth`, `/candidates`, `/employers`, `/testing`, `/matching`, `/invitations`, `/vacancies`, `/fsp`, `/uploads`.
-- Контракты: Pydantic-схемы, коды ошибок в `docs` OpenAPI. Зарплата — объект `{min, max, currency: RUB}` обязателен.
-- Видимость контактов: поле `contacts` отдается только если `invitation.status == accepted` и запрашивает участник сделки.
+## Состояние репозитория
 
-## Запуск
-См. README §5. Полная инструкция для жюри будет здесь перед сдачей (шаги: клонировать → `.env` → `docker compose up --build` → сиды `make seed`).
+Сейчас backend отдаёт только `GET /api/v1/health` и `GET /docs-health`; его Swagger доступен на `/docs`. ML-сервис отдаёт `GET /health` и заглушки `POST /parse-resume`, `POST /score-match`, `POST /task-variant`. Эти POST-методы не выполняют заявленные операции. В `frontend/` нет `package.json` и исходников, поэтому `docker compose up --build` пока не проходит сборку frontend.
 
-## Библиотеки (фиксируем при scaffolding)
-Backend: fastapi, uvicorn, sqlalchemy, alembic, pydantic v2, psycopg, redis, python-jose, passlib[bcrypt], python-multipart, pypdf, reportlab.
-ML: ollama/vllm-клиент, transformers, sentence-transformers, scikit-learn, numpy.
-Frontend: react, react-router-dom, @tanstack/react-query, axios, tailwindcss, recharts (аналитика), axios-mock? нет — только реальный бэк.
+В Compose адрес БД для backend сейчас записан с учётными данными по умолчанию и не следует за изменением `POSTGRES_USER`, `POSTGRES_PASSWORD` и `POSTGRES_DB`. Frontend Dockerfile содержит запасной шаг, который создаёт страницу-заглушку при ошибке сборки; перед приёмкой его нужно убрать, чтобы ошибка была видна. Переменная `VITE_API_URL` передаётся контейнеру после сборки, хотя Vite обычно встраивает такие значения при сборке: способ конфигурации адреса API нужно проверить вместе с реальными исходниками frontend. Ответ `/health` ML-сервиса сейчас не проверяет доступность Ollama.
 
-## 152-ФЗ чеклист
-- [ ] Согласие при регистрации (текст + timestamp)
-- [ ] Настройка приватности профиля
-- [ ] Разграничение ролей на каждом эндпоинте
-- [ ] Хеши паролей, TTL токенов, подтверждение email
+## План API
+
+Предметные маршруты под префиксом `/api/v1`: `auth`, `candidates`, `employers`, `testing`, `needs`, `matching`, `invitations`, `fsp`. `vacancies` и `applications` добавляются для дополнительного сценария. Контракт каждого маршрута должен содержать тело запроса, пример ответа, ошибки и требуемую роль в OpenAPI. Точные URL и схемы фиксируются при реализации, чтобы документация соответствовала работающему API.
+
+Для приглашения обязательны название компании, описание предложения, способ связи и диапазон зарплаты: `{min, max, currency: "RUB"}`, где `min <= max` и обе границы положительные. Для вакансии действует такое же правило зарплаты. Статусы приглашения: `sent → viewed → accepted/rejected`. Отклик получает свой статус и принадлежит конкретной вакансии. Контакты кандидата возвращаются только работодателю с принятым приглашением или работодателю, на чью вакансию кандидат откликнулся. Проверка выполняется на backend для каждого запроса.
+
+## Как проверить существующий каркас
+
+Из корня репозитория в PowerShell:
+
+```powershell
+cd backend
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Проверить `http://localhost:8000/api/v1/health` и `http://localhost:8000/docs`. Для ML-сервиса во втором терминале:
+
+```powershell
+cd ml-service
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --reload --port 8001
+```
+
+Проверить `http://localhost:8001/health`. Установка ML-зависимостей может потребовать отдельного времени и памяти; вызовы модели при этом ещё не реализованы. В будущем полная инструкция должна содержать проверенную версию Docker, подготовку `.env`, команды миграции и заполнения тестовыми данными, запуск Compose и пробный сквозной сценарий. Команд `make seed` и миграций сейчас нет.
+
+## Компоненты и версии
+
+Текущие версии backend и ML-библиотек зафиксированы в `backend/requirements.txt` и `ml-service/requirements.txt`; образы PostgreSQL, Redis, Python и Node — в Dockerfile и `docker-compose.yml`. Версии frontend-зависимостей появятся с `frontend/package.json`. Список в документации нужно обновить перед сдачей по фактическим lock-файлам и образам. Выбор Qwen, Ollama и эмбеддингов пока описывает план, а не работающую функцию.
+
+## Доступ к данным
+
+При регистрации нужны подтверждение email и отдельные согласия на обработку данных и публикацию профиля. Кандидат видит свои записи; работодатель видит только разрешённую часть профиля и свои взаимодействия. Перед демонстрацией проверяются попытки получить чужие приглашения, отклики и контакты через прямой вызов API. Подробная модель согласий и хранения персональных данных должна быть согласована до наполнения сервиса реальными профилями.
