@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# FastAPI / Uvicorn
+*.log
+
+# Node / React / Vite / Tailwind
+node_modules/
+dist/
+dist-ssr/
+*.local
+frontend/.vite/
+coverage/
+
+# Env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# DB / local data
+*.sqlite
+*.db
+postgres_data/
+pgdata/
+redis_data/
+media/
+uploads/
+
+# Docker
+.docker/
+
+# ML / LLM (Qwen 14B локально - веса не коммитим)
+models/
+*.bin
+*.safetensors
+*.gguf
+*.onnx
+ollama/
+.vllm_cache/
+datasets/
+*.csv
+*.parquet
+!**/examples/*.csv
+# Но синтетику для валидации коммитим (нужна жюри для воспроизводимости)
+!ml-service/data/synthetic_v1/*.csv
+!ml-service/data/synthetic_v1/*.json
+!ml-service/data/synthetic_v1/*.jsonl
+
+# Agent / local tooling (не коммитим)
+.omo/
+.codegraph/
+.opencode/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docs build
+docs/_build/
+site/
+
+# Hackathon misc
+*.pptx
+*.pdf
+!docs/*.pdf
+videos/
+*.mp4
+*.mov
