@@ -20,6 +20,25 @@ class WorkFormat(str, Enum):
     HYBRID = "hybrid"
 
 
+class InvitationStatus(str, Enum):
+    SENT = "sent"
+    VIEWED = "viewed"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
+class TestSessionStatus(str, Enum):
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+
+
+class QuestionType(str, Enum):
+    SINGLE_CHOICE = "single_choice"
+    MULTIPLE_CHOICE = "multiple_choice"
+    CODE = "code"
+
+
 SPECIALIZATIONS = [
     "Backend",
     "Frontend",

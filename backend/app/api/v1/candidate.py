@@ -11,7 +11,7 @@ from app.schemas.candidate import (
 from app.schemas.fsp import FSPLinkRequest
 from app.services.candidate_service import candidate_service
 
-router = APIRouter(prefix="/candidate", tags=["Candidate"])
+router = APIRouter(tags=["Candidate"])
 
 
 @router.post(

@@ -10,7 +10,7 @@ from app.schemas.employer import (
 )
 from app.services.employer_service import employer_service
 
-router = APIRouter(prefix="/employer", tags=["Employer"])
+router = APIRouter(tags=["Employer"])
 
 
 @router.post(
