@@ -1,41 +1,91 @@
 # API и локальный запуск
 
-## Состояние репозитория
+## Интерактивная документация (Swagger / ReDoc)
 
-Сейчас backend отдаёт только `GET /api/v1/health` и `GET /docs-health`; его Swagger доступен на `/docs`. ML-сервис отдаёт `GET /health` и заглушки `POST /parse-resume`, `POST /score-match`, `POST /task-variant`. Эти POST-методы не выполняют заявленные операции. В `frontend/` нет `package.json` и исходников, поэтому `docker compose up --build` пока не проходит сборку frontend.
+При запущенном бэкенде интерактивная документация доступна автоматически:
+* **Swagger UI (интерактивное тестирование эндпоинтов):** [http://localhost:8000/docs](http://localhost:8000/docs)
+* **ReDoc (детализированная спецификация):** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+* **OpenAPI JSON схема:** [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
 
-В Compose адрес БД для backend сейчас записан с учётными данными по умолчанию и не следует за изменением `POSTGRES_USER`, `POSTGRES_PASSWORD` и `POSTGRES_DB`. Frontend Dockerfile содержит запасной шаг, который создаёт страницу-заглушку при ошибке сборки; перед приёмкой его нужно убрать, чтобы ошибка была видна. Переменная `VITE_API_URL` передаётся контейнеру после сборки, хотя Vite обычно встраивает такие значения при сборке: способ конфигурации адреса API нужно проверить вместе с реальными исходниками frontend. Ответ `/health` ML-сервиса сейчас не проверяет доступность Ollama.
+---
 
-## План API
+## Как запустить бэкенд локально
 
-Предметные маршруты под префиксом `/api/v1`: `auth`, `candidates`, `employers`, `testing`, `needs`, `matching`, `invitations`, `fsp`. `vacancies` и `applications` добавляются для дополнительного сценария. Контракт каждого маршрута должен содержать тело запроса, пример ответа, ошибки и требуемую роль в OpenAPI. Точные URL и схемы фиксируются при реализации, чтобы документация соответствовала работающему API.
-
-Для приглашения обязательны название компании, описание предложения, способ связи и диапазон зарплаты: `{min, max, currency: "RUB"}`, где `min <= max` и обе границы положительные. Для вакансии действует такое же правило зарплаты. Статусы приглашения: `sent → viewed → accepted/rejected`. Отклик получает свой статус и принадлежит конкретной вакансии. Контакты кандидата возвращаются только работодателю с принятым приглашением или работодателю, на чью вакансию кандидат откликнулся. Проверка выполняется на backend для каждого запроса.
-
-## Как проверить существующий каркас
-
+### Вариант 1. Через UV (рекомендуемый, быстрый)
 Из корня репозитория в PowerShell:
 
 ```powershell
 cd backend
-python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8000
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
-Проверить `http://localhost:8000/api/v1/health` и `http://localhost:8000/docs`. Для ML-сервиса во втором терминале:
-
+Запуск тестов:
 ```powershell
-cd ml-service
-python -m pip install -r requirements.txt
-python -m uvicorn main:app --reload --port 8001
+uv run pytest -v
 ```
 
-Проверить `http://localhost:8001/health`. Установка ML-зависимостей может потребовать отдельного времени и памяти; вызовы модели при этом ещё не реализованы. В будущем полная инструкция должна содержать проверенную версию Docker, подготовку `.env`, команды миграции и заполнения тестовыми данными, запуск Compose и пробный сквозной сценарий. Команд `make seed` и миграций сейчас нет.
+### Вариант 2. Через Docker Compose
+Из корня проекта:
+```powershell
+docker compose up --build backend db
+```
 
-## Компоненты и версии
+---
 
-Текущие версии backend и ML-библиотек зафиксированы в `backend/requirements.txt` и `ml-service/requirements.txt`; образы PostgreSQL, Redis, Python и Node — в Dockerfile и `docker-compose.yml`. Версии frontend-зависимостей появятся с `frontend/package.json`. Список в документации нужно обновить перед сдачей по фактическим lock-файлам и образам. Выбор Qwen, Ollama и эмбеддингов пока описывает план, а не работающую функцию.
+## Спецификация реализованных эндпоинтов (v1)
 
-## Доступ к данным
+Базовый префикс всех маршрутов: `/api/v1`
 
-При регистрации нужны подтверждение email и отдельные согласия на обработку данных и публикацию профиля. Кандидат видит свои записи; работодатель видит только разрешённую часть профиля и свои взаимодействия. Перед демонстрацией проверяются попытки получить чужие приглашения, отклики и контакты через прямой вызов API. Подробная модель согласий и хранения персональных данных должна быть согласована до наполнения сервиса реальными профилями.
+### 1. Аутентификация и сессии (`/api/v1/auth`)
+
+| Метод | URL | Описание | Авторизация | Тело запроса / Параметры | Ответ |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/auth/register` | Регистрация кандидата или работодателя | Нет | `{ "email": "user@example.com", "password": "...", "role": "candidate" \| "employer" }` | `201 Created`: `{ "message": "...", "email": "...", "verification_code": "123456" }` |
+| `POST` | `/auth/verify-email` | Подтверждение email 6-значным кодом | Нет | `{ "email": "user@example.com", "code": "123456" }` | `200 OK`: `TokenResponse` (`access_token`, `refresh_token`, `role`, `user_id`, `onboarding_completed`) |
+| `POST` | `/auth/resend-code` | Повторная отправка кода верификации | Нет | `{ "email": "user@example.com" }` | `200 OK`: `{ "message": "...", "email": "..." }` |
+| `POST` | `/auth/login` | Вход по логину (email) и паролю | Нет | `{ "email": "user@example.com", "password": "..." }` | `200 OK`: `TokenResponse` (`access_token`, `refresh_token`, ...) |
+| `POST` | `/auth/refresh` | Ротация токенов по refresh_token | Нет | `{ "refresh_token": "..." }` | `200 OK`: `TokenResponse` с новой парой токенов |
+| `POST` | `/auth/logout` | Отзыв сессии / выход | Нет | `{ "refresh_token": "..." }` | `200 OK`: `{ "message": "Успешный выход из системы" }` |
+| `GET` | `/auth/me` | Данные текущего пользователя и его роли | `Bearer JWT` | — | `200 OK`: `UserMeResponse` (роль, флаг `onboarding_completed`, профиль) |
+
+---
+
+### 2. Профиль и онбординг кандидата (`/api/v1/candidates`)
+
+| Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/candidates/onboarding` | Прохождение онбординга (152-ФЗ, грейд, ФСП ID, OSINT) | `Bearer JWT` (Candidate) | `{ "first_name": "Иван", "last_name": "Иванов", "specialization": "Backend", "declared_grade": "junior" \| "middle" \| "senior" \| "lead", "work_format": "remote" \| "office" \| "hybrid", "city": "Москва", "fsp_id": "FSP-77-001", "agreed_152_fz": true, "agreed_osint": true }` | `200 OK`: `CandidateProfileResponse` (включая верифицированные награды ФСП) |
+| `GET` | `/candidates/profile` | Получить профиль текущего кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `CandidateProfileResponse` |
+| `PUT` | `/candidates/profile` | Частичное обновление данных профиля | `Bearer JWT` (Candidate) | Поля для обновления (город, стек, резюме, грейд и др.) | `200 OK`: `CandidateProfileResponse` |
+| `POST` | `/candidates/fsp/link` | Привязать или обновить ФСП ID | `Bearer JWT` (Candidate) | `{ "fsp_id": "FSP-78-042" }` | `200 OK`: `CandidateProfileResponse` с обновленными достижениями |
+
+---
+
+### 3. Профиль работодателя (`/api/v1/employers`)
+
+| Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/employers/onboarding` | Заполнение профиля компании | `Bearer JWT` (Employer) | `{ "company_name": "ООО Технологии", "description": "...", "industry": "IT", "website": "https://...", "contact_person": "Анна", "city": "Москва" }` | `200 OK`: `EmployerProfileResponse` |
+| `GET` | `/employers/profile` | Получить профиль компании | `Bearer JWT` (Employer) | — | `200 OK`: `EmployerProfileResponse` |
+| `PUT` | `/employers/profile` | Обновить данные профиля компании | `Bearer JWT` (Employer) | Поля компании для обновления | `200 OK`: `EmployerProfileResponse` |
+
+---
+
+### 4. Реестр ФСП и Keycloak OIDC Mock (`/api/v1/fsp`)
+
+| Метод | URL | Описание | Параметры | Ответ |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/fsp/athletes` | Список спортсменов демонстрационного реестра | — | `200 OK`: Массив спортсменов с рейтингом и разрядами |
+| `GET` | `/fsp/verify/{fsp_id}` | Проверка ФСП ID и подтягивание турниров | `fsp_id` (например, `FSP-77-001`, `FSP-78-042`) | `200 OK`: `FSPVerificationResult` (`found`, `athlete_name`, `sport_category`, `achievements`) |
+| `GET` | `/fsp/keycloak/userinfo` | OIDC Keycloak UserInfo эндпоинт | `fsp_id` | `200 OK`: JSON профиля спортсмена для OAuth2 SSO |
+| `POST` | `/fsp/login-by-fsp-id` | Быстрый вход (SSO) в 1 клик по ФСП ID | `fsp_id` в Query | `200 OK`: `TokenResponse` (автоматическая регистрация и авторизация) |
+
+---
+
+### 5. Системные маршруты
+
+| Метод | URL | Описание | Ответ |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/health` | Проверка здоровья сервиса | `{"status": "ok"}` |
+| `GET` | `/docs-health` | Ссылки на документацию | `{"swagger": "/docs", "redoc": "/redoc"}` |
