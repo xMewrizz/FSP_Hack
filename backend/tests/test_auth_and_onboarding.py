@@ -1,0 +1,209 @@
+import pytest
+from httpx import AsyncClient
+
+
+@pytest.mark.asyncio
+async def test_health_check(client: AsyncClient):
+    response = await client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_candidate_registration_and_verification(client: AsyncClient):
+    # 1. Регистрация кандидата
+    reg_resp = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "candidate@example.com",
+            "password": "Password123!",
+            "role": "candidate",
+        },
+    )
+    assert reg_resp.status_code == 201
+    data = reg_resp.json()
+    code = data["verification_code"]
+    assert code is not None
+
+    # 2. Подтверждение email по коду
+    ver_resp = await client.post(
+        "/api/v1/auth/verify-email",
+        json={
+            "email": "candidate@example.com",
+            "code": code,
+        },
+    )
+    assert ver_resp.status_code == 200
+    tokens = ver_resp.json()
+    assert "access_token" in tokens
+    assert "refresh_token" in tokens
+    assert tokens["role"] == "candidate"
+    assert tokens["is_verified"] is True
+    assert tokens["onboarding_completed"] is False
+
+    access_token = tokens["access_token"]
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    # 3. Проверка GET /auth/me
+    me_resp = await client.get("/api/v1/auth/me", headers=headers)
+    assert me_resp.status_code == 200
+    me_data = me_resp.json()
+    assert me_data["email"] == "candidate@example.com"
+    assert me_data["role"] == "candidate"
+
+    # 4. Онбординг кандидата (152-ФЗ, OSINT, грейд, город, FSP-77-001)
+    onboard_resp = await client.post(
+        "/api/v1/candidate/onboarding",
+        headers=headers,
+        json={
+            "agreed_152_fz": True,
+            "agreed_osint": True,
+            "specialization": "Backend",
+            "declared_grade": "senior",
+            "work_format": "remote",
+            "city": "Москва",
+            "fsp_id": "FSP-77-001",
+            "first_name": "Иван",
+            "last_name": "Иванов",
+            "telegram": "@ivan_dev",
+            "phone": "+79991234567",
+        },
+    )
+    assert onboard_resp.status_code == 200
+    candidate_profile = onboard_resp.json()
+    assert candidate_profile["first_name"] == "Иван"
+    assert candidate_profile["onboarding_completed"] is True
+    assert candidate_profile["fsp_verified"] is True
+    assert candidate_profile["fsp_id"] == "FSP-77-001"
+    assert len(candidate_profile["achievements"]) >= 3
+
+    # 5. Получение профиля кандидата
+    prof_resp = await client.get("/api/v1/candidate/profile", headers=headers)
+    assert prof_resp.status_code == 200
+    assert prof_resp.json()["fsp_verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_employer_flow(client: AsyncClient):
+    # 1. Регистрация работодателя
+    reg_resp = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "hr@techcorp.ru",
+            "password": "Password123!",
+            "role": "employer",
+        },
+    )
+    assert reg_resp.status_code == 201
+    code = reg_resp.json()["verification_code"]
+
+    # 2. Подтверждение email
+    ver_resp = await client.post(
+        "/api/v1/auth/verify-email",
+        json={"email": "hr@techcorp.ru", "code": code},
+    )
+    assert ver_resp.status_code == 200
+    access_token = ver_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    # 3. Онбординг компании
+    onb_resp = await client.post(
+        "/api/v1/employer/onboarding",
+        headers=headers,
+        json={
+            "company_name": "Tech Corp AI",
+            "description": "Разработка передовых ИТ-продуктов",
+            "industry": "FinTech",
+            "website": "https://techcorp.ru",
+            "contact_person": "Анна Сидорова",
+            "phone": "+79998887766",
+            "city": "Санкт-Петербург",
+        },
+    )
+    assert onb_resp.status_code == 200
+    assert onb_resp.json()["company_name"] == "Tech Corp AI"
+    assert onb_resp.json()["onboarding_completed"] is True
+
+    # 4. Получение профиля работодателя
+    emp_prof = await client.get("/api/v1/employer/profile", headers=headers)
+    assert emp_prof.status_code == 200
+    assert emp_prof.json()["contact_person"] == "Анна Сидорова"
+
+
+@pytest.mark.asyncio
+async def test_fsp_mock_endpoints(client: AsyncClient):
+    # 1. Список спортсменов
+    athletes_resp = await client.get("/api/v1/fsp/athletes")
+    assert athletes_resp.status_code == 200
+    athletes = athletes_resp.json()
+    assert len(athletes) >= 4
+
+    # 2. Верификация конкретного FSP ID
+    verify_resp = await client.get("/api/v1/fsp/verify/FSP-78-042")
+    assert verify_resp.status_code == 200
+    v_data = verify_resp.json()
+    assert v_data["found"] is True
+    assert v_data["athlete_name"] == "Екатерина Кузнецова"
+
+    # 3. Кейс отсутствия в ФСП (по ТЗ должно быть штатным ответом without error)
+    not_found_resp = await client.get("/api/v1/fsp/verify/NON-EXISTENT-ID")
+    assert not_found_resp.status_code == 200
+    assert not_found_resp.json()["found"] is False
+
+    # 4. Keycloak userinfo stub
+    userinfo_resp = await client.get("/api/v1/fsp/keycloak/userinfo?fsp_id=FSP-77-001")
+    assert userinfo_resp.status_code == 200
+    assert "email" in userinfo_resp.json()
+    assert userinfo_resp.json()["fsp_verified"] is True
+
+    # 5. Прямой вход через кнопку 'Войти через ФСП ID'
+    quick_login = await client.post("/api/v1/fsp/login-by-fsp-id?fsp_id=FSP-77-001")
+    assert quick_login.status_code == 200
+    tokens = quick_login.json()
+    assert "access_token" in tokens
+    assert tokens["role"] == "candidate"
+    assert tokens["onboarding_completed"] is True
+
+
+@pytest.mark.asyncio
+async def test_token_refresh_and_logout(client: AsyncClient):
+    # Регистрация и логин
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "session@test.com", "password": "SecretPassword1!", "role": "candidate"},
+    )
+    reg_data = (await client.post(
+        "/api/v1/auth/register",
+        json={"email": "session2@test.com", "password": "SecretPassword1!", "role": "candidate"},
+    )).json()
+    code = reg_data["verification_code"]
+
+    ver_resp = await client.post(
+        "/api/v1/auth/verify-email",
+        json={"email": "session2@test.com", "code": code},
+    )
+    tokens = ver_resp.json()
+    refresh_token = tokens["refresh_token"]
+
+    # Обновление токенов
+    refresh_resp = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refresh_resp.status_code == 200
+    new_tokens = refresh_resp.json()
+    assert new_tokens["access_token"] != tokens["access_token"]
+
+    # Logout
+    logout_resp = await client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": new_tokens["refresh_token"]},
+    )
+    assert logout_resp.status_code == 200
+
+    # Попытка повторно использовать отозванный токен должна завершиться 401
+    fail_refresh = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": new_tokens["refresh_token"]},
+    )
+    assert fail_refresh.status_code == 401
