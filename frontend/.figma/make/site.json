@@ -1,0 +1,10 @@
+{
+  "description": "A digital platform for IT recruitment that allows employers to find qualified candidates through verified skill assessments and transparent salary offers.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
