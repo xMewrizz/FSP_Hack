@@ -19,6 +19,7 @@ class EmployerProfileUpdateRequest(BaseModel):
     website: str | None = None
     contact_person: str | None = None
     phone: str | None = None
+    city: str | None = Field(None, max_length=100)
     city: str | None = None
 
 

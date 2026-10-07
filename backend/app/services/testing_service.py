@@ -97,7 +97,10 @@ class TestingService:
 
         # Check 90 days rule if candidate is trying to change an already verified grade
         if profile.verified_grade and profile.verified_grade_updated_at:
-            delta = datetime.now(timezone.utc) - profile.verified_grade_updated_at
+            updated_at = profile.verified_grade_updated_at
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
+            delta = datetime.now(timezone.utc) - updated_at
             if delta < timedelta(days=90) and profile.verified_grade != grade:
                 days_left = 90 - delta.days
                 raise HTTPException(
