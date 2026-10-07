@@ -31,12 +31,15 @@ from app.schemas.testing import (
 class TestingService:
     @staticmethod
     async def ensure_questions_seeded(db: AsyncSession) -> None:
-        stmt = select(Question.code)
+        stmt = select(Question).where(
+            Question.code.in_([q["code"] for q in PREDEFINED_QUESTIONS])
+        )
         res = await db.execute(stmt)
-        existing_codes = set(res.scalars().all())
+        existing = {q.code: q for q in res.scalars().all()}
 
         for q_data in PREDEFINED_QUESTIONS:
-            if q_data["code"] not in existing_codes:
+            question = existing.get(q_data["code"])
+            if question is None:
                 q = Question(
                     code=q_data["code"],
                     specialization=q_data["specialization"],
@@ -50,6 +53,16 @@ class TestingService:
                     weight=q_data["weight"],
                 )
                 db.add(q)
+            else:
+                # Исправления эталонного банка должны попадать и в ранее
+                # созданную БД. Уже начатые попытки хранят свой снимок.
+                for field in (
+                    "specialization", "grade", "topic", "question_type",
+                    "question_text", "options", "correct_answers", "explanation", "weight",
+                ):
+                    value = q_data[field]
+                    if getattr(question, field) != value:
+                        setattr(question, field, value)
         await db.commit()
 
     @staticmethod
