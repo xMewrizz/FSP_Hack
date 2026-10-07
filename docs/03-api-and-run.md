@@ -140,3 +140,20 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | `POST` | `/system/seed` | Инициализация базы тестовыми кандидатами, компаниями, потребностями и приглашениями | `201 Created`: Инструкция с логинами и паролями (`Password123!`) |
 | `GET` | `/api/v1/health` | Проверка здоровья сервиса | `{"status": "ok"}` |
 | `GET` | `/docs-health` | Ссылки на документацию | `{"swagger": "/docs", "redoc": "/redoc"}` |
+
+---
+
+### 10. Публикация вакансий и отклики кандидатов (B-30) (`/api/v1/vacancies`)
+
+| Метод | URL | Описание | Доступ | Тело / Параметры | Ответ |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/vacancies` | Публикация вакансии с зарплатой («до вычета НДФЛ» / «на руки») | `Bearer JWT` (Employer) | `VacancyCreate` (`title`, `specialization`, `required_grade`, `salary_min`, `salary_max`, `salary_tax_type: "gross"|"net"`, `work_format`) | `201 Created`: `VacancyResponse` |
+| `GET` | `/vacancies` | Поиск открытых вакансий по фильтрам | Публичный / Candidate | `specialization`, `required_grade`, `work_format`, `salary_tax_type`, `min_salary`, `city` | `200 OK`: `list[VacancyResponse]` |
+| `GET` | `/vacancies/my` | Список вакансий компании | `Bearer JWT` (Employer) | — | `200 OK`: `list[VacancyResponse]` |
+| `GET` | `/vacancies/{id}` | Детали вакансии | Публичный | — | `200 OK`: `VacancyResponse` |
+| `PATCH` | `/vacancies/{id}` | Обновление вакансии | `Bearer JWT` (Employer) | `VacancyUpdate` | `200 OK`: `VacancyResponse` |
+| `DELETE` | `/vacancies/{id}` | Удаление вакансии | `Bearer JWT` (Employer) | — | `204 No Content` |
+| `POST` | `/vacancies/{id}/apply` | Самостоятельный отклик кандидата | `Bearer JWT` (Candidate) | `ApplicationCreate` (`cover_letter`) | `201 Created`: `ApplicationCandidateResponse` |
+| `GET` | `/vacancies/applications/my` | Мои отклики на вакансии | `Bearer JWT` (Candidate) | — | `200 OK`: `list[ApplicationCandidateResponse]` |
+| `GET` | `/vacancies/{id}/applications` | Список откликов (раскрывает контакты только автору вакансии, 152-ФЗ) | `Bearer JWT` (Employer) | — | `200 OK`: `list[ApplicationEmployerResponse]` (с контактами) |
+| `PATCH` | `/vacancies/applications/{id}/status` | Изменение статуса отклика (`accepted`, `rejected`) | `Bearer JWT` (Employer) | `ApplicationStatusUpdate` (`status`) | `200 OK`: статус обновлен |

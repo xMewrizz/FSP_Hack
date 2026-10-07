@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.invitation import Invitation
     from app.models.test import TestSession
     from app.models.user import User
+    from app.models.vacancy import VacancyApplication
 
 
 class CandidateProfile(Base, TimestampMixin):
@@ -77,4 +78,10 @@ class CandidateProfile(Base, TimestampMixin):
         back_populates="candidate",
         cascade="all, delete-orphan",
         order_by="desc(Invitation.created_at)",
+    )
+    applications: Mapped[list["VacancyApplication"]] = relationship(
+        "VacancyApplication",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+        order_by="desc(VacancyApplication.created_at)",
     )
