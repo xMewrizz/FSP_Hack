@@ -4,6 +4,12 @@ import uuid
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.catalog import (
+    CatalogError,
+    assert_no_substitution,
+    suggest_upshift_grade,
+    validate_test_pair,
+)
 from app.core.constants import Grade
 from app.core.question_bank import PREDEFINED_QUESTIONS
 from app.models.candidate import CandidateProfile
@@ -60,8 +66,21 @@ class TestingService:
                 detail="Профиль кандидата не найден. Сначала завершите онбординг.",
             )
 
-        spec = data.specialization or profile.specialization or "Backend"
-        grade = (data.target_grade.value if data.target_grade else None) or profile.declared_grade or "junior"
+        # B-01: значений по умолчанию нет. Если специализация или грейд не заданы
+        # ни в запросе, ни в профиле — явная ошибка 400 из каталога, а не тихий
+        # тест «Backend / junior» для чужого профиля.
+        raw_spec = data.specialization or profile.specialization
+        raw_grade = (data.target_grade.value if data.target_grade else None) or profile.declared_grade
+
+        # B-01: единый справочник. Неподдерживаемая пара -> явная ошибка 400.
+        # Тихая подмена вопросов другой специализации/уровня запрещена.
+        try:
+            spec, grade = validate_test_pair(raw_spec, raw_grade)
+        except CatalogError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            )
 
         # Check 90 days rule if candidate is trying to change an already verified grade
         if profile.verified_grade and profile.verified_grade_updated_at:
@@ -81,18 +100,25 @@ class TestingService:
             Question.grade == grade,
         )
         res_q = await db.execute(stmt_q)
-        questions = res_q.scalars().all()
+        questions = list(res_q.scalars().all())
 
+        # B-01: подмена запрещена. Пустая выдача или чужая пара -> 400, а не фолбэк.
         if not questions:
-            # Fallback to any questions for this grade or specialization
-            stmt_fallback = select(Question).where(Question.grade == grade)
-            res_fb = await db.execute(stmt_fallback)
-            questions = res_fb.scalars().all()
-
-        if not questions:
-            stmt_all = select(Question).limit(5)
-            res_all = await db.execute(stmt_all)
-            questions = res_all.scalars().all()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Для пары «{spec} / {grade}» нет заданий. "
+                    f"Сейчас тест доступен для: Backend junior, Backend middle, Backend senior. "
+                    f"Вопросы другой специализации или уровня не подставляются."
+                ),
+            )
+        try:
+            assert_no_substitution(spec, grade, questions)
+        except CatalogError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc),
+            )
 
         # Build snapshot for storage
         snapshot = []
@@ -227,12 +253,9 @@ class TestingService:
             profile.verified_grade_updated_at = now
             session.feedback = f"Поздравляем! Вы набрали {percentage}% и успешно подтвердили квалификацию {session.target_grade}."
             if percentage >= 90.0:
-                if session.target_grade == "junior":
-                    suggested_grade = "middle"
-                elif session.target_grade == "middle":
-                    suggested_grade = "senior"
-                elif session.target_grade == "senior":
-                    suggested_grade = "lead"
+                # B-01: следующий грейд предлагаем только если тест по нему
+                # доступен (senior -> lead сейчас даёт None, lead не предлагаем).
+                suggested_grade = suggest_upshift_grade(session.specialization, session.target_grade)
         else:
             session.feedback = (
                 f"Вы набрали {percentage}%. Для подтверждения грейда {session.target_grade} "

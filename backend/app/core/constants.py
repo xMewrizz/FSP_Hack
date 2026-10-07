@@ -39,6 +39,10 @@ class QuestionType(str, Enum):
     CODE = "code"
 
 
+# Полный перечень известных значений (данные не удаляем: профиль, потребность
+# и фильтры их знают). Что ДОСТУПНО ДЛЯ ТЕСТА прямо сейчас — см. canonical
+# app.core.catalog (B-01): Backend × junior/middle/senior. Остальное скрыто
+# до проверенного банка (B-02), а не удалено.
 SPECIALIZATIONS = [
     "Backend",
     "Frontend",
