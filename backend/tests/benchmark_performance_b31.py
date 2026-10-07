@@ -8,8 +8,8 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_api_performance_and_memory_without_gpu_b31(client: AsyncClient):
     """
-    B-31: Проверить тест, поиск и подбор без GPU при нескольких десятках пользователей.
-    Султан проверяет API и базу. Замеряем время ответа (latencies) и расход памяти (tracemalloc).
+    Ручной замер B-31: время ответа и память при параллельных запросах.
+    Используются ASGI-клиент и SQLite из conftest.py, а не сеть и PostgreSQL.
     """
     tracemalloc.start()
 
@@ -74,7 +74,7 @@ async def test_api_performance_and_memory_without_gpu_b31(client: AsyncClient):
     print(f"P95 Latency:    {p95:.2f} ms")
     print(f"P99 Latency:    {p99:.2f} ms")
     print(f"Peak Memory:    {peak_mem_mb:.2f} MB")
-    print(f"GPU Dependency: None (100% CPU, SQLite/Postgres + FastAPI async)")
+    print("GPU Dependency: None (in-process ASGI + SQLite)")
     print("--------------------------------------------------------------------------")
 
     # Без GPU при 50 параллельных запросах API должен отдавать результаты быстрее 500мс
