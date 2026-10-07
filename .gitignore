@@ -43,7 +43,9 @@ uploads/
 .docker/
 
 # ML / LLM (Qwen 14B локально - веса не коммитим)
-models/
+/models/
+ml-service/models/
+!backend/app/models/
 *.bin
 *.safetensors
 *.gguf
