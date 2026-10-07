@@ -61,6 +61,8 @@ def main() -> None:
                     "declared_grade": "junior",
                     "work_format": "remote",
                     "agreed_152_fz": True,
+                    "agreed_publication": True,
+                    "visibility_public": True,
                     "agreed_osint": False,
                 },
             ),

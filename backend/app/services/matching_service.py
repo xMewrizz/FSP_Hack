@@ -48,7 +48,11 @@ class MatchingService:
                 selectinload(CandidateProfile.fsp_achievements),
                 selectinload(CandidateProfile.test_sessions),
             )
-            .where(CandidateProfile.onboarding_completed.is_(True))
+            .where(
+                CandidateProfile.onboarding_completed.is_(True),
+                CandidateProfile.agreed_publication.is_(True),
+                CandidateProfile.visibility_public.is_(True),
+            )
         )
         res_cand = await db.execute(stmt_cand)
         candidates = res_cand.scalars().all()
@@ -193,7 +197,11 @@ class MatchingService:
                 selectinload(CandidateProfile.fsp_achievements),
                 selectinload(CandidateProfile.test_sessions),
             )
-            .where(CandidateProfile.onboarding_completed.is_(True))
+            .where(
+                CandidateProfile.onboarding_completed.is_(True),
+                CandidateProfile.agreed_publication.is_(True),
+                CandidateProfile.visibility_public.is_(True),
+            )
         )
 
         if specialization:

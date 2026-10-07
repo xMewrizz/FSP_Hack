@@ -35,7 +35,11 @@ class InvitationService:
         stmt_cand = (
             select(CandidateProfile)
             .options(selectinload(CandidateProfile.user))
-            .where(CandidateProfile.id == data.candidate_id)
+            .where(
+                CandidateProfile.id == data.candidate_id,
+                CandidateProfile.agreed_publication.is_(True),
+                CandidateProfile.visibility_public.is_(True),
+            )
         )
         res_cand = await db.execute(stmt_cand)
         candidate = res_cand.scalar_one_or_none()

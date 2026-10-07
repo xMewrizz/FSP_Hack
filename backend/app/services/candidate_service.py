@@ -55,6 +55,14 @@ class CandidateService:
 
         profile.agreed_152_fz = True
         profile.agreed_152_fz_at = now
+        if data.visibility_public and not data.agreed_publication:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Чтобы показывать профиль работодателям, нужно отдельное согласие на публикацию.",
+            )
+        profile.agreed_publication = data.agreed_publication
+        profile.agreed_publication_at = now if data.agreed_publication else None
+        profile.visibility_public = data.visibility_public and data.agreed_publication
         profile.agreed_osint = data.agreed_osint
         profile.agreed_osint_at = now if data.agreed_osint else None
 
@@ -134,6 +142,17 @@ class CandidateService:
             )
 
         update_dict = data.model_dump(exclude_unset=True)
+        publication = update_dict.get("agreed_publication", profile.agreed_publication)
+        visibility = update_dict.get("visibility_public", profile.visibility_public)
+        if visibility and not publication and update_dict.get("visibility_public") is True:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Чтобы показывать профиль работодателям, нужно отдельное согласие на публикацию.",
+            )
+        if "agreed_publication" in update_dict:
+            profile.agreed_publication_at = datetime.now(timezone.utc) if publication else None
+            if not publication:
+                update_dict["visibility_public"] = False
         for key, value in update_dict.items():
             if key == "work_format" and value:
                 profile.work_format = value.value if hasattr(value, "value") else value
@@ -144,7 +163,12 @@ class CandidateService:
 
         await db.commit()
         await db.refresh(profile)
-        return CandidateService._build_response(profile, user.email)
+        refreshed = await db.execute(
+            select(CandidateProfile)
+            .options(selectinload(CandidateProfile.fsp_achievements))
+            .where(CandidateProfile.id == profile.id)
+        )
+        return CandidateService._build_response(refreshed.scalar_one(), user.email)
 
     @staticmethod
     async def link_fsp_id(
@@ -212,6 +236,8 @@ class CandidateService:
             fsp_id=profile.fsp_id,
             fsp_verified=profile.fsp_verified,
             agreed_152_fz=profile.agreed_152_fz,
+            agreed_publication=profile.agreed_publication,
+            visibility_public=profile.visibility_public,
             agreed_osint=profile.agreed_osint,
             onboarding_completed=profile.onboarding_completed,
             achievements=[

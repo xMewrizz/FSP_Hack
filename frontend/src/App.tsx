@@ -356,6 +356,8 @@ type CandidateProfileData = {
   fsp_id: string | null;
   fsp_verified: boolean;
   agreed_152_fz: boolean;
+  agreed_publication: boolean;
+  visibility_public: boolean;
   agreed_osint: boolean;
 };
 
@@ -1293,6 +1295,23 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     }
   };
 
+  const saveCandidatePrivacy = async () => {
+    if (!profile) return;
+    setProfileSaving(true);
+    try {
+      const updated = await apiPut<CandidateProfileData>("/candidate/profile", {
+        agreed_publication: profile.agreed_publication,
+        visibility_public: profile.visibility_public,
+      });
+      setProfile(updated);
+      onNotify("Настройки видимости сохранены");
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось сохранить настройки", "error");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const uploadResume = async (file?: File) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".pdf") || file.size > 10 * 1024 * 1024) {
@@ -1580,7 +1599,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   return (
     <div className="page-content">
       <div className="settings-layout">
-        <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Состояние профиля</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Согласие на OSINT-проверку</span><strong>{profile?.agreed_osint ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Управление видимостью профиля</span><strong>Не поддерживается API сервера</strong></div><div className="form-error" role="note">Сервер пока не хранит отдельное согласие на публикацию и настройки видимости.</div></section>
+        <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Кому виден профиль</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Согласие на OSINT-проверку</span><strong>{profile?.agreed_osint ? "Сохранено" : "Не предоставлено"}</strong></div><label className="consent-large"><input type="checkbox" checked={profile?.agreed_publication ?? false} onChange={(event) => setProfile((current) => current ? { ...current, agreed_publication: event.target.checked, visibility_public: event.target.checked ? current.visibility_public : false } : current)} /><span>Разрешаю показывать мой профиль работодателям</span></label><label className="consent-large"><input type="checkbox" checked={profile?.visibility_public ?? false} disabled={!profile?.agreed_publication} onChange={(event) => setProfile((current) => current ? { ...current, visibility_public: event.target.checked } : current)} /><span>Показывать профиль в поиске и подборке</span></label><p className="feature-description feature-description--left">Без согласия на публикацию профиль остаётся скрытым. Видимость можно выключить в любой момент.</p><Button disabled={!profile || profileSaving} onClick={() => void saveCandidatePrivacy()}>{profileSaving ? "Сохраняем…" : "Сохранить настройки"}</Button></section>
         <section className="feature-card"><div className="feature-head"><div><span>ИНТЕГРАЦИИ</span><strong>Данные ФСП</strong></div></div><label className="field field--flush"><span>ФСП ID</span><input value={fspInput} onChange={(event) => setFspInput(event.target.value)} placeholder="Например, FSP-77-001" /></label><div className="integration-card"><div className="fsp-symbol">◆</div><div><strong>{profile?.fsp_verified ? "ID подтверждён" : "ID не подтверждён"}</strong><span>{profile?.fsp_id ?? "Не привязан"}</span></div><Button variant="outline" disabled={!fspInput.trim()} onClick={() => void linkFspId()}>Проверить</Button></div></section>
       </div>
     </div>
@@ -2005,6 +2024,8 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
   city: string;
   fsp_id: string | null;
   agreed_152_fz: boolean;
+  agreed_publication: boolean;
+  visibility_public: boolean;
   agreed_osint: boolean;
 }) => Promise<void> }) {
   const [step, setStep] = useState(0);
@@ -2017,6 +2038,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
   const [format, setFormat] = useState("Удалённо");
   const [fspId, setFspId] = useState("");
   const [osint, setOsint] = useState(false);
+  const [publication, setPublication] = useState(false);
   const [saving, setSaving] = useState(false);
   const steps = ["Профиль", "Специализация", "Формат работы", "Резюме", "ФСП и проверка"];
   const canContinue = step !== 0 || (consent && firstName.trim().length > 0 && lastName.trim().length > 0);
@@ -2032,6 +2054,8 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
         city: city.trim(),
         fsp_id: fspId.trim() || null,
         agreed_152_fz: consent,
+        agreed_publication: publication,
+        visibility_public: publication,
         agreed_osint: osint,
       });
     } finally {
@@ -2049,7 +2073,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
           {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Грейд подтверждает только тест. Достижения ФСП влияют на порядок в подборке, но грейд не подтверждают. {TEST_AVAILABILITY_HINT}</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>{!isTestablePair(specialization, grade) && <p className="feature-description feature-description--left">Для пары «{specialization} · {grade}» теста пока нет — профиль сохранить можно, но сквозной сценарий (тест → подборка → приглашение) сейчас проходится только на Backend Junior / Middle / Senior. <Button variant="outline" onClick={() => { setSpecialization("Backend"); setGrade("middle"); }}>Выбрать Backend · Middle для теста</Button></p>}</>}
           {step === 2 && <><span>ШАГ 3</span><strong>Где и как вы хотите работать</strong><div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={city} onChange={(event) => setCity(event.target.value)} /></label><label className="field"><span>ФОРМАТ</span><select value={format} onChange={(event) => setFormat(event.target.value)}><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div><ToggleRow title="Готов к переезду" detail="Работодатели смогут учитывать это при подборе" /></>}
           {step === 3 && <><span>ШАГ 4</span><strong>Резюме и опыт</strong><p>После завершения настройки откройте раздел «Профиль», чтобы загрузить PDF. Распознанные данные можно проверить и исправить перед сохранением.</p><div className="notice-box">Для продолжения загрузка резюме не обязательна.</div></>}
-          {step === 4 && <><span>ШАГ 5</span><strong>Свяжите достижения ФСП</strong><p>ФСП ID добавит подтверждённые олимпиады и хакатоны. Если ID нет, профиль продолжит работать.</p><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label><label className="consent-large"><input type="checkbox" checked={osint} onChange={(event) => setOsint(event.target.checked)} /><span>Разрешаю проверку истории резюме для расчёта оценки доверия. Без согласия будет установлено нейтральное значение 0,50.</span></label></>}
+          {step === 4 && <><span>ШАГ 5</span><strong>Публикация и данные ФСП</strong><p>Профиль можно сохранить скрытым и открыть для работодателей позже в настройках.</p><label className="consent-large"><input type="checkbox" checked={publication} onChange={(event) => setPublication(event.target.checked)} /><span>Разрешаю показывать мой профиль работодателям в поиске и подборке</span></label><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label><label className="consent-large"><input type="checkbox" checked={osint} onChange={(event) => setOsint(event.target.checked)} /><span>Разрешаю проверку истории резюме для расчёта оценки доверия. Без согласия будет установлено нейтральное значение 0,50.</span></label></>}
         </div>
         <div className="onboarding-actions"><Button variant="ghost" onClick={() => setStep(Math.max(0, step - 1))}>{step === 0 ? "Вернуться ко входу" : "Назад"}</Button><Button className={!canContinue || saving ? "button--disabled" : ""} onClick={() => { if (!canContinue || saving) return; if (step === steps.length - 1) void complete(); else setStep(step + 1); }}>{saving ? "Сохраняем…" : step === steps.length - 1 ? "Завершить настройку" : "Далее"} <Icon name="chevron" /></Button></div>
       </div>
