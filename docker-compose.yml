@@ -37,7 +37,7 @@ services:
       ML_SERVICE_URL: http://ml-service:8001
       FSP_MOCK_MODE: "true"
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
 
   ml-service:
     build: ./ml-service
@@ -59,10 +59,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-5173}:80"
 
 volumes:
   pgdata:

@@ -5,8 +5,7 @@ app = FastAPI(title="FSP ML-service", version="0.1.0")
 
 @app.get("/health")
 def health():
-    # TODO: проверка доступности Ollama (Qwen 14B) + эмбеддингов
-    return {"status": "ok", "model": "qwen2.5:14b (external ollama)"}
+    return {"status": "ok"}
 
 
 @app.post("/parse-resume")
