@@ -1,11 +1,11 @@
-# NOTE: frontend переносится из готовых макетов (React+Vite+Tailwind).
-# Dockerfile-заглушка — бэкендер/фронт поправят под реальный package.json.
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install || true
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+ARG VITE_API_URL=http://localhost:8000/api/v1
+ENV VITE_API_URL=$VITE_API_URL
 COPY . .
-RUN npm run build || (mkdir -p dist && echo "placeholder" > dist/index.html)
+RUN pnpm build
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html

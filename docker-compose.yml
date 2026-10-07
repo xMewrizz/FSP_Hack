@@ -45,7 +45,10 @@ services:
       - "8001:8001"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
     restart: unless-stopped
     depends_on:
       - backend
