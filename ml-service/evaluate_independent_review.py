@@ -100,15 +100,15 @@ def main() -> None:
         final = checked_labels(read_jsonl(args.final_labels), expected, args.final_labels)
     candidates = json.loads((DATA / "candidates.json").read_text(encoding="utf-8"))
     needs = json.loads((DATA / "needs.json").read_text(encoding="utf-8"))
-    print("Сравнение прототипа B-14 с простой сортировкой; API подбора B-15 пока использует другую логику")
+    print("Сравнение формулы B-14 с простой сортировкой на синтетических данных")
     print("Запрос | Сортировка | Первый релевантный | P@3 | nDCG@min(5,N) | Кандидатов | Максимум P@3")
     for need in needs:
         need_code = need["synthetic_code"]
         eligible = [item for item in candidates if f"{need_code}:{item['synthetic_code']}" in expected]
         if not eligible:
             continue
-        ranked = [item["candidate_code"] for item in rank_candidates(need, eligible)["confirmed"]]
-        baseline = baseline_rank(need, eligible)["confirmed"]
+        ranked = [item["candidate_code"] for item in rank_candidates(need, eligible)]
+        baseline = baseline_rank(need, eligible)
         if set(ranked) != {item["synthetic_code"] for item in eligible} or set(baseline) != set(ranked):
             raise ValueError(f"Сортировка потеряла кандидата для {need_code}")
         relevant_count = sum(final[f"{need_code}:{code}"] == 2 for code in ranked)

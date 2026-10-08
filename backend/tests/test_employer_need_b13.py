@@ -1,5 +1,9 @@
+import uuid
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from app.models.candidate import CandidateProfile
+from conftest import TestingSessionLocal
 
 
 @pytest.mark.asyncio
@@ -308,6 +312,15 @@ async def test_matching_weighted_skills_and_salary_tax(client: AsyncClient):
     # Cand E: has Python (weight 5.0), salary expectation is None
     cand_e_id = await create_candidate("cand_e@example.com", ["Python"], None, "gross")
 
+    # Этот сценарий проверяет веса и зарплату. Допуск по грейду проверяется отдельно.
+    async with TestingSessionLocal() as db:
+        profiles = (await db.scalars(select(CandidateProfile))).all()
+        for profile in profiles:
+            if str(profile.id) in {cand_a_id, cand_b_id, cand_c_id, cand_d_id, cand_e_id}:
+                profile.verified_grade = "senior"
+                profile.verified_specialization = "Backend"
+        await db.commit()
+
     # Query matching endpoint
     matching_resp = await client.get(f"/api/v1/matching/for-need/{need_id}", headers=emp_headers)
     assert matching_resp.status_code == 200
@@ -345,6 +358,11 @@ async def test_matching_weighted_skills_and_salary_tax(client: AsyncClient):
 
     # Cand F: has compound skill "Python & Структуры данных" -> must match requirement "Python"
     cand_f_id = await create_candidate("cand_f@example.com", ["Python & Структуры данных"], 250000.0, "gross")
+    async with TestingSessionLocal() as db:
+        profile = await db.get(CandidateProfile, uuid.UUID(cand_f_id))
+        profile.verified_grade = "senior"
+        profile.verified_specialization = "Backend"
+        await db.commit()
     resp_f = await client.get(f"/api/v1/matching/for-need/{need_id}", headers=emp_headers)
     assert resp_f.status_code == 200
     item_f = next(c for c in resp_f.json()["candidates"] if c["candidate_id"] == cand_f_id)

@@ -52,7 +52,7 @@ class SeedService:
                 "city": "Санкт-Петербург",
                 "specialization": "Frontend",
                 "declared_grade": "middle",
-                "verified_grade": "middle",
+                "verified_grade": None,
                 "work_format": "hybrid",
                 "salary_expectation": 220000.0,
                 "salary_tax_type": "gross",
@@ -70,7 +70,7 @@ class SeedService:
                 "city": "Новосибирск",
                 "specialization": "DevOps / SRE",
                 "declared_grade": "junior",
-                "verified_grade": "junior",
+                "verified_grade": None,
                 "work_format": "remote",
                 "salary_expectation": 160000.0,
                 "salary_tax_type": "gross",
@@ -106,7 +106,7 @@ class SeedService:
                 "city": "Екатеринбург",
                 "specialization": "Frontend",
                 "declared_grade": "senior",
-                "verified_grade": "senior",
+                "verified_grade": None,
                 "work_format": "remote",
                 "salary_expectation": 300000.0,
                 "salary_tax_type": "gross",
@@ -144,7 +144,8 @@ class SeedService:
                     specialization=c["specialization"],
                     declared_grade=c["declared_grade"],
                     verified_grade=c["verified_grade"],
-                    verified_grade_updated_at=now,
+                    verified_specialization=c["specialization"] if c["verified_grade"] else None,
+                    verified_grade_updated_at=now if c["verified_grade"] else None,
                     work_format=c["work_format"],
                     salary_expectation=c.get("salary_expectation"),
                     salary_tax_type=c.get("salary_tax_type", "gross"),
@@ -179,21 +180,21 @@ class SeedService:
                         )
                         db.add(achievement)
 
-                # Add test session
-                session = TestSession(
-                    user_id=user.id,
-                    candidate_profile_id=profile.id,
-                    specialization=c["specialization"],
-                    target_grade=c["verified_grade"] or "junior",
-                    status="completed",
-                    score=95.0,
-                    max_score=100.0,
-                    percentage=95.0,
-                    passed=True,
-                    feedback="Тест успешно сдан с отличием.",
-                    completed_at=now,
-                )
-                db.add(session)
+                if c["verified_grade"]:
+                    session = TestSession(
+                        user_id=user.id,
+                        candidate_profile_id=profile.id,
+                        specialization=c["specialization"],
+                        target_grade=c["verified_grade"],
+                        status="completed",
+                        score=95.0,
+                        max_score=100.0,
+                        percentage=95.0,
+                        passed=True,
+                        feedback="Демонстрационный результат теста.",
+                        completed_at=now,
+                    )
+                    db.add(session)
                 candidate_profiles.append(profile)
             else:
                 stmt_p = select(CandidateProfile).where(CandidateProfile.user_id == user.id)

@@ -445,7 +445,10 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
   if (route.startsWith("/matching/for-need/") && method === "GET") {
     const needId = route.split("/").pop();
     const need = needs.find((item) => item.id === needId) ?? needs[0];
-    return { need_id: need.id, need_title: need.title, total: candidates.length, candidates } as T;
+    const eligible = candidates.filter((item) =>
+      item.specialization === need.specialization && item.verified_grade === need.required_grade,
+    );
+    return { need_id: need.id, need_title: need.title, total: eligible.length, candidates: eligible } as T;
   }
   if (route === "/matching/search" && method === "GET") {
     const specialization = url.searchParams.get("specialization");
@@ -455,7 +458,7 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     const fspOnly = url.searchParams.get("fsp_only") === "true";
     return candidates.filter((item) =>
       (!specialization || item.specialization === specialization) &&
-      (!grade || item.verified_grade === grade || item.declared_grade === grade) &&
+      (!grade || item.verified_grade === grade) &&
       (!workFormat || item.work_format === workFormat) &&
       (!city || item.city.toLowerCase().includes(city)) &&
       (!fspOnly || item.fsp_verified),

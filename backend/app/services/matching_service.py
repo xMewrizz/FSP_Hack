@@ -1,45 +1,112 @@
-from typing import Any
+"""Выдача кандидатов работодателю по подтверждённой категории."""
+
 import uuid
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+from app.core.ranking import rank_candidates
 from app.models.candidate import CandidateProfile
-from app.models.fsp import FSPAchievement
 from app.models.need import EmployerNeed
-from app.models.test import TestSession
+from app.models.test import GradeAssessment
 from app.models.user import User
-from app.schemas.matching import (
-    CandidateMatchItem,
-    MatchExplanation,
-    MatchingCandidatesResponse,
-)
-
-GRADE_WEIGHTS = {
-    "junior": 1,
-    "middle": 2,
-    "senior": 3,
-    "lead": 4,
-}
+from app.schemas.matching import CandidateMatchItem, MatchExplanation, MatchingCandidatesResponse
 
 
-def _matches_skill(req_name: str, cand_skills: set[str], bio_text: str) -> bool:
-    if req_name in cand_skills:
-        return True
-    if bio_text and req_name in bio_text:
-        return True
-    req_words = {w for w in req_name.replace("&", " ").replace("/", " ").replace(",", " ").split() if len(w) > 1}
-    for cand_s in cand_skills:
-        if req_name == cand_s:
-            return True
-        cand_words = {w for w in cand_s.replace("&", " ").replace("/", " ").replace(",", " ").split() if len(w) > 1}
-        if req_words and cand_words and (req_words <= cand_words or cand_words <= req_words):
-            return True
-        if len(req_name) >= 3 and (f" {req_name} " in f" {cand_s} " or cand_s.startswith(f"{req_name} ") or cand_s.endswith(f" {req_name}")):
-            return True
-        if len(cand_s) >= 3 and (f" {cand_s} " in f" {req_name} " or req_name.startswith(f"{cand_s} ") or req_name.endswith(f" {cand_s}")):
-            return True
-    return False
+def _candidate_data(candidate: CandidateProfile, percentage: float | None) -> dict:
+    return {
+        "id": candidate.id,
+        "specialization": candidate.verified_specialization or candidate.specialization,
+        "verified_grade": candidate.verified_grade,
+        "declared_grade": candidate.declared_grade,
+        "skills": candidate.skills or [],
+        "test_percentage": percentage,
+        "work_format": candidate.work_format,
+        "city": candidate.city,
+        "salary_expectation": candidate.salary_expectation,
+        "salary_tax_type": candidate.salary_tax_type,
+        "fsp_verified": candidate.fsp_verified,
+        "fsp_achievements": [
+            {"id": str(item.id)}
+            for item in candidate.fsp_achievements
+            if item.verified
+        ],
+    }
+
+
+def _need_data(need: EmployerNeed) -> dict:
+    return {
+        "specialization": need.specialization,
+        "required_grade": need.required_grade,
+        "required_skills": need.required_skills or [],
+        "work_format": need.work_format,
+        "city": need.city,
+        "salary_max": need.salary_max,
+        "salary_tax_type": need.salary_tax_type,
+    }
+
+
+def _match_item(candidate: CandidateProfile, score: dict, percentage: float | None, need: EmployerNeed) -> CandidateMatchItem:
+    tax_labels = {"gross": "до вычета НДФЛ", "net": "на руки"}
+    candidate_tax = tax_labels.get(candidate.salary_tax_type, candidate.salary_tax_type)
+    need_tax = tax_labels.get(need.salary_tax_type, need.salary_tax_type)
+    if candidate.salary_expectation is None:
+        salary_note = "Ожидания по зарплате не указаны"
+    elif candidate.salary_tax_type != need.salary_tax_type:
+        salary_note = f"Разный налоговый базис: кандидат — {candidate_tax}, потребность — {need_tax}"
+    elif score["salary_match"]:
+        salary_note = "Ожидания по зарплате укладываются в бюджет"
+    else:
+        salary_note = "Ожидания по зарплате выше максимума бюджета"
+
+    matched = score["matched_skills"]
+    missing = score["missing_skills"]
+    summary = [f"Подтверждён {candidate.verified_grade.capitalize()} по направлению {candidate.verified_specialization or candidate.specialization}."]
+    if matched:
+        summary.append(f"Совпали навыки: {', '.join(matched)}.")
+    if missing:
+        summary.append(f"Не указаны навыки: {', '.join(missing)}.")
+    if score["salary_match"]:
+        summary.append("Зарплатные ожидания соответствуют бюджету.")
+    elif candidate.salary_expectation is not None and candidate.salary_tax_type != need.salary_tax_type:
+        summary.append("Требуется согласование налогового типа зарплаты.")
+    else:
+        summary.append(salary_note + ".")
+    if score["fsp_bonus"]:
+        summary.append("Учтено достижение ФСП.")
+    top_achievement = next((item for item in candidate.fsp_achievements if item.verified), None)
+
+    return CandidateMatchItem(
+        candidate_id=candidate.id,
+        first_name=candidate.first_name,
+        last_name=candidate.last_name,
+        specialization=candidate.specialization,
+        verified_grade=candidate.verified_grade,
+        declared_grade=candidate.declared_grade,
+        city=candidate.city,
+        work_format=candidate.work_format,
+        fsp_id=candidate.fsp_id,
+        fsp_verified=candidate.fsp_verified,
+        fsp_sport_category=top_achievement.sport_category if top_achievement else None,
+        fsp_rating=top_achievement.score_or_rating if top_achievement else None,
+        achievements_count=len(candidate.fsp_achievements),
+        skills=candidate.skills or [],
+        salary_expectation=candidate.salary_expectation,
+        salary_tax_type=candidate.salary_tax_type,
+        test_percentage=percentage,
+        match_score=score["points"],
+        match_explanation=MatchExplanation(
+            grade_match=True,
+            matched_skills=matched,
+            missing_skills=missing,
+            fsp_bonus=score["fsp_bonus"],
+            salary_match=(False if candidate.salary_expectation is not None and candidate.salary_tax_type != need.salary_tax_type else score["salary_match"]),
+            salary_note=salary_note,
+            summary=" ".join(summary),
+        ),
+    )
 
 
 class MatchingService:
@@ -47,232 +114,72 @@ class MatchingService:
     async def match_candidates_for_need(
         db: AsyncSession, need_id: uuid.UUID, current_user: User | None = None
     ) -> MatchingCandidatesResponse:
-        stmt_need = (
+        need = await db.scalar(
             select(EmployerNeed)
             .options(selectinload(EmployerNeed.employer))
             .where(EmployerNeed.id == need_id)
         )
-        res_need = await db.execute(stmt_need)
-        need = res_need.scalar_one_or_none()
-
-        if not need:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Потребность не найдена",
-            )
-
+        if need is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Потребность не найдена")
         if current_user and need.employer and need.employer.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="У вас нет прав для просмотра подбора по чужой потребности",
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Чужая потребность недоступна")
 
-        stmt_cand = (
+        candidates = (await db.scalars(
             select(CandidateProfile)
-            .options(
-                selectinload(CandidateProfile.fsp_achievements),
-                selectinload(CandidateProfile.test_sessions),
-            )
+            .options(selectinload(CandidateProfile.fsp_achievements), selectinload(CandidateProfile.test_sessions))
             .where(
                 CandidateProfile.onboarding_completed.is_(True),
                 CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
+                CandidateProfile.verified_grade.is_not(None),
             )
-        )
-        res_cand = await db.execute(stmt_cand)
-        candidates = res_cand.scalars().all()
+        )).all()
+        if not candidates:
+            return MatchingCandidatesResponse(need_id=need.id, need_title=need.title, total=0, candidates=[])
 
-        scored_candidates: list[CandidateMatchItem] = []
-
-        req_grade_val = GRADE_WEIGHTS.get((need.required_grade or "").lower(), 1)
-        
-        # 1. Parse required skills with weights
-        req_skills_items: list[tuple[str, float]] = []
-        for s in (need.required_skills or []):
-            if isinstance(s, dict):
-                name = (s.get("name") or "").strip().lower()
-                if not name:
-                    continue
-                try:
-                    w = float(s.get("weight", 1.0))
-                except (ValueError, TypeError):
-                    w = 1.0
-                req_skills_items.append((name, max(0.1, w)))
-
-        need_tax = (getattr(need, "salary_tax_type", "gross") or "gross").lower()
-        tax_labels = {
-            "gross": "до вычета НДФЛ",
-            "net": "на руки",
-        }
-        need_tax_label = tax_labels.get(need_tax, need_tax)
-
-        for cand in candidates:
-            # 1. Grade match score (max 35)
-            cand_grade_str = (cand.verified_grade or cand.declared_grade or "junior").lower()
-            cand_grade_val = GRADE_WEIGHTS.get(cand_grade_str, 1)
-
-            grade_matched = False
-            if cand.verified_grade and cand_grade_val >= req_grade_val:
-                grade_score = 35.0
-                grade_matched = True
-            elif cand.verified_grade and cand_grade_val == req_grade_val - 1:
-                grade_score = 22.0
-            elif cand.declared_grade and cand_grade_val >= req_grade_val:
-                grade_score = 20.0
-            else:
-                grade_score = 12.0
-
-            # 2. Skills match score with dynamic weights (max 35)
-            cand_skills_normalized = {s.lower() for s in (cand.skills or [])}
-            bio_text = (cand.bio or "").lower()
-
-            matched_skills = []
-            missing_skills = []
-            matched_weight = 0.0
-            total_weight = sum(w for _, w in req_skills_items)
-
-            if req_skills_items:
-                for req_name, req_w in req_skills_items:
-                    if _matches_skill(req_name, cand_skills_normalized, bio_text):
-                        matched_skills.append(req_name.capitalize())
-                        matched_weight += req_w
-                    else:
-                        missing_skills.append(req_name.capitalize())
-                skills_ratio = matched_weight / total_weight if total_weight > 0 else 0.0
-                skills_score = round(skills_ratio * 35.0, 1)
-            else:
-                skills_score = 30.0
-
-            # 3. Work format & location (max 10)
-            format_score = 7.0
-            if cand.work_format == "remote" or need.work_format == "remote":
-                format_score = 10.0
-            elif cand.work_format == need.work_format:
-                format_score = 10.0
-
-            if need.city and cand.city and need.city.lower() == cand.city.lower():
-                format_score = min(10.0, format_score + 2.0)
-
-            # 4. Salary expectations & Tax type matching (max 10)
-            cand_tax = (getattr(cand, "salary_tax_type", "gross") or "gross").lower()
-            cand_tax_label = tax_labels.get(cand_tax, cand_tax)
-            cand_salary = cand.salary_expectation
-
-            if cand_salary is None:
-                salary_match = None
-                salary_note = "Ожидания по зарплате не указаны (договорная)"
-                salary_score = 5.0
-            else:
-                if cand_tax == need_tax:
-                    if cand_salary <= need.salary_max:
-                        salary_match = True
-                        salary_note = (
-                            f"Ожидания ({int(cand_salary):,} ₽ {need_tax_label}) "
-                            f"укладываются в бюджет вакансии (до {int(need.salary_max):,} ₽)"
-                        )
-                        salary_score = 10.0
-                    else:
-                        salary_match = False
-                        salary_note = (
-                            f"Ожидания ({int(cand_salary):,} ₽ {need_tax_label}) "
-                            f"выше максимума ({int(need.salary_max):,} ₽)"
-                        )
-                        salary_score = 0.0
-                else:
-                    salary_match = False
-                    salary_note = (
-                        f"Разный налоговый базис: потребность «{need_tax_label}», "
-                        f"соискатель «{cand_tax_label}»"
-                    )
-                    salary_score = 2.0
-
-            # 5. FSP bonus (max 10)
-            fsp_bonus = False
-            fsp_score = 0.0
-            fsp_category = None
-            fsp_rating = None
-
-            if cand.fsp_verified:
-                fsp_bonus = True
-                fsp_score = 10.0
-                if cand.fsp_achievements:
-                    top_ach = cand.fsp_achievements[0]
-                    fsp_category = top_ach.sport_category
-                    fsp_rating = top_ach.score_or_rating
-
-            total_score = round(min(100.0, grade_score + skills_score + format_score + salary_score + fsp_score), 1)
-
-            # Summary formulation
-            summary_parts = []
-            if cand.verified_grade:
-                summary_parts.append(f"Подтверждённый уровень: {cand.verified_grade.capitalize()}.")
-            else:
-                summary_parts.append(f"Заявленный уровень: {cand.declared_grade or 'junior'}.")
-
-            if matched_skills:
-                summary_parts.append(f"Совпадение по стеку: {', '.join(matched_skills)}.")
-            if missing_skills:
-                summary_parts.append(f"Требуется уточнить: {', '.join(missing_skills)}.")
-            if salary_match is True:
-                summary_parts.append(f"Зарплатные ожидания соответствуют («{need_tax_label}»).")
-            elif salary_match is False:
-                if cand_tax != need_tax:
-                    summary_parts.append(f"Требуется согласование налогового типа («{cand_tax_label}» vs «{need_tax_label}»).")
-                else:
-                    summary_parts.append("Зарплатные ожидания превышают максимум вилки.")
-            if fsp_bonus:
-                summary_parts.append("Участник соревнований ФСП (высокий алгоритмический рейтинг).")
-
-            explanation = MatchExplanation(
-                grade_match=grade_matched,
-                matched_skills=matched_skills,
-                missing_skills=missing_skills,
-                fsp_bonus=fsp_bonus,
-                salary_match=salary_match,
-                salary_note=salary_note,
-                summary=" ".join(summary_parts),
+        by_id = {item.id: item for item in candidates}
+        assessments = (await db.scalars(
+            select(GradeAssessment)
+            .where(
+                GradeAssessment.candidate_profile_id.in_([item.id for item in candidates]),
+                GradeAssessment.status == "completed",
+                GradeAssessment.passed.is_(True),
             )
+            .order_by(GradeAssessment.completed_at.desc())
+        )).all()
+        confirmed_results: dict[uuid.UUID, float] = {}
+        for assessment in assessments:
+            candidate = by_id.get(assessment.candidate_profile_id)
+            if (
+                candidate is not None
+                and candidate.id not in confirmed_results
+                and assessment.target_grade.casefold() == (candidate.verified_grade or "").casefold()
+                and assessment.specialization.casefold() == (candidate.verified_specialization or candidate.specialization or "").casefold()
+            ):
+                confirmed_results[candidate.id] = assessment.percentage
 
-            # Latest test percentage
-            test_perc = None
-            if cand.test_sessions:
-                test_perc = cand.test_sessions[0].percentage
+        for candidate in candidates:
+            if candidate.id in confirmed_results:
+                continue
+            legacy_result = next((session for session in candidate.test_sessions if (
+                session.assessment_id is None
+                and session.status == "completed"
+                and session.passed
+                and session.target_grade.casefold() == (candidate.verified_grade or "").casefold()
+                and session.specialization.casefold() == (candidate.verified_specialization or candidate.specialization or "").casefold()
+            )), None)
+            if legacy_result is not None:
+                confirmed_results[candidate.id] = legacy_result.percentage
 
-            item = CandidateMatchItem(
-                candidate_id=cand.id,
-                first_name=cand.first_name,
-                last_name=cand.last_name,
-                specialization=cand.specialization,
-                verified_grade=cand.verified_grade,
-                declared_grade=cand.declared_grade,
-                city=cand.city,
-                work_format=cand.work_format,
-                fsp_id=cand.fsp_id,
-                fsp_verified=cand.fsp_verified,
-                fsp_sport_category=fsp_category,
-                fsp_rating=fsp_rating,
-                achievements_count=len(cand.fsp_achievements),
-                skills=cand.skills or [],
-                salary_expectation=cand.salary_expectation,
-                salary_tax_type=getattr(cand, "salary_tax_type", "gross") or "gross",
-                test_percentage=test_perc,
-                match_score=total_score,
-                match_explanation=explanation,
-            )
-            scored_candidates.append(item)
-
-        # Sort descending: verified candidates strictly first (ТЗ: неподтвержденные идут после подтвержденных), then by match_score
-        scored_candidates.sort(
-            key=lambda x: (x.verified_grade is not None, x.match_score),
-            reverse=True,
+        ranked = rank_candidates(
+            _need_data(need),
+            [_candidate_data(item, confirmed_results.get(item.id)) for item in candidates],
         )
-
-        return MatchingCandidatesResponse(
-            need_id=need.id,
-            need_title=need.title,
-            total=len(scored_candidates),
-            candidates=scored_candidates,
-        )
+        items = [
+            _match_item(by_id[result["candidate_id"]], result, confirmed_results.get(result["candidate_id"]), need)
+            for result in ranked
+        ]
+        return MatchingCandidatesResponse(need_id=need.id, need_title=need.title, total=len(items), candidates=items)
 
     @staticmethod
     async def search_candidates(
@@ -285,24 +192,18 @@ class MatchingService:
     ) -> list[CandidateMatchItem]:
         stmt = (
             select(CandidateProfile)
-            .options(
-                selectinload(CandidateProfile.fsp_achievements),
-                selectinload(CandidateProfile.test_sessions),
-            )
+            .options(selectinload(CandidateProfile.fsp_achievements))
             .where(
                 CandidateProfile.onboarding_completed.is_(True),
                 CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
+                CandidateProfile.verified_grade.is_not(None),
             )
         )
-
         if specialization:
             stmt = stmt.where(CandidateProfile.specialization == specialization)
         if grade:
-            stmt = stmt.where(
-                (CandidateProfile.verified_grade == grade)
-                | (CandidateProfile.declared_grade == grade)
-            )
+            stmt = stmt.where(CandidateProfile.verified_grade == grade)
         if work_format:
             stmt = stmt.where(CandidateProfile.work_format == work_format)
         if city:
@@ -310,49 +211,37 @@ class MatchingService:
         if fsp_only:
             stmt = stmt.where(CandidateProfile.fsp_verified.is_(True))
 
-        res = await db.execute(stmt)
-        candidates = res.scalars().all()
-
-        results = []
-        for cand in candidates:
-            test_perc = cand.test_sessions[0].percentage if cand.test_sessions else None
-            top_ach = cand.fsp_achievements[0] if cand.fsp_achievements else None
-
-            results.append(
-                CandidateMatchItem(
-                    candidate_id=cand.id,
-                    first_name=cand.first_name,
-                    last_name=cand.last_name,
-                    specialization=cand.specialization,
-                    verified_grade=cand.verified_grade,
-                    declared_grade=cand.declared_grade,
-                    city=cand.city,
-                    work_format=cand.work_format,
-                    fsp_id=cand.fsp_id,
-                    fsp_verified=cand.fsp_verified,
-                    fsp_sport_category=top_ach.sport_category if top_ach else None,
-                    fsp_rating=top_ach.score_or_rating if top_ach else None,
-                    achievements_count=len(cand.fsp_achievements),
-                    skills=cand.skills or [],
-                    salary_expectation=cand.salary_expectation,
-                    salary_tax_type=getattr(cand, "salary_tax_type", "gross") or "gross",
-                    test_percentage=test_perc,
-                    match_score=test_perc or 80.0,
-                    match_explanation=MatchExplanation(
-                        grade_match=bool(cand.verified_grade),
-                        matched_skills=cand.skills or [],
-                        missing_skills=[],
-                        fsp_bonus=cand.fsp_verified,
-                        summary="Найдено в банке кандидатов по заданным фильтрам.",
-                    ),
-                )
+        candidates = (await db.scalars(stmt)).all()
+        return [
+            CandidateMatchItem(
+                candidate_id=candidate.id,
+                first_name=candidate.first_name,
+                last_name=candidate.last_name,
+                specialization=candidate.specialization,
+                verified_grade=candidate.verified_grade,
+                declared_grade=candidate.declared_grade,
+                city=candidate.city,
+                work_format=candidate.work_format,
+                fsp_id=candidate.fsp_id,
+                fsp_verified=candidate.fsp_verified,
+                fsp_sport_category=candidate.fsp_achievements[0].sport_category if candidate.fsp_achievements else None,
+                fsp_rating=candidate.fsp_achievements[0].score_or_rating if candidate.fsp_achievements else None,
+                achievements_count=len(candidate.fsp_achievements),
+                skills=candidate.skills or [],
+                salary_expectation=candidate.salary_expectation,
+                salary_tax_type=candidate.salary_tax_type,
+                test_percentage=None,
+                match_score=0,
+                match_explanation=MatchExplanation(
+                    grade_match=True,
+                    matched_skills=[],
+                    missing_skills=[],
+                    fsp_bonus=bool(candidate.fsp_verified and candidate.fsp_achievements),
+                    summary="Кандидат с подтверждённой категорией. Балл для конкретной потребности здесь не рассчитывается.",
+                ),
             )
-
-        results.sort(
-            key=lambda x: (x.verified_grade is not None, x.match_score),
-            reverse=True,
-        )
-        return results
+            for candidate in candidates
+        ]
 
 
 matching_service = MatchingService()

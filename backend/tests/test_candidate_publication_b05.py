@@ -1,5 +1,8 @@
+import uuid
 import pytest
 from httpx import AsyncClient
+from app.models.candidate import CandidateProfile
+from conftest import TestingSessionLocal
 
 
 async def register(client: AsyncClient, email: str, role: str) -> dict[str, str]:
@@ -113,6 +116,13 @@ async def test_publication_requires_consent_and_can_be_revoked(client: AsyncClie
     )
     assert published.status_code == 200
     assert published.json()["agreed_publication"] and published.json()["visibility_public"]
+    # Согласие открывает профиль только после подтверждения категории тестом.
+    assert all(candidate["id"] not in ids for ids in await visible_ids())
+    async with TestingSessionLocal() as db:
+        profile = await db.get(CandidateProfile, uuid.UUID(candidate["id"]))
+        profile.verified_grade = "junior"
+        profile.verified_specialization = "Backend"
+        await db.commit()
     assert all(candidate["id"] in ids for ids in await visible_ids())
 
     hidden = await client.put(

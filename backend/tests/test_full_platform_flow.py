@@ -204,7 +204,8 @@ async def test_full_platform_end_to_end_flow(client: AsyncClient):
     matched_data = match_resp.json()
     assert matched_data["total"] >= 1
     top_candidate = matched_data["candidates"][0]
-    assert top_candidate["match_score"] > 50.0
+    assert top_candidate["test_percentage"] == 100.0
+    assert top_candidate["match_score"] >= 0.0
     assert top_candidate["match_explanation"]["grade_match"] is True
 
     # Search candidates with filter

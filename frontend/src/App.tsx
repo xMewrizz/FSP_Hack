@@ -1095,15 +1095,15 @@ function EmployerScreen({
           <Button variant={bankFspOnly ? "primary" : "outline"} onClick={() => setBankFilters((current) => ({ ...current, fspOnly: !current.fspOnly }))}><Icon name="filter" /> Достижения ФСП</Button>
         </div>
         <div className="table-card">
-          <div className="table-summary"><strong>{bankLoading ? "Загрузка кандидатов…" : `${visibleBankItems.length} профилей по фильтрам`}</strong><span>Контакты скрыты до принятия приглашения</span></div>
+          <div className="table-summary"><strong>{bankLoading ? "Загрузка кандидатов…" : `${visibleBankItems.length} профилей по фильтрам`}</strong><span>Балл рассчитывается под конкретную потребность; контакты скрыты до принятия приглашения</span></div>
           <div className="data-table data-table--candidates">
-            <div className="data-row data-row--head"><span>КАНДИДАТ</span><span>КАТЕГОРИЯ</span><span>СТЕК</span><span>СОВПАДЕНИЕ</span><span>ФСП</span><span /></div>
+            <div className="data-row data-row--head"><span>КАНДИДАТ</span><span>КАТЕГОРИЯ</span><span>СТЕК</span><span>БАЛЛ ПОДБОРА</span><span>ФСП</span><span /></div>
             {visibleBankItems.map((candidate) => (
               <div className="data-row" key={candidate.id}>
                 <div className="table-person"><div className="avatar">{candidate.initials}</div><div><strong>{candidate.name}</strong><span>{candidate.location}</span></div></div>
                 <div><strong>{candidate.role}</strong><span>{candidate.level} · {candidate.verifiedGrade ? "подтверждён" : "заявлен"}</span></div>
                 <div className="mini-tags">{candidate.skills.slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div>
-                <strong className="green">{candidate.score}%</strong>
+                <strong className="green">—</strong>
                 <div><strong>{candidate.fspVerified ? "Демо" : "Нет"}</strong><span>{candidate.achievementsCount ?? 0} тестовых достижений</span></div>
                 <Button variant="outline" onClick={() => onOpenResume(candidate)}>Открыть профиль</Button>
               </div>
@@ -1232,15 +1232,17 @@ function EmployerScreen({
 
   if (active === "Аналитика" && demoMode) {
     const scheduled = bankItems.filter((candidate) => candidate.availableFrom).sort((left, right) => (left.availableFrom ?? "").localeCompare(right.availableFrom ?? ""));
-    const averageScore = bankItems.length ? Math.round(bankItems.reduce((total, candidate) => total + candidate.score, 0) / bankItems.length) : 0;
+    const averageScore = bankItems.length && bankItems.some((candidate) => candidate.score > 0)
+      ? String(Math.round(bankItems.reduce((total, candidate) => total + candidate.score, 0) / bankItems.length))
+      : "—";
     const confirmedDates = scheduled.length;
     return (
       <div className="page-content">
         <div className="demo-banner">Сроки выхода и совпадения рассчитаны на локальных demo-профилях. У production API нет поля available_from.</div>
-        <div className="metrics-grid"><MetricCard label="КАНДИДАТОВ В ПОДБОРКЕ" value={String(bankItems.length)} detail="Текущий demo-набор" accent /><MetricCard label="СРЕДНЕЕ СОВПАДЕНИЕ" value={`${averageScore}%`} detail="Среднее по текущим профилям" /><MetricCard label="ДАТА ВЫХОДА УКАЗАНА" value={`${confirmedDates} / ${bankItems.length}`} detail="Из локального demo-набора" /></div>
+        <div className="metrics-grid"><MetricCard label="КАНДИДАТОВ В БАНКЕ" value={String(bankItems.length)} detail="По текущим фильтрам" accent /><MetricCard label="СРЕДНИЙ БАЛЛ ПОДБОРА" value={averageScore} detail="Считается для конкретной потребности" /><MetricCard label="ДАТА ВЫХОДА УКАЗАНА" value={`${confirmedDates} / ${bankItems.length}`} detail="Если кандидат указал дату" /></div>
         <section className="feature-card feature-card--wide">
           <div className="feature-head"><div><span>ДОСТУПНОСТЬ КАНДИДАТОВ</span><strong>Планируемые даты выхода</strong></div><Button variant="outline" onClick={() => onNavigate("Подборка")}>Открыть подборку</Button></div>
-          <div className="start-dates">{scheduled.map((candidate, index) => <div key={candidate.backendId}><b>{new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</b><i className={index === 0 ? "active" : ""} /><div><strong>{candidate.name}</strong><span>{candidate.role} · {candidate.level} · совпадение {candidate.score}%</span></div><em>{candidate.availableFrom ? "Готов к выходу" : "Дата не указана"}</em></div>)}</div>
+          <div className="start-dates">{scheduled.map((candidate, index) => <div key={candidate.backendId}><b>{new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</b><i className={index === 0 ? "active" : ""} /><div><strong>{candidate.name}</strong><span>{candidate.role} · {candidate.level} · {candidate.score} баллов</span></div><em>{candidate.availableFrom ? "Готов к выходу" : "Дата не указана"}</em></div>)}</div>
           {!scheduled.length && <div className="empty-state">В профилях пока нет дат готовности</div>}
         </section>
       </div>
@@ -2026,7 +2028,7 @@ function ResumeModal({
           <div className="resume-cover">
             <div className="resume-avatar">{candidate.initials}</div>
             <div className="resume-cover__main"><div className="resume-name">{candidate.name}</div><strong>{candidate.role} · {candidate.level}</strong><span>{candidate.location} · {candidate.format} · Ожидания: {candidate.salary}</span><span>Готов выйти: {candidate.availableFrom ? new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU") : "дата не указана"}</span></div>
-            <div className="resume-match"><span>Совпадение</span><strong>{candidate.score}%</strong></div>
+            <div className="resume-match"><span>Балл подбора</span><strong>{candidate.score}</strong></div>
           </div>
           <div className="resume-versions resume-versions--backend">
             <span>ВЕРСИИ РЕЗЮМЕ</span>
@@ -2069,7 +2071,7 @@ function ResumeModal({
             <strong>{candidate.role} · уровень {candidate.level}</strong>
             <span>{candidate.location} · {candidate.format} · опыт {candidate.experience}</span>
           </div>
-          <div className="resume-match"><span>Совпадение</span><strong>{candidate.score}%</strong></div>
+          <div className="resume-match"><span>Балл подбора</span><strong>{candidate.score}</strong></div>
         </div>
         <div className="resume-versions">
           <span>ВЕРСИЯ РЕЗЮМЕ</span>
@@ -2172,7 +2174,7 @@ function CompareModal({
                 <div className="avatar avatar--large">{candidate.initials}</div>
                 <div><strong>{candidate.name}</strong><span>{candidate.role}</span></div>
               </div>
-              <div className="compare-score"><span>Совпадение</span><strong>{candidate.score}%</strong></div>
+              <div className="compare-score"><span>Балл подбора</span><strong>{candidate.score}</strong></div>
               {candidate.backendId ? (
                 <div className="compare-match-details">
                   <div><span>СОВПАЛО</span><strong>{candidate.matchedSkills?.join(", ") || "Нет данных"}</strong></div>
@@ -2489,12 +2491,12 @@ function SwipeDeck({
     <div className="swipe-workspace">
       <div className="swipe-help"><Icon name="users" /><div><strong>Быстрый просмотр</strong><span>Смахните влево, чтобы пропустить, вправо — чтобы сохранить кандидата.</span></div></div>
       <div className="swipe-deck">
-        <article className="swipe-card swipe-card--under" aria-hidden="true"><span>СЛЕДУЮЩИЙ ПРОФИЛЬ</span><strong>{nextCandidate.name}</strong><small>{nextCandidate.role} · {nextCandidate.level} · совпадение {nextCandidate.score}%</small></article>
+        <article className="swipe-card swipe-card--under" aria-hidden="true"><span>СЛЕДУЮЩИЙ ПРОФИЛЬ</span><strong>{nextCandidate.name}</strong><small>{nextCandidate.role} · {nextCandidate.level} · {nextCandidate.score} баллов</small></article>
         <article className={`swipe-card ${direction ? `swipe-card--leaving-${direction}` : entering ? "swipe-card--entering" : ""}`}>
           <div className="swipe-card__cover">
             <div className="resume-avatar">{candidate.initials}</div>
             <div><span>ПОДТВЕРЖДЁННЫЙ ПРОФИЛЬ</span><strong>{candidate.name}</strong><p>{candidate.role} · уровень {candidate.level}</p></div>
-            <div className="resume-match"><span>Совпадение</span><strong>{candidate.score}%</strong></div>
+            <div className="resume-match"><span>Балл подбора</span><strong>{candidate.score}</strong></div>
           </div>
           <div className="swipe-card__body">
             {candidate.radar.length ? <Radar values={candidate.radar} target={candidate.jobRadar} /> : <div className="swipe-skill-match"><strong>Совпадение по навыкам</strong><div><span>Совпало</span><b>{candidate.matchedSkills?.join(" · ") || "Нет данных"}</b></div><div><span>Проверить</span><b>{candidate.missingSkills?.join(" · ") || "Нет данных"}</b></div></div>}
@@ -2586,17 +2588,13 @@ function App() {
       return;
     }
     let cancelled = false;
-    const loadSearch = () => {
-      const params = new URLSearchParams({ fsp_only: String(onlyFsp) });
-      return apiGet<MatchingCandidate[]>(`/matching/search?${params}`);
-    };
     apiGet<EmployerNeedRecord[]>("/needs")
       .then(async (items) => {
         if (cancelled) return;
         setEmployerNeeds(items);
         const currentNeed = items.find((need) => need.is_active);
         setActiveNeedId(currentNeed?.id ?? null);
-        if (!currentNeed) return loadSearch();
+        if (!currentNeed) return [];
         return apiGet<{ candidates: MatchingCandidate[] }>(`/matching/for-need/${currentNeed.id}`)
           .then((response) => response.candidates);
       })
@@ -2606,15 +2604,10 @@ function App() {
           setSelectedCandidate(null);
         }
       })
-      .catch(async (error: unknown) => {
-        try {
-          const items = await loadSearch();
-          if (!cancelled) setBackendCandidates(items.map(mapMatchToCandidate));
-        } catch {
-          if (!cancelled) {
-            setBackendCandidates([]);
-            showNotice(error instanceof Error ? error.message : "Не удалось загрузить подбор", "error");
-          }
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setBackendCandidates([]);
+          showNotice(error instanceof Error ? error.message : "Не удалось загрузить подбор", "error");
         }
       });
     return () => { cancelled = true; };
@@ -2918,9 +2911,9 @@ function App() {
           </div>
         </section>
 
-        {viewMode === "swipe" ? (
+        {viewMode === "swipe" && filtered.length > 0 ? (
           <SwipeDeck
-            items={filtered.length ? filtered : candidates}
+            items={filtered}
             onOpen={setResumeCandidate}
             onInvite={(candidate) => {
               if (!compare.includes(candidate.id)) setCompare((current) => [...current.slice(-2), candidate.id]);
@@ -2932,7 +2925,7 @@ function App() {
           <section className="candidates-list" data-tour="candidate-list">
             <div className="list-head">
               <div>КАНДИДАТЫ ПО РЕЛЕВАНТНОСТИ</div>
-              <button type="button">Сначала высокий матч <span>↕</span></button>
+              <button type="button">Сначала высокий балл <span>↕</span></button>
             </div>
             {filtered.map((candidate) => (
               <article
@@ -2957,8 +2950,8 @@ function App() {
                     <div>{candidate.role} · {candidate.level}{candidate.verifiedGrade ? " · подтверждён" : " · заявлен"}</div>
                   </div>
                   <div className="match">
-                    <strong>{candidate.score}%</strong>
-                    <span>СОВПАДЕНИЕ</span>
+                    <strong>{candidate.score} баллов</strong>
+                    <span>БАЛЛ ПОДБОРА</span>
                   </div>
                 </div>
                 <div className="candidate-card__middle">
@@ -2994,7 +2987,9 @@ function App() {
               </article>
             ))}
             {filtered.length === 0 && (
-              <div className="empty-state">По выбранным параметрам кандидаты не найдены</div>
+              <div className="empty-state">{backendCandidates.length === 0
+                ? "Пока нет кандидатов с подтверждённой категорией для этой потребности"
+                : "По выбранным параметрам кандидаты не найдены"}</div>
             )}
           </section>
 
@@ -3038,7 +3033,7 @@ function App() {
             </div>
             <div className="panel-section">
               <div className="section-title">
-                <span>ПОДТВЕРЖДЁННЫЙ СТЕК</span>
+                <span>УКАЗАННЫЙ СТЕК</span>
               </div>
               <div className="tags tags--large">
                 {selected.skills.map((skill) => <span key={skill}>{skill}</span>)}
@@ -3126,7 +3121,7 @@ function App() {
             </div>
             <div className="invite-person">
               <div className="avatar">{selected.initials}</div>
-              <div><strong>{selected.role} · {selected.level}</strong><span>{selected.score}% совпадение с потребностью</span></div>
+              <div><strong>{selected.role} · {selected.level}</strong><span>{selected.score} баллов в подборе под потребность</span></div>
             </div>
             <label className="field">
               <span>ОПИСАНИЕ ПРЕДЛОЖЕНИЯ</span>

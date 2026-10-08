@@ -45,6 +45,10 @@ def score_candidate(need: dict[str, Any], candidate: dict[str, Any]) -> dict[str
 
     requirements = _skill_requirements(need)
     candidate_skills = {_norm(skill) for skill in candidate.get("skills") or []}
+    for skill in tuple(candidate_skills):
+        for part in skill.replace("/", " & ").split(" & "):
+            if part.strip():
+                candidate_skills.add(part.strip())
     matched = [name for name, _ in requirements if name in candidate_skills]
     missing = [name for name, _ in requirements if name not in candidate_skills]
     total_weight = sum(weight for _, weight in requirements)
