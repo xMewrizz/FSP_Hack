@@ -46,9 +46,10 @@ async def get_my_needs(
 )
 async def get_need(
     need_id: uuid.UUID,
+    current_user: User = Depends(get_current_employer),
     db: AsyncSession = Depends(get_db),
 ):
-    return await need_service.get_need(db, need_id)
+    return await need_service.get_need(db, need_id, current_user)
 
 
 @router.put(

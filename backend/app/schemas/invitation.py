@@ -11,7 +11,7 @@ class InvitationCreate(BaseModel):
     contact_method: str = Field(..., min_length=3)
     salary_min: float = Field(..., gt=0)
     salary_max: float = Field(..., gt=0)
-    salary_type: Literal["gross", "net"] = "gross"
+    salary_tax_type: Literal["gross", "net"] = "gross"
     currency: Literal["RUB"] = "RUB"
 
     @model_validator(mode="after")
@@ -43,7 +43,7 @@ class InvitationResponse(BaseModel):
     contact_method: str
     salary_min: float
     salary_max: float
-    salary_type: Literal["gross", "net"]
+    salary_tax_type: str = "gross"
     currency: str
     status: str
     candidate_reply: str | None

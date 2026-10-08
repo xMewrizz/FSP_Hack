@@ -90,7 +90,7 @@ async def test_invitation_rejection_and_foreign_record_access(client: AsyncClien
         "candidate_id": onboard.json()["id"],
         "offer_description": "Приглашаем в команду разработки",
         "contact_method": "Telegram", "salary_min": 100000, "salary_max": 150000,
-        "salary_type": "net",
+        "salary_tax_type": "net",
     }
     for need_id in (foreign_need.json()["id"], str(uuid.uuid4())):
         bad = await client.post("/api/v1/invitations", headers=employer,
@@ -105,7 +105,7 @@ async def test_invitation_rejection_and_foreign_record_access(client: AsyncClien
         json=payload,
     )
     assert invited.status_code == 201
-    assert invited.json()["salary_type"] == "net"
+    assert invited.json()["salary_tax_type"] == "net"
     invitation_id = invited.json()["id"]
     assert invited.json()["candidate_contacts"] is None
 
@@ -124,7 +124,7 @@ async def test_invitation_rejection_and_foreign_record_access(client: AsyncClien
     sent = await client.get("/api/v1/invitations/sent", headers=employer)
     assert sent.status_code == 200
     assert sent.json()[0]["status"] == "rejected"
-    assert sent.json()[0]["salary_type"] == "net"
+    assert sent.json()[0]["salary_tax_type"] == "net"
     assert sent.json()[0]["candidate_contacts"] is None
 
 

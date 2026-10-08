@@ -1191,7 +1191,7 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
     contact_method: string;
     salary_min: number;
     salary_max: number;
-    salary_type: "gross" | "net";
+    salary_tax_type: "gross" | "net";
     currency: string;
     status: string;
     candidate_reply: string | null;
@@ -1247,7 +1247,7 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
                 <strong>{employer ? item.candidate_name : item.company_name}</strong>
                 <p>{item.need_title ?? "Предложение о работе"}</p>
                 <p className="invitation-description">{item.offer_description}</p>
-                <div className="tags"><span>{money(item.salary_min)}–{money(item.salary_max)} ₽ {item.salary_type === "net" ? "на руки" : "до вычета НДФЛ"}</span><span>Связь: {item.contact_method}</span></div>
+                <div className="tags"><span>{money(item.salary_min)}–{money(item.salary_max)} ₽ {item.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}</span><span>Связь: {item.contact_method}</span></div>
                 {item.candidate_reply && <p className="invitation-description">Ответ: {item.candidate_reply}</p>}
               </div>
               <div className="invitation-status"><span className={`status-pill status-pill--${item.status === "accepted" ? "green" : "violet"}`}>{statusLabels[item.status] ?? item.status}</span></div>
@@ -2561,7 +2561,7 @@ function App() {
         contact_method: inviteContact.trim(),
         salary_min: salaryMin,
         salary_max: salaryMax,
-        salary_type: inviteSalaryType,
+        salary_tax_type: inviteSalaryType,
         currency: "RUB",
       });
       setInviteOpen(false);

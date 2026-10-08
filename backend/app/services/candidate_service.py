@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import uuid
 from fastapi import HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.models.candidate import CandidateProfile
@@ -232,7 +232,7 @@ class CandidateService:
         profile.fsp_id = fsp_clean
         v_res = await fsp_service.verify_fsp_id(fsp_clean)
 
-        profile.fsp_achievements.clear()
+        await db.execute(delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id))
         if v_res.found:
             profile.fsp_verified = True
             for ach in v_res.achievements:
@@ -245,6 +245,8 @@ class CandidateService:
                     sport_category=ach.sport_category,
                     score_or_rating=ach.score_or_rating,
                     verified=ach.verified,
+                    is_demo=True,
+                    disclaimer="Демонстрационные данные стенда. Не является официальной выпиской реестра ФСП",
                 )
                 db.add(achievement)
         else:
@@ -256,6 +258,22 @@ class CandidateService:
             .options(selectinload(CandidateProfile.fsp_achievements))
             .where(CandidateProfile.id == profile.id)
             .execution_options(populate_existing=True)
+        )
+        return CandidateService._build_response(refreshed.scalar_one(), user.email)
+
+    @staticmethod
+    async def unlink_fsp_id(db: AsyncSession, user: User) -> CandidateProfileResponse:
+        result = await db.execute(select(CandidateProfile).where(CandidateProfile.user_id == user.id))
+        profile = result.scalar_one_or_none()
+        if profile is None:
+            raise HTTPException(status_code=404, detail="Профиль кандидата не найден")
+        profile.fsp_id = None
+        profile.fsp_verified = False
+        await db.execute(delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id))
+        await db.commit()
+        refreshed = await db.execute(
+            select(CandidateProfile).options(selectinload(CandidateProfile.fsp_achievements))
+            .where(CandidateProfile.id == profile.id).execution_options(populate_existing=True)
         )
         return CandidateService._build_response(refreshed.scalar_one(), user.email)
 

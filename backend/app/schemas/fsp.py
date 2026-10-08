@@ -12,6 +12,8 @@ class FSPAchievementSchema(BaseModel):
     sport_category: str | None = None
     score_or_rating: float | None = None
     verified: bool = True
+    is_demo: bool = True
+    disclaimer: str = "Демонстрационные данные стенда. Не является официальной выпиской реестра ФСП"
 
     model_config = {"from_attributes": True}
 
@@ -22,6 +24,8 @@ class FSPMockAthlete(BaseModel):
     sport_category: str  # КМС, МС, 1 взрослый и т.д.
     rating: float
     region: str
+    is_demo: bool = True
+    disclaimer: str = "Демонстрационные данные стенда. Не является официальной выпиской реестра ФСП"
     achievements: list[FSPAchievementSchema]
 
 
@@ -36,4 +40,6 @@ class FSPVerificationResult(BaseModel):
     sport_category: str | None = None
     achievements_count: int = 0
     achievements: list[FSPAchievementSchema] = []
+    is_demo: bool = True
+    disclaimer: str = "Демонстрационные данные стенда. Не является официальной выпиской реестра ФСП"
     message: str
