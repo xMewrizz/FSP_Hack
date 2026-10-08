@@ -1,6 +1,6 @@
 # API и локальный запуск
 
-Ниже перечислены API, которые есть в коде. Пока сервер не стартует: в репозитории нет `backend/app/models`. Команда `uv run pytest -q` падает на `ModuleNotFoundError` до запуска тестов. После добавления моделей нужно проверить примеры запросов и ответов.
+Ниже перечислены API, которые есть в коде. На 8 октября 2026 года прошли 28 backend-тестов; отдельный бенчмарк B-31 не уложился в свой порог времени ответа. Основной сценарий проверен на запущенном Compose с PostgreSQL.
 
 Рядом с зарплатой в потребности, вакансии и приглашении надо писать: **«до вычета НДФЛ»** или **«на руки»**. Сейчас в API есть только сумма и валюта; пометку ещё нужно добавить. Жюри должно суметь пройти тест самостоятельно. Для запуска на их стенде не должны требоваться GPU и работающая LLM.
 
@@ -15,6 +15,24 @@
 
 ## Как запустить бэкенд локально
 
+### Весь сервис через Docker Compose
+
+Из корня репозитория:
+
+```powershell
+docker compose up --build -d
+```
+
+Откройте `http://localhost:5173` для интерфейса и `http://localhost:8000/docs` для API. Если порт 8000 занят, задайте другой порт и тот же адрес API для сборки frontend:
+
+```powershell
+$env:BACKEND_PORT = "18000"
+$env:VITE_API_URL = "http://localhost:18000/api/v1"
+docker compose up --build -d
+```
+
+Адрес `VITE_API_URL` встраивается при сборке frontend. После его изменения нужна повторная сборка. Для проверки сценария на работающем backend запустите из `backend/` команду `uv run python smoke_compose.py` (при другом порте сначала задайте `$env:FSP_API_BASE_URL = "http://localhost:18000/api/v1"`). Скрипт создаёт две тестовые учётные записи.
+
 ### Быстрый запуск через UV
 Из корня репозитория в PowerShell:
 
@@ -28,6 +46,8 @@ uv run uvicorn app.main:app --reload --port 8000
 ```powershell
 uv run pytest -v
 ```
+
+Замер B-31 запускается отдельно: `uv run pytest tests/benchmark_performance_b31.py -q -s`. Он использует SQLite внутри процесса, поэтому его цифры не заменяют проверку работающего стенда с PostgreSQL.
 
 Заполнение базы реалистичными демонстрационными данными (5 кандидатов, 2 работодателя, потребности, приглашения):
 ```powershell
@@ -59,9 +79,9 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/candidates/onboarding` | Прохождение онбординга (152-ФЗ, грейд, ФСП ID, OSINT) | `Bearer JWT` (Candidate) | `{ "first_name": "Иван", "last_name": "Иванов", "specialization": "Backend", "declared_grade": "junior" \| "middle" \| "senior" \| "lead", "work_format": "remote" \| "office" \| "hybrid", "city": "Москва", "fsp_id": "FSP-77-001", "agreed_152_fz": true, "agreed_osint": true }` | `200 OK`: `CandidateProfileResponse` (включая верифицированные награды ФСП) |
+| `POST` | `/candidates/onboarding` | Заполнение профиля и выбор согласий | `Bearer JWT` (Candidate) | `{ "first_name": "Иван", "last_name": "Иванов", "specialization": "Backend", "declared_grade": "junior" \| "middle" \| "senior" \| "lead", "work_format": "remote" \| "office" \| "hybrid", "city": "Москва", "fsp_id": "FSP-77-001", "agreed_152_fz": true, "agreed_publication": false, "visibility_public": false, "agreed_osint": false }` | `200 OK`: `CandidateProfileResponse` (включая достижения ФСП и настройки видимости) |
 | `GET` | `/candidates/profile` | Получить профиль текущего кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `CandidateProfileResponse` |
-| `PUT` | `/candidates/profile` | Частичное обновление данных профиля | `Bearer JWT` (Candidate) | Поля для обновления (город, стек, резюме, грейд и др.) | `200 OK`: `CandidateProfileResponse` |
+| `PUT` | `/candidates/profile` | Частичное обновление данных и настроек видимости | `Bearer JWT` (Candidate) | Поля для обновления (город, стек, резюме, грейд, `agreed_publication`, `visibility_public` и др.) | `200 OK`: `CandidateProfileResponse` |
 | `POST` | `/candidates/link-fsp` | Привязать или обновить ФСП ID | `Bearer JWT` (Candidate) | `{ "fsp_id": "FSP-78-042" }` | `200 OK`: `CandidateProfileResponse` с обновленными достижениями |
 | `DELETE` | `/candidates/link-fsp` | Отвязать ФСП ID от профиля и удалить достижения | `Bearer JWT` (Candidate) | — | `200 OK`: `CandidateProfileResponse` |
 | `POST` | `/candidates/resume/upload` | Загрузить PDF-резюме и извлечь данные (парсинг `pypdf`) | `Bearer JWT` (Candidate) | Multipart Form (`file: UploadFile`) | `200 OK`: `ResumeParsedData` (email, телефон, контакты, стек, предложенный грейд) |

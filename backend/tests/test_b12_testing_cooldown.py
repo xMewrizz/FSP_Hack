@@ -129,8 +129,8 @@ async def test_b12_confident_score_upgrade_and_90day_cooldown(client: AsyncClien
     middle_session_id = middle_start_resp.json()["session_id"]
     middle_questions = middle_start_resp.json()["questions"]
 
-    # 8. Submit intentionally wrong answers (fail Middle test)
-    bad_answers = [{"question_id": q["id"], "selected_answers": ["Z"]} for q in middle_questions]
+    # 8. Submit intentionally empty/wrong answers (fail Middle test)
+    bad_answers = [{"question_id": q["id"], "selected_answers": []} for q in middle_questions]
     middle_submit_resp = await client.post(
         f"/api/v1/testing/{middle_session_id}/submit",
         headers=headers,
@@ -195,7 +195,7 @@ async def test_b12_fail_suggests_lower_test_and_does_not_trigger_cooldown(client
     qs = start_resp.json()["questions"]
 
     # 2. Fail senior test
-    bad_answers = [{"question_id": q["id"], "selected_answers": ["Z"]} for q in qs]
+    bad_answers = [{"question_id": q["id"], "selected_answers": []} for q in qs]
     sub_resp = await client.post(
         f"/api/v1/testing/{s_id}/submit",
         headers=headers,

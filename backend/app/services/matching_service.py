@@ -56,6 +56,7 @@ class MatchingService:
             )
             .where(
                 CandidateProfile.onboarding_completed.is_(True),
+                CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
             )
         )
@@ -207,6 +208,7 @@ class MatchingService:
             )
             .where(
                 CandidateProfile.onboarding_completed.is_(True),
+                CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
             )
         )

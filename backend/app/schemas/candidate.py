@@ -7,9 +7,11 @@ from app.schemas.fsp import FSPAchievementSchema
 
 class CandidateOnboardingRequest(BaseModel):
     # 152-ФЗ
-    agreed_152_fz: bool = Field(True, description="Согласие на обработку персональных данных (152-ФЗ)")
+    agreed_152_fz: bool = Field(False, description="Согласие на обработку персональных данных (152-ФЗ)")
+    agreed_publication: bool = Field(False, description="Отдельное согласие показывать профиль работодателям")
+    visibility_public: bool = Field(False, description="Показывать профиль в поиске и подборке")
     # Согласие на OSINT
-    agreed_osint: bool = Field(True, description="Согласие на обогащение профиля открытыми данными (OSINT)")
+    agreed_osint: bool = Field(False, description="Согласие на обогащение профиля открытыми данными (OSINT)")
     
     # IT-специализация и грейд
     specialization: str = Field(..., description="IT-специализация (Backend, Frontend, etc.)")
@@ -45,6 +47,8 @@ class CandidateProfileUpdateRequest(BaseModel):
     specialization: str | None = None
     declared_grade: Grade | None = None
     fsp_id: str | None = None
+    agreed_publication: bool | None = None
+    visibility_public: bool | None = None
 
 
 class CandidateProfileResponse(BaseModel):
@@ -69,6 +73,8 @@ class CandidateProfileResponse(BaseModel):
     fsp_id: str | None = None
     fsp_verified: bool = False
     agreed_152_fz: bool
+    agreed_publication: bool
+    visibility_public: bool
     agreed_osint: bool
     onboarding_completed: bool
 

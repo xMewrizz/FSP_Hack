@@ -1,0 +1,26 @@
+{
+  "candidate_count": 60,
+  "coverage": {
+    "Backend / junior": 7,
+    "Backend / middle": 7,
+    "Backend / senior": 7,
+    "DevOps / SRE / junior": 6,
+    "DevOps / SRE / middle": 6,
+    "DevOps / SRE / senior": 6,
+    "Frontend / junior": 7,
+    "Frontend / middle": 7,
+    "Frontend / senior": 7
+  },
+  "files_sha256": {
+    "all_pairs.jsonl": "f550b517834031b96d4793a68633b7c915015c30a946ea7fc18d70b9dc5d4e91",
+    "candidates.json": "07887f287cd6399d5f617c0613051907b6a3f057f09000747094cb09103dd4d7",
+    "needs.json": "925574c5e7b428f54ed73fc76cb367420ec85fb6db7c57a9ac01ec6e41f6aa46",
+    "review_sample.jsonl": "4821bdec0a4df60b4af164b4d96f9bf85ee7be76e3cb130d9daa8acacbce45f3"
+  },
+  "need_count": 5,
+  "note": "Все данные вымышлены. 300 сочетаний — полный набор; 30 пар — первая выборка для ручного разбора с пустыми полями оценок.",
+  "pair_count": 300,
+  "review_sample_count": 30,
+  "seed": 2026,
+  "version": "synthetic_v1"
+}

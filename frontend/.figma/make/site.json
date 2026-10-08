@@ -1,5 +1,7 @@
 {
-  "description": "A digital platform for IT recruitment that allows employers to find qualified candidates through verified skill assessments and transparent salary offers.",
+  "title": "ФСП Карьера",
+  "description": "Подбор ИТ-специалистов по подтверждённым навыкам и предложениям с открытой зарплатой.",
+  "language": "ru",
   "robots": {
     "index": false
   },

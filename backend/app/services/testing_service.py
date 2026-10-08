@@ -2,10 +2,17 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 import uuid
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.catalog import (
+    CatalogError,
+    assert_no_substitution,
+    suggest_upshift_grade,
+    validate_test_pair,
+)
 from app.core.constants import Grade
 from app.core.question_bank import PREDEFINED_QUESTIONS
+from app.core.question_variants import variant_for_attempt
 from app.models.candidate import CandidateProfile
 from app.models.test import Question, TestSession
 from app.models.user import User
@@ -27,12 +34,15 @@ from app.schemas.testing import (
 class TestingService:
     @staticmethod
     async def ensure_questions_seeded(db: AsyncSession) -> None:
-        stmt = select(Question.code)
+        stmt = select(Question).where(
+            Question.code.in_([q["code"] for q in PREDEFINED_QUESTIONS])
+        )
         res = await db.execute(stmt)
-        existing_codes = set(res.scalars().all())
+        existing = {q.code: q for q in res.scalars().all()}
 
         for q_data in PREDEFINED_QUESTIONS:
-            if q_data["code"] not in existing_codes:
+            question = existing.get(q_data["code"])
+            if question is None:
                 q = Question(
                     code=q_data["code"],
                     specialization=q_data["specialization"],
@@ -46,6 +56,16 @@ class TestingService:
                     weight=q_data["weight"],
                 )
                 db.add(q)
+            else:
+                # Исправления эталонного банка должны попадать и в ранее
+                # созданную БД. Уже начатые попытки хранят свой снимок.
+                for field in (
+                    "specialization", "grade", "topic", "question_type",
+                    "question_text", "options", "correct_answers", "explanation", "weight",
+                ):
+                    value = q_data[field]
+                    if getattr(question, field) != value:
+                        setattr(question, field, value)
         await db.commit()
 
     @staticmethod
@@ -62,8 +82,21 @@ class TestingService:
                 detail="Профиль кандидата не найден. Сначала завершите онбординг.",
             )
 
-        spec = data.specialization or profile.specialization or "Backend"
-        grade = (data.target_grade.value if data.target_grade else None) or profile.declared_grade or "junior"
+        # B-01: значений по умолчанию нет. Если специализация или грейд не заданы
+        # ни в запросе, ни в профиле — явная ошибка 400 из каталога, а не тихий
+        # тест «Backend / junior» для чужого профиля.
+        raw_spec = data.specialization or profile.specialization
+        raw_grade = (data.target_grade.value if data.target_grade else None) or profile.declared_grade
+
+        # B-01: единый справочник. Неподдерживаемая пара -> явная ошибка 400.
+        # Тихая подмена вопросов другой специализации/уровня запрещена.
+        try:
+            spec, grade = validate_test_pair(raw_spec, raw_grade)
+        except CatalogError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            )
 
         # Check 90 days rule if candidate is trying to change an already verified grade
         if profile.verified_grade and profile.verified_grade_updated_at and profile.verified_grade != grade:
@@ -108,14 +141,8 @@ class TestingService:
                         ),
                     )
 
-        # Expire any previous uncompleted in-progress sessions for this user
-        stmt_prev = select(TestSession).where(
-            TestSession.user_id == user.id,
-            TestSession.status == "in_progress",
-        )
-        res_prev = await db.execute(stmt_prev)
-        for prev_s in res_prev.scalars().all():
-            prev_s.status = "expired"
+
+
 
         await TestingService.ensure_questions_seeded(db)
 
@@ -125,45 +152,80 @@ class TestingService:
             Question.grade == grade,
         )
         res_q = await db.execute(stmt_q)
-        questions = res_q.scalars().all()
+        questions = list(res_q.scalars().all())
 
+        # B-01: подмена запрещена. Пустая выдача или чужая пара -> 400, а не фолбэк.
         if not questions:
-            # Fallback to any questions for this grade or specialization
-            stmt_fallback = select(Question).where(Question.grade == grade)
-            res_fb = await db.execute(stmt_fallback)
-            questions = res_fb.scalars().all()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Для пары «{spec} / {grade}» нет заданий. "
+                    f"Сейчас тест доступен для: Backend junior, Backend middle, Backend senior. "
+                    f"Вопросы другой специализации или уровня не подставляются."
+                ),
+            )
+        try:
+            assert_no_substitution(spec, grade, questions)
+        except CatalogError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc),
+            )
 
-        if not questions:
-            stmt_all = select(Question).limit(5)
-            res_all = await db.execute(stmt_all)
-            questions = res_all.scalars().all()
+        # Serialize starts for one candidate so concurrent requests do not
+        # receive the same next variant.
+        await db.execute(
+            select(CandidateProfile.id)
+            .where(CandidateProfile.id == profile.id)
+            .with_for_update()
+        )
+        previous_attempts = await db.scalar(
+            select(func.count(TestSession.id)).where(
+                TestSession.candidate_profile_id == profile.id,
+                TestSession.specialization == spec,
+                TestSession.target_grade == grade,
+            )
+        ) or 0
 
-        # Build snapshot for storage
+        selected_variants = [
+            (question, variant_for_attempt(question.code, previous_attempts))
+            for question in sorted(questions, key=lambda item: item.code)
+        ]
+        try:
+            assert_no_substitution(spec, grade, [variant for _, variant in selected_variants])
+        except CatalogError as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
+        # The snapshot fixes the selected version and answer key for this attempt.
         snapshot = []
         client_questions = []
 
-        for q in questions:
+        for q, variant in selected_variants:
+            question_id = str(q.id if variant["variant_id"] == "v1" else uuid.uuid5(q.id, variant["variant_id"]))
             snapshot.append({
-                "id": str(q.id),
-                "code": q.code,
-                "topic": q.topic,
-                "question_type": q.question_type,
-                "question_text": q.question_text,
-                "options": q.options,
-                "correct_answers": q.correct_answers,
-                "weight": q.weight,
-                "explanation": q.explanation,
+                "id": question_id,
+                "code": variant["code"],
+                "family_code": variant["family_code"],
+                "variant_id": variant["variant_id"],
+                "parameters": variant.get("parameters", {}),
+                "topic": variant["topic"],
+                "question_type": variant["question_type"],
+                "question_text": variant["question_text"],
+                "options": variant["options"],
+                "correct_answers": variant["correct_answers"],
+                "weight": variant["weight"],
+                "explanation": variant["explanation"],
             })
 
             client_questions.append(
                 QuestionInTest(
-                    id=str(q.id),
-                    code=q.code,
-                    topic=q.topic,
-                    question_type=q.question_type,
-                    question_text=q.question_text,
-                    options=[QuestionOptionResponse(**opt) for opt in q.options],
-                    weight=q.weight,
+                    id=question_id,
+                    code=variant["code"],
+                    topic=variant["topic"],
+                    question_type=variant["question_type"],
+                    question_text=variant["question_text"],
+                    options=[QuestionOptionResponse(**opt) for opt in variant["options"]],
+                    weight=variant["weight"],
                 )
             )
 
@@ -211,11 +273,16 @@ class TestingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Данный тест уже был завершен ранее",
             )
-        if session.status == "expired":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Сессия тестирования истекла или была начата более поздняя сессия",
-            )
+
+        # Answers must refer to questions issued in this session.
+        snapshot_by_id = {question["id"]: question for question in session.questions_snapshot}
+        submitted_ids = [answer.question_id for answer in data.answers]
+        if len(submitted_ids) != len(set(submitted_ids)) or any(question_id not in snapshot_by_id for question_id in submitted_ids):
+            raise HTTPException(status_code=400, detail="Ответы содержат повтор или задание не из этой попытки")
+        for answer in data.answers:
+            allowed = {option["id"] for option in snapshot_by_id[answer.question_id]["options"]}
+            if any(choice not in allowed for choice in answer.selected_answers):
+                raise HTTPException(status_code=400, detail="Ответ содержит неизвестный вариант выбора")
 
         # Map answers
         user_answers_map = {ans.question_id: set(ans.selected_answers) for ans in data.answers}
@@ -263,7 +330,15 @@ class TestingService:
         session.status = "completed"
         session.completed_at = now
         session.skill_breakdown = [s.model_dump() for s in skill_breakdown]
-        session.answers_data = [a.model_dump() for a in data.answers]
+        session.answers_data = [
+            {
+                **answer.model_dump(),
+                "code": snapshot_by_id[answer.question_id]["code"],
+                "family_code": snapshot_by_id[answer.question_id].get("family_code", snapshot_by_id[answer.question_id]["code"]),
+                "variant_id": snapshot_by_id[answer.question_id].get("variant_id", "v1"),
+            }
+            for answer in data.answers
+        ]
 
         # Update candidate profile
         stmt_prof = select(CandidateProfile).where(CandidateProfile.id == session.candidate_profile_id)
@@ -275,16 +350,18 @@ class TestingService:
             profile.verified_grade = session.target_grade
             profile.verified_grade_updated_at = now
             if percentage >= 90.0:
-                if session.target_grade == "junior":
-                    suggested_grade = "middle"
-                elif session.target_grade == "middle":
-                    suggested_grade = "senior"
-                elif session.target_grade == "senior":
-                    suggested_grade = "lead"
-                session.feedback = (
-                    f"Поздравляем! Вы набрали {percentage}% и уверенно подтвердили квалификацию {session.target_grade}. "
-                    f"При таком высоком результате вам открыт отдельный тест на повышение ({suggested_grade})."
-                )
+                # B-01: следующий грейд предлагаем только если тест по нему
+                # доступен (senior -> lead сейчас даёт None, lead не предлагаем).
+                suggested_grade = suggest_upshift_grade(session.specialization, session.target_grade)
+                if suggested_grade:
+                    session.feedback = (
+                        f"Поздравляем! Вы набрали {percentage}% и уверенно подтвердили квалификацию {session.target_grade}. "
+                        f"При таком высоком результате вам открыт отдельный тест на повышение ({suggested_grade})."
+                    )
+                else:
+                    session.feedback = (
+                        f"Поздравляем! Вы набрали {percentage}% и успешно подтвердили квалификацию {session.target_grade}."
+                    )
             else:
                 session.feedback = (
                     f"Поздравляем! Вы набрали {percentage}% и успешно подтвердили квалификацию {session.target_grade}."

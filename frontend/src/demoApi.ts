@@ -73,6 +73,8 @@ const candidateProfile = {
   fsp_id: "FSP-77-001",
   fsp_verified: true,
   agreed_152_fz: true,
+  agreed_publication: true,
+  visibility_public: true,
   agreed_osint: true,
   onboarding_completed: true,
 };

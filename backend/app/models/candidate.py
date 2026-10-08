@@ -55,10 +55,12 @@ class CandidateProfile(Base, TimestampMixin):
 
     agreed_152_fz: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     agreed_152_fz_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    agreed_publication: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    agreed_publication_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     agreed_osint: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     agreed_osint_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    visibility_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    visibility_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="candidate_profile")

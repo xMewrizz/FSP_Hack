@@ -1,0 +1,1482 @@
+[
+  {
+    "city": "Москва",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "98595b49-eb60-563f-a887-3c391974c68a",
+    "resume_summary": "Вымышленный профиль: Frontend, middle; навыки: CSS, JavaScript.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 180000,
+    "skills": [
+      "CSS",
+      "JavaScript",
+      "React",
+      "TypeScript",
+      "Дизайн-системы",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C001",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "cac6c0f3-6c02-5764-9f41-4cabf69b7e4b",
+    "resume_summary": "Вымышленный профиль: Frontend, junior; навыки: CSS, Дизайн-системы.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 150000,
+    "skills": [
+      "CSS",
+      "Дизайн-системы",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C002",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "fc590d2d-c7f4-5c11-89fb-94348708fd29",
+    "resume_summary": "Вымышленный профиль: Backend, middle; навыки: Docker, FastAPI.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 190000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "PostgreSQL",
+      "Python",
+      "Redis",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C003",
+    "test_percentage": 76,
+    "verification_source": "synthetic_test",
+    "verified_grade": "middle",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "senior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "f7730d0f-5a94-533f-884a-0455709474f7",
+    "resume_summary": "Вымышленный профиль: Backend, senior; навыки: Docker, FastAPI.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 290000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "Kafka",
+      "PostgreSQL",
+      "Python",
+      "Redis"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C004",
+    "test_percentage": 76,
+    "verification_source": "synthetic_test",
+    "verified_grade": "senior",
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "e5d0cd2c-06cd-5494-981c-efecad9a2fda",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 330000,
+    "skills": [
+      "CI/CD",
+      "Kubernetes",
+      "Linux",
+      "Prometheus",
+      "Terraform"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C005",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "9eefe408-52a3-595c-be41-5f2cabbd97af",
+    "resume_summary": "Вымышленный профиль: Frontend, junior; навыки: CSS, React.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 150000,
+    "skills": [
+      "CSS",
+      "React",
+      "Web Vitals"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C006",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "585b81a5-f26c-51f4-b81c-2c8703e5762e",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, junior; навыки: CI/CD, Docker.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 120000,
+    "skills": [
+      "CI/CD",
+      "Docker",
+      "Kubernetes",
+      "Linux",
+      "Terraform",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C007",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "middle",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "44e3eaa3-93a2-5601-bb57-b0e4a7784ea6",
+    "resume_summary": "Вымышленный профиль: Frontend, middle; навыки: JavaScript, React.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 230000,
+    "skills": [
+      "JavaScript",
+      "React",
+      "Дизайн-системы",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C008",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "ff4aa8a6-dd55-5e45-9544-a20e84737b30",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, middle; навыки: CI/CD, Kubernetes.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 240000,
+    "skills": [
+      "CI/CD",
+      "Kubernetes",
+      "Prometheus",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C009",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "0439423b-8f75-5453-b017-49997dc24d54",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 240000,
+    "skills": [
+      "CSS",
+      "Web Vitals",
+      "Дизайн-системы",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C010",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "2d24d38b-3528-5afd-9461-8887f8a46f8f",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, junior; навыки: CI/CD, Linux.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 140000,
+    "skills": [
+      "CI/CD",
+      "Linux",
+      "Terraform"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C011",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Казань",
+    "declared_grade": "junior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "e35e0bf0-9a0f-5339-b342-f7681a232c57",
+    "resume_summary": "Вымышленный профиль: Backend, junior; навыки: Docker, Kafka.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 110000,
+    "skills": [
+      "Docker",
+      "Kafka",
+      "PostgreSQL",
+      "Python",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C012",
+    "test_percentage": 80,
+    "verification_source": "synthetic_test",
+    "verified_grade": "junior",
+    "work_format": "remote"
+  },
+  {
+    "city": "Казань",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "9634e7f8-e514-52d7-8511-353492278470",
+    "resume_summary": "Вымышленный профиль: Frontend, middle; навыки: CSS, JavaScript.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 210000,
+    "skills": [
+      "CSS",
+      "JavaScript",
+      "Web Vitals",
+      "Дизайн-системы"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C013",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "7052f93b-76c1-5d4b-ad33-e3ed3cec5648",
+    "resume_summary": "Вымышленный профиль: Backend, middle; навыки: FastAPI, Kafka.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 190000,
+    "skills": [
+      "FastAPI",
+      "Kafka",
+      "Python",
+      "Redis"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C014",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "80f492c9-ff46-5fc0-bbf1-f244cee93c34",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 200000,
+    "skills": [
+      "Kubernetes",
+      "Linux",
+      "Prometheus",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C015",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "634265b6-9faf-5351-96ba-f649cc3e8f0a",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, junior; навыки: Linux, Prometheus.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 160000,
+    "skills": [
+      "Linux",
+      "Prometheus",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C016",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "da1bc092-6340-55d2-88e5-8fd0afa1aafd",
+    "resume_summary": "Вымышленный профиль: Backend, junior; навыки: Kafka, PostgreSQL.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 130000,
+    "skills": [
+      "Kafka",
+      "PostgreSQL",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C017",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "ffc13fd2-c9b8-5337-ba61-b175b3f9a4f4",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, senior; навыки: CI/CD, Kubernetes.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 300000,
+    "skills": [
+      "CI/CD",
+      "Kubernetes",
+      "Prometheus",
+      "Terraform",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C018",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "30edb155-70fd-533b-91ac-9f30449e4bd1",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, senior; навыки: CI/CD, Docker.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 300000,
+    "skills": [
+      "CI/CD",
+      "Docker",
+      "Kubernetes",
+      "Linux",
+      "Prometheus"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C019",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "7a78cb8b-cf82-5423-88d7-27cb5b659f82",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 140000,
+    "skills": [
+      "React",
+      "TypeScript",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C020",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "d779ec56-2be1-5db3-b9eb-628da28388c8",
+    "resume_summary": "Вымышленный профиль: Backend, middle; навыки: Docker, FastAPI.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 220000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "Kafka",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C021",
+    "test_percentage": 84,
+    "verification_source": "synthetic_test",
+    "verified_grade": "middle",
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "36d860e9-a2db-5d86-9529-2e3808dcb6f9",
+    "resume_summary": "Вымышленный профиль: Backend, senior; навыки: Docker, Kafka.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 320000,
+    "skills": [
+      "Docker",
+      "Kafka",
+      "PostgreSQL",
+      "Python",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C022",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "8771fcd2-f721-555a-a9a4-657ac5b69ebd",
+    "resume_summary": "Вымышленный профиль: Backend, senior; навыки: FastAPI, Kafka.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 330000,
+    "skills": [
+      "FastAPI",
+      "Kafka",
+      "PostgreSQL",
+      "Redis",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C023",
+    "test_percentage": 75,
+    "verification_source": "synthetic_test",
+    "verified_grade": "senior",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "middle",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "56c9dda2-2299-5e07-8f39-f59c009225dc",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, middle; навыки: Docker, Prometheus.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 210000,
+    "skills": [
+      "Docker",
+      "Prometheus",
+      "Terraform",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C024",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "8c0a1427-96f3-53b4-94ab-317679520b41",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 300000,
+    "skills": [
+      "CSS",
+      "JavaScript",
+      "React",
+      "TypeScript",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C025",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "6cf49b55-c2c5-545c-9412-16146ccee46c",
+    "resume_summary": "Вымышленный профиль: Frontend, junior; навыки: JavaScript, TypeScript.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 140000,
+    "skills": [
+      "JavaScript",
+      "TypeScript",
+      "Web Vitals"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C026",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "3c8d80de-5ef0-5870-83d2-93479b557ba8",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, middle; навыки: Docker, Kubernetes.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 240000,
+    "skills": [
+      "Docker",
+      "Kubernetes",
+      "Terraform",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C027",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "senior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "1fe0c8f3-6aa5-52d5-a256-2776fa8340c4",
+    "resume_summary": "Вымышленный профиль: Backend, senior; навыки: Docker, FastAPI.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 310000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "Kafka",
+      "Python",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C028",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "73758ac4-6630-5d6c-ab74-5b900c3bb7b1",
+    "resume_summary": "Вымышленный профиль: Backend, senior; навыки: Docker, FastAPI.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 300000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "Python",
+      "Redis",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C029",
+    "test_percentage": 81,
+    "verification_source": "synthetic_test",
+    "verified_grade": "senior",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "1825d4e9-1164-54e1-921a-58c522e71a28",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 310000,
+    "skills": [
+      "CI/CD",
+      "Docker",
+      "Kubernetes",
+      "Prometheus",
+      "Terraform"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C030",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "0ba775a2-2337-5265-aeab-d883aaf751b5",
+    "resume_summary": "Вымышленный профиль: Frontend, junior; навыки: CSS, Web Vitals.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 170000,
+    "skills": [
+      "CSS",
+      "Web Vitals",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C031",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "middle",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "6d12e9c0-1616-5211-b27a-e9525b0036ae",
+    "resume_summary": "Вымышленный профиль: Frontend, middle; навыки: JavaScript, React.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 190000,
+    "skills": [
+      "JavaScript",
+      "React",
+      "TypeScript",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C032",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "d029cf89-b93c-5fe1-9a3d-ece4f6d1b2fd",
+    "resume_summary": "Вымышленный профиль: Frontend, middle; навыки: CSS, React.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 200000,
+    "skills": [
+      "CSS",
+      "React",
+      "Web Vitals",
+      "Дизайн-системы"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C033",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "49b27179-50fd-5b44-9ec9-1e1a51c26351",
+    "resume_summary": "Вымышленный профиль: Backend, junior; навыки: FastAPI, PostgreSQL.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 150000,
+    "skills": [
+      "FastAPI",
+      "PostgreSQL",
+      "Python"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C034",
+    "test_percentage": 83,
+    "verification_source": "synthetic_test",
+    "verified_grade": "junior",
+    "work_format": "office"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "bfcc6a73-5a08-5913-8219-f9028d30542c",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 210000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "Python",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C035",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "middle",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "76e8adbb-cc61-5dba-87fe-3e16bde9379c",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, middle; навыки: CI/CD, Docker.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 240000,
+    "skills": [
+      "CI/CD",
+      "Docker",
+      "Prometheus",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C036",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "81a5f98e-b08b-5ae0-bdd1-406ea900dc6b",
+    "resume_summary": "Вымышленный профиль: Backend, junior; навыки: Docker, FastAPI.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 140000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "Python"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C037",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "727555fa-ed40-5b8b-9876-a1698fadcb24",
+    "resume_summary": "Вымышленный профиль: Backend, junior; навыки: FastAPI, Kafka.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 160000,
+    "skills": [
+      "FastAPI",
+      "Kafka",
+      "Python"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C038",
+    "test_percentage": 83,
+    "verification_source": "synthetic_test",
+    "verified_grade": "junior",
+    "work_format": "office"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "d9f88328-d9eb-5a38-b08b-ce8d4d8a573b",
+    "resume_summary": "Вымышленный профиль: Frontend, senior; навыки: CSS, JavaScript.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 310000,
+    "skills": [
+      "CSS",
+      "JavaScript",
+      "React",
+      "Web Vitals",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C039",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "declared_grade": "senior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "91ea8705-9262-5c2a-aa84-b53e05997096",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 320000,
+    "skills": [
+      "CSS",
+      "JavaScript",
+      "React",
+      "TypeScript",
+      "Web Vitals"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C040",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "4c47fc9b-5d51-559d-be1c-59af7d88ffc0",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, junior; навыки: Linux, Terraform.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 130000,
+    "skills": [
+      "Linux",
+      "Terraform",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C041",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "8739c58c-dcb6-5a9a-a8c2-9843c876d00d",
+    "resume_summary": "Вымышленный профиль: Backend, junior; навыки: Docker, Python.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 130000,
+    "skills": [
+      "Docker",
+      "Python",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C042",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "b9cbe202-c33c-59a4-bba6-b7e9e3431dbe",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, junior; навыки: Kubernetes, Prometheus.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 140000,
+    "skills": [
+      "Kubernetes",
+      "Prometheus",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C043",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "middle",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "7bfebe8a-0feb-5f81-a00c-23557a74d92e",
+    "resume_summary": "Вымышленный профиль: Backend, middle; навыки: Docker, FastAPI.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 210000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "PostgreSQL",
+      "Redis"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C044",
+    "test_percentage": 85,
+    "verification_source": "synthetic_test",
+    "verified_grade": "middle",
+    "work_format": "office"
+  },
+  {
+    "city": "Казань",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "9b9a95c2-c846-5bfe-ad1f-935d541215a0",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 190000,
+    "skills": [
+      "Docker",
+      "PostgreSQL",
+      "Redis",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C045",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "2ed32de3-c844-5edd-9ed8-8b0db00bc538",
+    "resume_summary": "Вымышленный профиль: Frontend, middle; навыки: CSS, JavaScript.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 210000,
+    "skills": [
+      "CSS",
+      "JavaScript",
+      "Web Vitals",
+      "Дизайн-системы"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C046",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Казань",
+    "declared_grade": "middle",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "413fc888-14c3-5bdb-94fa-16aaf4190b29",
+    "resume_summary": "Вымышленный профиль: Backend, middle; навыки: Kafka, PostgreSQL.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 190000,
+    "skills": [
+      "Kafka",
+      "PostgreSQL",
+      "Python",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C047",
+    "test_percentage": 85,
+    "verification_source": "synthetic_test",
+    "verified_grade": "middle",
+    "work_format": "office"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "senior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "ac62d901-297c-5314-8b1b-53652375f597",
+    "resume_summary": "Вымышленный профиль: Frontend, senior; навыки: JavaScript, React.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 330000,
+    "skills": [
+      "JavaScript",
+      "React",
+      "TypeScript",
+      "Web Vitals",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C048",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "cedb1869-f595-5d3e-ab4c-83eb115227fd",
+    "resume_summary": "Вымышленный профиль: Backend, junior; навыки: Kafka, Python.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 150000,
+    "skills": [
+      "Kafka",
+      "Python",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C049",
+    "test_percentage": 76,
+    "verification_source": "synthetic_test",
+    "verified_grade": "junior",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "64cd5863-56cb-5d8b-bc81-e50cc9952343",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 310000,
+    "skills": [
+      "CI/CD",
+      "Docker",
+      "Linux",
+      "Terraform",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C050",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "74c1472e-e3f1-5ae5-8e42-1a8b329a6413",
+    "resume_summary": "Вымышленный профиль: DevOps / SRE, senior; навыки: Docker, Kubernetes.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 300000,
+    "skills": [
+      "Docker",
+      "Kubernetes",
+      "Prometheus",
+      "Terraform",
+      "Сети"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C051",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "acdbb73b-ec50-5bc8-aa23-955b541a5cb4",
+    "resume_summary": "Вымышленный профиль: Frontend, junior; навыки: JavaScript, Дизайн-системы.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 130000,
+    "skills": [
+      "JavaScript",
+      "Дизайн-системы",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C052",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "9ee80447-e6dc-5226-9445-7c16bfcff743",
+    "resume_summary": "Вымышленный профиль: Backend, senior; навыки: FastAPI, Kafka.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 320000,
+    "skills": [
+      "FastAPI",
+      "Kafka",
+      "Python",
+      "Redis",
+      "Тестирование API"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C053",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "a828ba98-6970-5e95-9f0f-f998db10c7e8",
+    "resume_summary": "Вымышленный профиль: Frontend, senior; навыки: CSS, React.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 350000,
+    "skills": [
+      "CSS",
+      "React",
+      "TypeScript",
+      "Web Vitals",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C054",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "a2e3d70e-7223-559b-8e86-c3e3e1339860",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 130000,
+    "skills": [
+      "Docker",
+      "Linux",
+      "Prometheus"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C055",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Москва",
+    "declared_grade": "senior",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "8ed34727-08d1-5f8f-a219-ae0a7ed0b2b8",
+    "resume_summary": "Вымышленный профиль: Frontend, senior; навыки: JavaScript, React.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 300000,
+    "skills": [
+      "JavaScript",
+      "React",
+      "Web Vitals",
+      "Дизайн-системы",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C056",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "junior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "d26a3b23-e2bb-5f8f-8682-615b822d377e",
+    "resume_summary": "Вымышленный профиль: Frontend, junior; навыки: CSS, JavaScript.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 160000,
+    "skills": [
+      "CSS",
+      "JavaScript",
+      "TypeScript"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C057",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "remote"
+  },
+  {
+    "city": "Казань",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "498f34f7-6ddc-5617-9f21-7b75f4e2dda1",
+    "resume_summary": "Вымышленный профиль: Frontend, senior; навыки: CSS, React.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 350000,
+    "skills": [
+      "CSS",
+      "React",
+      "TypeScript",
+      "Дизайн-системы",
+      "Тестирование UI"
+    ],
+    "specialization": "Frontend",
+    "synthetic_code": "C058",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Новосибирск",
+    "declared_grade": "senior",
+    "fsp_achievements": [],
+    "fsp_source": null,
+    "fsp_verified": false,
+    "id": "c92d77e3-9f0a-5c75-a9b8-b53914076296",
+    "resume_summary": "Вымышленный профиль: Backend, senior; навыки: Docker, FastAPI.",
+    "salary_basis": "gross",
+    "salary_expectation_min": 350000,
+    "skills": [
+      "Docker",
+      "FastAPI",
+      "Kafka",
+      "PostgreSQL",
+      "Redis"
+    ],
+    "specialization": "Backend",
+    "synthetic_code": "C059",
+    "test_percentage": 86,
+    "verification_source": "synthetic_test",
+    "verified_grade": "senior",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "declared_grade": "middle",
+    "fsp_achievements": [
+      {
+        "result": "финалист",
+        "source": "synthetic_fixture",
+        "type": "хакатон"
+      }
+    ],
+    "fsp_source": "synthetic_fixture",
+    "fsp_verified": true,
+    "id": "3bc75771-8b0f-5636-95d7-ad1eb278e02e",
+    "resume_summary": null,
+    "salary_basis": "gross",
+    "salary_expectation_min": 220000,
+    "skills": [
+      "CI/CD",
+      "Docker",
+      "Prometheus",
+      "Terraform"
+    ],
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "C060",
+    "test_percentage": null,
+    "verification_source": null,
+    "verified_grade": null,
+    "work_format": "office"
+  }
+]

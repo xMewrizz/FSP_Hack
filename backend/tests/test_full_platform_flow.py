@@ -36,6 +36,8 @@ async def test_full_platform_end_to_end_flow(client: AsyncClient):
             "work_format": "remote",
             "fsp_id": "FSP-77-001",
             "agreed_152_fz": True,
+            "agreed_publication": True,
+            "visibility_public": True,
             "agreed_osint": True,
         },
     )

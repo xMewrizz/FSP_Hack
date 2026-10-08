@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.constants import UserRole
@@ -140,6 +141,9 @@ class SeedService:
                     fsp_verified=c["fsp_verified"],
                     agreed_152_fz=True,
                     agreed_152_fz_at=now,
+                    agreed_publication=True,
+                    agreed_publication_at=now,
+                    visibility_public=True,
                     agreed_osint=True,
                     agreed_osint_at=now,
                     onboarding_completed=True,

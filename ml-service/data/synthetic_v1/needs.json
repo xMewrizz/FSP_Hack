@@ -1,0 +1,152 @@
+[
+  {
+    "city": "Казань",
+    "currency": "RUB",
+    "description": "Вымышленная потребность: Backend Junior. Основные навыки: Python, PostgreSQL.",
+    "id": "a0f65939-b4a2-53c5-afcb-37ff30842640",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 2.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 160000,
+    "salary_min": 110000,
+    "specialization": "Backend",
+    "synthetic_code": "N01",
+    "title": "Backend Junior",
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "currency": "RUB",
+    "description": "Вымышленная потребность: Backend Middle. Основные навыки: FastAPI, PostgreSQL, Redis.",
+    "id": "54fd5e8d-8880-5a51-815b-820fd3a71219",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 2.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 270000,
+    "salary_min": 190000,
+    "specialization": "Backend",
+    "synthetic_code": "N02",
+    "title": "Backend Middle",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "currency": "RUB",
+    "description": "Вымышленная потребность: Backend Senior. Основные навыки: PostgreSQL, Docker, Kafka.",
+    "id": "509cd7fd-c941-5fed-9564-85284d2f3fdd",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 2.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 400000,
+    "salary_min": 290000,
+    "specialization": "Backend",
+    "synthetic_code": "N03",
+    "title": "Backend Senior",
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "currency": "RUB",
+    "description": "Вымышленная потребность: Frontend Middle. Основные навыки: React, TypeScript, CSS.",
+    "id": "f90f3c35-c4c0-5fa2-9d4f-717faa7d69e2",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "React",
+        "required": true,
+        "weight": 2.0
+      },
+      {
+        "name": "TypeScript",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "CSS",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 260000,
+    "salary_min": 180000,
+    "specialization": "Frontend",
+    "synthetic_code": "N04",
+    "title": "Frontend Middle",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Новосибирск",
+    "currency": "RUB",
+    "description": "Вымышленная потребность: DevOps Junior. Основные навыки: Linux, Docker, CI/CD.",
+    "id": "aa8b14e6-e6dc-5f93-aa56-2ce0be7e4e8b",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Linux",
+        "required": true,
+        "weight": 2.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "CI/CD",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 180000,
+    "salary_min": 120000,
+    "specialization": "DevOps / SRE",
+    "synthetic_code": "N05",
+    "title": "DevOps Junior",
+    "work_format": "remote"
+  }
+]

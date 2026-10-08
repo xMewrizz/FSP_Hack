@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { apiGet, apiPost, apiPut, apiRequest, clearSession, saveSession } from "./api";
+import {
+  ALL_GRADES,
+  ALL_SPECIALIZATIONS,
+  TEST_AVAILABILITY_HINT,
+  isTestablePair,
+} from "./catalog";
 
 type Candidate = {
   id: number;
@@ -350,6 +356,8 @@ type CandidateProfileData = {
   fsp_id: string | null;
   fsp_verified: boolean;
   agreed_152_fz: boolean;
+  agreed_publication: boolean;
+  visibility_public: boolean;
   agreed_osint: boolean;
 };
 
@@ -914,8 +922,8 @@ function EmployerScreen({
       <div className="page-content">
         <div className="bank-toolbar">
           <div className="search-field search-field--wide"><Icon name="search" /><input value={bankQuery} onChange={(event) => setBankFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Имя или технология" /></div>
-          <select className="bank-select" aria-label="Фильтр специализации" value={bankSpecialization} onChange={(event) => setBankFilters((current) => ({ ...current, specialization: event.target.value }))}><option value="">Все специализации</option>{["Backend", "Frontend", "Fullstack", "Mobile", "DevOps / SRE", "Data Science / ML", "QA / Testing", "System Programming / C++", "GameDev"].map((item) => <option key={item}>{item}</option>)}</select>
-          <select className="bank-select" aria-label="Фильтр грейда" value={bankGrade} onChange={(event) => setBankFilters((current) => ({ ...current, grade: event.target.value }))}><option value="">Любой грейд</option>{["junior", "middle", "senior", "lead"].map((item) => <option key={item} value={item}>{item[0].toUpperCase() + item.slice(1)}</option>)}</select>
+          <select className="bank-select" aria-label="Фильтр специализации" value={bankSpecialization} onChange={(event) => setBankFilters((current) => ({ ...current, specialization: event.target.value }))}><option value="">Все специализации</option>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select>
+          <select className="bank-select" aria-label="Фильтр грейда" value={bankGrade} onChange={(event) => setBankFilters((current) => ({ ...current, grade: event.target.value }))}><option value="">Любой грейд</option>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
           <select className="bank-select" aria-label="Фильтр формата работы" value={bankFormat} onChange={(event) => setBankFilters((current) => ({ ...current, format: event.target.value }))}><option value="">Любой формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select>
           <input className="bank-select" aria-label="Фильтр города" value={bankCity} onChange={(event) => setBankFilters((current) => ({ ...current, city: event.target.value }))} placeholder="Город" />
           <Button variant={bankFspOnly ? "primary" : "outline"} onClick={() => setBankFilters((current) => ({ ...current, fspOnly: !current.fspOnly }))}><Icon name="filter" /> Достижения ФСП</Button>
@@ -959,9 +967,9 @@ function EmployerScreen({
             <label className="field field--flush"><span>ОПИСАНИЕ ПОТРЕБНОСТИ</span><textarea value={needDescription} onChange={(event) => setNeedDescription(event.target.value)} placeholder="Опишите задачи команды, стек и приоритеты роли." /></label>
             <div className="field-row field-row--flush">
               <label className="field"><span>НАЗВАНИЕ РОЛИ</span><input value={needTitle} onChange={(event) => setNeedTitle(event.target.value)} /></label>
-              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => setNeedSpecialization(event.target.value)}>{["Backend", "Frontend", "Fullstack", "Mobile", "DevOps / SRE", "Data Science / ML", "QA / Testing", "System Programming / C++", "GameDev"].map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => setNeedSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
-            <label className="field field--flush"><span>ТРЕБУЕМЫЙ УРОВЕНЬ</span><select value={needGrade} onChange={(event) => setNeedGrade(event.target.value)}>{["junior", "middle", "senior", "lead"].map((item) => <option key={item} value={item}>{item[0].toUpperCase() + item.slice(1)}</option>)}</select></label>
+            <label className="field field--flush"><span>ТРЕБУЕМЫЙ УРОВЕНЬ</span><select value={needGrade} onChange={(event) => setNeedGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
             <div className="field-row field-row--flush">
               <label className="field"><span>ЗАРПЛАТА ОТ, ₽</span><input inputMode="numeric" value={needSalaryMin} onChange={(event) => setNeedSalaryMin(event.target.value)} /></label>
               <label className="field"><span>ЗАРПЛАТА ДО, ₽</span><input inputMode="numeric" value={needSalaryMax} onChange={(event) => setNeedSalaryMax(event.target.value)} /></label>
@@ -1027,7 +1035,7 @@ function EmployerScreen({
         {vacancyEditor && (
           <section className="feature-card vacancy-editor">
             <div className="feature-head"><div><span>НОВАЯ ВАКАНСИЯ</span><strong>Основные условия</strong></div><Button variant="ghost" onClick={() => setVacancyEditor(false)}>Закрыть</Button></div>
-            <div className="field-row field-row--flush"><label className="field"><span>НАЗВАНИЕ *</span><input defaultValue="Backend-разработчик" /></label><label className="field"><span>СПЕЦИАЛИЗАЦИЯ *</span><select><option>Backend</option><option>Frontend</option><option>DevOps</option></select></label></div>
+            <div className="field-row field-row--flush"><label className="field"><span>НАЗВАНИЕ *</span><input defaultValue="Backend-разработчик" /></label><label className="field"><span>СПЕЦИАЛИЗАЦИЯ *</span><select>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label></div>
             <div className="field-row field-row--flush"><label className="field"><span>УРОВЕНЬ *</span><select><option>Middle</option><option>Senior</option></select></label><label className="field"><span>ФОРМАТ *</span><select><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div>
             <div className="field-row field-row--flush"><label className="field"><span>ЗАРПЛАТА ОТ, ₽ *</span><input defaultValue="220 000" /></label><label className="field"><span>ЗАРПЛАТА ДО, ₽ *</span><input defaultValue="280 000" /></label></div>
             <label className="field field--flush"><span>ОПИСАНИЕ *</span><textarea defaultValue="Разработка API финансовой платформы, работа с PostgreSQL и сервисами обработки событий." /></label>
@@ -1287,6 +1295,23 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     }
   };
 
+  const saveCandidatePrivacy = async () => {
+    if (!profile) return;
+    setProfileSaving(true);
+    try {
+      const updated = await apiPut<CandidateProfileData>("/candidate/profile", {
+        agreed_publication: profile.agreed_publication,
+        visibility_public: profile.visibility_public,
+      });
+      setProfile(updated);
+      onNotify("Настройки видимости сохранены");
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось сохранить настройки", "error");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const uploadResume = async (file?: File) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".pdf") || file.size > 10 * 1024 * 1024) {
@@ -1444,7 +1469,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           </section>
           <section className="feature-card feature-card--fsp" data-tour="fsp-tools">
             <div className="feature-head"><div><span>ФСП · ПРАКТИЧЕСКИЙ ТРЕК</span><strong>{profile?.fsp_verified ? "Участник подтверждён" : "Проверьте навыки на олимпиаде"}</strong></div><div className="fsp-symbol">◆</div></div>
-            <p className="feature-description feature-description--left">Решите олимпиадные задачи вместо теста на грейд. Результат покажет сильные стороны по темам и поможет дополнить подтверждённый профиль.</p>
+            <p className="feature-description feature-description--left">Олимпиадные задачи дополняют профиль практическими результатами, но грейд не подтверждают — его подтверждает только тест. Сильные стороны по темам помогут дополнить подтверждённый профиль.</p>
             <div className="fsp-actions"><Button onClick={() => { setTestPurpose("fsp-olympiad"); onNavigate("Тестирование"); }}>Написать олимпиаду</Button><label className="button button--outline diploma-upload"><Icon name="briefcase" />{diplomaUploading ? "Передаём…" : "Догрузить диплом"}<input type="file" accept="application/pdf,image/png,image/jpeg" disabled={diplomaUploading} onChange={(event) => void uploadFspDiploma(event.target.files?.[0])} /></label><Button variant="ghost" onClick={() => onNavigate("Настройки")}>Связать ФСП ID</Button></div>
             {diplomaStatus && <div className="fsp-upload-status" role="status">{diplomaStatus}</div>}
           </section>
@@ -1508,7 +1533,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         <div className="test-intro">
           <div className="test-intro__graphic"><span>&lt;/&gt;</span><i /><b /></div>
           <span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП" : "ПОДТВЕРЖДЕНИЕ УРОВНЯ"}</span><strong>{testPurpose === "fsp-olympiad" ? "Практические задачи по навыкам" : "Тест по данным вашего профиля"}</strong><p>{testPurpose === "fsp-olympiad" ? "Проверьте практические навыки в задачах по темам. В локальном demo результат сохранится в текущей сессии." : "Набор заданий и целевой уровень будут сформированы сервером. Результат появится здесь после отправки ответов."}</p>
-          <div className="notice-box">Для подтверждения категории необходимо набрать проходной балл. Неудачная попытка не понижает заявленный уровень.</div>
+          <div className="notice-box">Для подтверждения категории необходимо набрать проходной балл. Неудачная попытка не понижает заявленный уровень. {TEST_AVAILABILITY_HINT} Если пара «специализация + грейд» не поддерживается, сервер вернёт явную ошибку — вопросы другого направления не подставляются.</div>
           <div className="assessment-mode" role="group" aria-label="Режим проверки"><button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}>Тест уровня</button><button type="button" className={testPurpose === "fsp-olympiad" ? "active" : ""} onClick={() => setTestPurpose("fsp-olympiad")}>Олимпиада ФСП</button></div>
           <div className="test-choice-actions"><Button disabled={testStarting} onClick={() => void startAdaptiveTest()}>{testStarting ? "Подготавливаем…" : testPurpose === "fsp-olympiad" ? "Начать олимпиаду" : "Начать тестирование"} <Icon name="chevron" /></Button><span>Достижения ФСП можно связать в настройках, дипломы передать через локальный demo-процесс.</span></div>
         </div>
@@ -1574,7 +1599,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   return (
     <div className="page-content">
       <div className="settings-layout">
-        <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Состояние профиля</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Согласие на OSINT-проверку</span><strong>{profile?.agreed_osint ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Управление видимостью профиля</span><strong>Не поддерживается API сервера</strong></div><div className="form-error" role="note">Сервер пока не хранит отдельное согласие на публикацию и настройки видимости.</div></section>
+        <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Кому виден профиль</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Согласие на OSINT-проверку</span><strong>{profile?.agreed_osint ? "Сохранено" : "Не предоставлено"}</strong></div><label className="consent-large"><input type="checkbox" checked={profile?.agreed_publication ?? false} onChange={(event) => setProfile((current) => current ? { ...current, agreed_publication: event.target.checked, visibility_public: event.target.checked ? current.visibility_public : false } : current)} /><span>Разрешаю показывать мой профиль работодателям</span></label><label className="consent-large"><input type="checkbox" checked={profile?.visibility_public ?? false} disabled={!profile?.agreed_publication} onChange={(event) => setProfile((current) => current ? { ...current, visibility_public: event.target.checked } : current)} /><span>Показывать профиль в поиске и подборке</span></label><p className="feature-description feature-description--left">Без согласия на публикацию профиль остаётся скрытым. Видимость можно выключить в любой момент.</p><Button disabled={!profile || profileSaving} onClick={() => void saveCandidatePrivacy()}>{profileSaving ? "Сохраняем…" : "Сохранить настройки"}</Button></section>
         <section className="feature-card"><div className="feature-head"><div><span>ИНТЕГРАЦИИ</span><strong>Данные ФСП</strong></div></div><label className="field field--flush"><span>ФСП ID</span><input value={fspInput} onChange={(event) => setFspInput(event.target.value)} placeholder="Например, FSP-77-001" /></label><div className="integration-card"><div className="fsp-symbol">◆</div><div><strong>{profile?.fsp_verified ? "ID подтверждён" : "ID не подтверждён"}</strong><span>{profile?.fsp_id ?? "Не привязан"}</span></div><Button variant="outline" disabled={!fspInput.trim()} onClick={() => void linkFspId()}>Проверить</Button></div></section>
       </div>
     </div>
@@ -1940,7 +1965,7 @@ function AuthScreen({
         <Logo />
         <span>КАРЬЕРА С ПОДТВЕРЖДЁННЫМИ НАВЫКАМИ</span>
         <strong>Работа, где сначала смотрят на то, что вы умеете</strong>
-        <p>Подтвердите навыки тестом или достижениями ФСП, получите понятную карту компетенций и предложения с зарплатой.</p>
+        <p>Подтвердите грейд тестом, дополните профиль достижениями ФСП и получайте предложения с зарплатой.</p>
         <div className="auth-benefits">
           <div><Icon name="check" /><span>Объективная оценка навыков</span></div>
           <div><Icon name="check" /><span>Зарплата известна до общения</span></div>
@@ -1999,6 +2024,8 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
   city: string;
   fsp_id: string | null;
   agreed_152_fz: boolean;
+  agreed_publication: boolean;
+  visibility_public: boolean;
   agreed_osint: boolean;
 }) => Promise<void> }) {
   const [step, setStep] = useState(0);
@@ -2006,11 +2033,12 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [specialization, setSpecialization] = useState("Backend");
-  const [grade, setGrade] = useState("Middle");
+  const [grade, setGrade] = useState("middle");
   const [city, setCity] = useState("Москва");
   const [format, setFormat] = useState("Удалённо");
   const [fspId, setFspId] = useState("");
   const [osint, setOsint] = useState(false);
+  const [publication, setPublication] = useState(false);
   const [saving, setSaving] = useState(false);
   const steps = ["Профиль", "Специализация", "Формат работы", "Резюме", "ФСП и проверка"];
   const canContinue = step !== 0 || (consent && firstName.trim().length > 0 && lastName.trim().length > 0);
@@ -2021,11 +2049,13 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         specialization,
-        declared_grade: grade.toLowerCase(),
+        declared_grade: grade,
         work_format: format === "Удалённо" ? "remote" : format === "Гибрид" ? "hybrid" : "office",
         city: city.trim(),
         fsp_id: fspId.trim() || null,
         agreed_152_fz: consent,
+        agreed_publication: publication,
+        visibility_public: publication,
         agreed_osint: osint,
       });
     } finally {
@@ -2040,10 +2070,10 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
         <div className="onboarding-progress">{steps.map((item, index) => <div key={item} className={index <= step ? "active" : ""}><b>{index + 1}</b><span>{item}</span></div>)}</div>
         <div className="onboarding-content">
           {step === 0 && <><span>ШАГ 1</span><strong>Заполните профиль</strong><p>Укажите имя и подтвердите согласие на обработку данных перед созданием профиля.</p><div className="field-row field-row--flush"><label className="field"><span>ИМЯ</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" /></label><label className="field"><span>ФАМИЛИЯ</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" /></label></div><label className="consent-large"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Согласен на обработку персональных данных по 152-ФЗ.</span></label></>}
-          {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Позже уровень будет подтверждён тестом или достижениями ФСП.</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{["Backend", "Frontend", "Fullstack", "Mobile", "DevOps / SRE", "Data Science / ML", "QA / Testing", "System Programming / C++", "GameDev"].map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{["Junior", "Middle", "Senior", "Lead"].map((item) => <option key={item}>{item}</option>)}</select></label></div></>}
+          {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Грейд подтверждает только тест. Достижения ФСП влияют на порядок в подборке, но грейд не подтверждают. {TEST_AVAILABILITY_HINT}</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>{!isTestablePair(specialization, grade) && <p className="feature-description feature-description--left">Для пары «{specialization} · {grade}» теста пока нет — профиль сохранить можно, но сквозной сценарий (тест → подборка → приглашение) сейчас проходится только на Backend Junior / Middle / Senior. <Button variant="outline" onClick={() => { setSpecialization("Backend"); setGrade("middle"); }}>Выбрать Backend · Middle для теста</Button></p>}</>}
           {step === 2 && <><span>ШАГ 3</span><strong>Где и как вы хотите работать</strong><div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={city} onChange={(event) => setCity(event.target.value)} /></label><label className="field"><span>ФОРМАТ</span><select value={format} onChange={(event) => setFormat(event.target.value)}><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div><ToggleRow title="Готов к переезду" detail="Работодатели смогут учитывать это при подборе" /></>}
           {step === 3 && <><span>ШАГ 4</span><strong>Резюме и опыт</strong><p>После завершения настройки откройте раздел «Профиль», чтобы загрузить PDF. Распознанные данные можно проверить и исправить перед сохранением.</p><div className="notice-box">Для продолжения загрузка резюме не обязательна.</div></>}
-          {step === 4 && <><span>ШАГ 5</span><strong>Свяжите достижения ФСП</strong><p>ФСП ID добавит подтверждённые олимпиады и хакатоны. Если ID нет, профиль продолжит работать.</p><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label><label className="consent-large"><input type="checkbox" checked={osint} onChange={(event) => setOsint(event.target.checked)} /><span>Разрешаю проверку истории резюме для расчёта оценки доверия. Без согласия будет установлено нейтральное значение 0,50.</span></label></>}
+          {step === 4 && <><span>ШАГ 5</span><strong>Публикация и данные ФСП</strong><p>Профиль можно сохранить скрытым и открыть для работодателей позже в настройках.</p><label className="consent-large"><input type="checkbox" checked={publication} onChange={(event) => setPublication(event.target.checked)} /><span>Разрешаю показывать мой профиль работодателям в поиске и подборке</span></label><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label><label className="consent-large"><input type="checkbox" checked={osint} onChange={(event) => setOsint(event.target.checked)} /><span>Разрешаю проверку истории резюме для расчёта оценки доверия. Без согласия будет установлено нейтральное значение 0,50.</span></label></>}
         </div>
         <div className="onboarding-actions"><Button variant="ghost" onClick={() => setStep(Math.max(0, step - 1))}>{step === 0 ? "Вернуться ко входу" : "Назад"}</Button><Button className={!canContinue || saving ? "button--disabled" : ""} onClick={() => { if (!canContinue || saving) return; if (step === steps.length - 1) void complete(); else setStep(step + 1); }}>{saving ? "Сохраняем…" : step === steps.length - 1 ? "Завершить настройку" : "Далее"} <Icon name="chevron" /></Button></div>
       </div>
