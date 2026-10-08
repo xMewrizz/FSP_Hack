@@ -1,12 +1,16 @@
 import io
 import re
+from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape
 from fastapi import HTTPException
 from pypdf import PdfReader
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from app.models.candidate import CandidateProfile
 from app.schemas.resume import ResumeParsedData
 
@@ -79,7 +83,21 @@ class PDFService:
         )
 
     @staticmethod
-    def generate_candidate_profile_pdf(profile: CandidateProfile, user_email: str) -> bytes:
+    def generate_candidate_profile_pdf(profile: CandidateProfile) -> bytes:
+        if not profile.agreed_publication:
+            raise HTTPException(status_code=403, detail="Для PDF-профиля разрешите публикацию профиля в настройках")
+
+        font_paths = (
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("C:/Windows/Fonts/arial.ttf"),
+        )
+        font_path = next((path for path in font_paths if path.is_file()), None)
+        if font_path is None:
+            raise RuntimeError("Для PDF-профиля нужен шрифт с поддержкой кириллицы")
+        if "ProfileUnicode" not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont("ProfileUnicode", str(font_path)))
+            pdfmetrics.registerFontFamily("ProfileUnicode", normal="ProfileUnicode", bold="ProfileUnicode", italic="ProfileUnicode", boldItalic="ProfileUnicode")
+
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer,
@@ -97,6 +115,7 @@ class PDFService:
             fontSize=22,
             leading=26,
             textColor=colors.HexColor("#1E3A8A"),
+            fontName="ProfileUnicode",
         )
         subtitle_style = ParagraphStyle(
             "DocSubtitle",
@@ -104,6 +123,7 @@ class PDFService:
             fontSize=13,
             leading=16,
             textColor=colors.HexColor("#3B82F6"),
+            fontName="ProfileUnicode",
         )
         body_style = ParagraphStyle(
             "DocBody",
@@ -111,6 +131,7 @@ class PDFService:
             fontSize=10,
             leading=14,
             textColor=colors.HexColor("#1F2937"),
+            fontName="ProfileUnicode",
         )
         badge_style = ParagraphStyle(
             "DocBadge",
@@ -118,32 +139,28 @@ class PDFService:
             fontSize=11,
             leading=14,
             textColor=colors.HexColor("#065F46"),
+            fontName="ProfileUnicode",
         )
 
         elements = []
 
         # Title
-        full_name = f"{profile.first_name} {profile.last_name}".strip() or "Кандидат платформы FSP"
+        full_name = escape(f"{profile.first_name or ''} {profile.last_name or ''}".strip() or "Кандидат платформы FSP")
         elements.append(Paragraph(full_name, title_style))
         elements.append(Spacer(1, 6))
 
         # Role & Grade
-        grade_text = profile.verified_grade or profile.declared_grade or "junior"
+        grade_text = escape(profile.verified_grade or profile.declared_grade or "не указан")
         status_suffix = " (ПОДТВЕРЖДЁН ТЕСТОМ)" if profile.verified_grade else " (заявленный)"
-        spec_text = f"{profile.specialization or 'IT-специалист'} — {grade_text.upper()}{status_suffix}"
+        spec_text = f"{escape(profile.specialization or 'IT-специалист')} — {grade_text.upper()}{status_suffix}"
         elements.append(Paragraph(spec_text, subtitle_style))
         elements.append(Spacer(1, 14))
 
         # Meta Table
         data_info = [
-            [Paragraph("<b>Город:</b>", body_style), Paragraph(profile.city or "Не указан", body_style)],
-            [Paragraph("<b>Формат работы:</b>", body_style), Paragraph((profile.work_format or "remote").capitalize(), body_style)],
-            [Paragraph("<b>Email:</b>", body_style), Paragraph(user_email, body_style)],
+            [Paragraph("<b>Город:</b>", body_style), Paragraph(escape(profile.city or "Не указан"), body_style)],
+            [Paragraph("<b>Формат работы:</b>", body_style), Paragraph(escape((profile.work_format or "Не указан").capitalize()), body_style)],
         ]
-        if profile.phone:
-            data_info.append([Paragraph("<b>Телефон:</b>", body_style), Paragraph(profile.phone, body_style)])
-        if profile.telegram:
-            data_info.append([Paragraph("<b>Telegram:</b>", body_style), Paragraph(profile.telegram, body_style)])
 
         t_info = Table(data_info, colWidths=[120, 420])
         t_info.setStyle(TableStyle([
@@ -156,9 +173,9 @@ class PDFService:
 
         # FSP Section
         if profile.fsp_verified and profile.fsp_id:
-            elements.append(Paragraph("<b>Спортивное программирование (Реестр ФСП)</b>", subtitle_style))
+            elements.append(Paragraph("<b>Спортивное программирование · демонстрационные данные ФСП</b>", subtitle_style))
             elements.append(Spacer(1, 6))
-            elements.append(Paragraph(f"<b>ФСП ID:</b> {profile.fsp_id} — ВЕРИФИЦИРОВАН", badge_style))
+            elements.append(Paragraph(f"<b>ФСП ID:</b> {escape(profile.fsp_id)} · тестовая запись, личность не проверена", badge_style))
             elements.append(Spacer(1, 6))
 
             if profile.fsp_achievements:
@@ -170,10 +187,10 @@ class PDFService:
                 ]]
                 for ach in profile.fsp_achievements:
                     ach_rows.append([
-                        Paragraph(ach.tournament_name, body_style),
+                        Paragraph(escape(ach.tournament_name), body_style),
                         Paragraph(str(ach.year), body_style),
-                        Paragraph(ach.rank_or_place, body_style),
-                        Paragraph(ach.sport_category, body_style),
+                        Paragraph(escape(ach.rank_or_place), body_style),
+                        Paragraph(escape(ach.sport_category or ""), body_style),
                     ])
                 t_ach = Table(ach_rows, colWidths=[240, 50, 120, 130])
                 t_ach.setStyle(TableStyle([
@@ -186,9 +203,9 @@ class PDFService:
                 elements.append(Spacer(1, 14))
 
         # Skills & Tests
-        elements.append(Paragraph("<b>Подтвержденные навыки и компетенции</b>", subtitle_style))
+        elements.append(Paragraph("<b>Навыки, указанные кандидатом</b>", subtitle_style))
         elements.append(Spacer(1, 6))
-        skills_str = ", ".join(profile.skills) if profile.skills else "Проверка через онлайн-тестирование"
+        skills_str = escape(", ".join(profile.skills) if profile.skills else "Не указаны")
         elements.append(Paragraph(skills_str, body_style))
         elements.append(Spacer(1, 14))
 
@@ -196,12 +213,12 @@ class PDFService:
         if profile.bio:
             elements.append(Paragraph("<b>О себе</b>", subtitle_style))
             elements.append(Spacer(1, 6))
-            elements.append(Paragraph(profile.bio, body_style))
+            elements.append(Paragraph(escape(profile.bio), body_style))
             elements.append(Spacer(1, 14))
 
         # Footer Notice
         elements.append(Spacer(1, 14))
-        elements.append(Paragraph("<i>Сформировано автоматически на платформе FSP.Career в соответствии с 152-ФЗ.</i>", ParagraphStyle("Footer", parent=body_style, fontSize=8, textColor=colors.gray)))
+        elements.append(Paragraph("<i>PDF-профиль для передачи по решению кандидата. Контакты в него не включены.</i>", ParagraphStyle("Footer", parent=body_style, fontSize=8, textColor=colors.gray)))
 
         doc.build(elements)
         buffer.seek(0)

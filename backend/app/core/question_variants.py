@@ -7,6 +7,9 @@
 from typing import Any
 
 from app.core.question_bank import PREDEFINED_QUESTIONS
+from app.core.question_bank_expansion import EXTRA_FAMILIES, extra_prepared_variants
+from app.core.question_bank_curriculum import CURRICULUM_FAMILIES, curriculum_prepared_variants
+from app.core.question_bank_sources import SOURCE_FAMILIES, source_prepared_variants
 
 
 # В каждой семье базовый вопрос из question_bank.py и два варианта с разными
@@ -132,9 +135,19 @@ BACKEND_FAMILIES: dict[str, dict[str, Any]] = {
     },
 }
 
+BACKEND_FAMILIES.update(EXTRA_FAMILIES)
+BACKEND_FAMILIES.update(CURRICULUM_FAMILIES)
+BACKEND_FAMILIES.update(SOURCE_FAMILIES)
+
 
 def prepared_variants(base_code: str) -> list[dict[str, Any]]:
     """Три проверяемых варианта семьи: текущий вопрос и два параметрических."""
+    if base_code in SOURCE_FAMILIES:
+        return source_prepared_variants(base_code)
+    if base_code in CURRICULUM_FAMILIES:
+        return curriculum_prepared_variants(base_code)
+    if base_code in EXTRA_FAMILIES:
+        return extra_prepared_variants(base_code)
     family = BACKEND_FAMILIES[base_code]
     base = next(q for q in PREDEFINED_QUESTIONS if q["code"] == base_code)
     result = [{**base, "family_code": base_code, "variant_id": "v1", "skill": family["skill"], "rubric": family["rubric"]}]

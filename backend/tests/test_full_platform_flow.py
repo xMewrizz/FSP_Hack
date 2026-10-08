@@ -1,6 +1,8 @@
 import io
+from pypdf import PdfReader
 import pytest
 from httpx import AsyncClient
+from app.core.question_variants import BACKEND_FAMILIES, prepared_variants
 
 
 @pytest.mark.asyncio
@@ -52,44 +54,73 @@ async def test_full_platform_end_to_end_flow(client: AsyncClient):
     assert pdf_resp.status_code == 200
     assert pdf_resp.headers["content-type"] == "application/pdf"
     assert len(pdf_resp.content) > 100
+    pdf_text = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(pdf_resp.content)).pages)
+    assert "Тест Кандидатов" in pdf_text
+    assert "Навыки, указанные кандидатом" in pdf_text
+    assert "демонстрационные данные ФСП" in pdf_text
+    assert "candidate_test@fsp.ru" not in pdf_text
+    assert "+7 (999) 777-88-99" not in pdf_text
+    assert "@test_candidate" not in pdf_text
+    revoke = await client.put(
+        "/api/v1/candidates/profile", headers=cand_headers,
+        json={"agreed_publication": False},
+    )
+    assert revoke.status_code == 200
+    assert (await client.get("/api/v1/candidates/profile/pdf", headers=cand_headers)).status_code == 403
+    restore = await client.put(
+        "/api/v1/candidates/profile", headers=cand_headers,
+        json={"agreed_publication": True, "visibility_public": True},
+    )
+    assert restore.status_code == 200
 
     # ================= 3. Testing & Grade Confirmation =================
-    start_test_resp = await client.post(
-        "/api/v1/testing/start",
-        headers=cand_headers,
+    roadmap_resp = await client.post(
+        "/api/v1/testing/roadmap", headers=cand_headers,
         json={"specialization": "Backend", "target_grade": "junior"},
     )
-    assert start_test_resp.status_code == 201
-    test_session = start_test_resp.json()
-    session_id = test_session["session_id"]
-    questions = test_session["questions"]
-    assert len(questions) > 0
+    assert roadmap_resp.status_code == 201
+    roadmap_id = roadmap_resp.json()["id"]
+    assert len(roadmap_resp.json()["skills"]) == 4
 
     # Answer all questions correctly
-    answers = []
-    for q in questions:
-        if q["code"] == "BE-JR-01":
-            answers.append({"question_id": q["id"], "selected_answers": ["D"]})
-        elif q["code"] == "BE-JR-02":
-            answers.append({"question_id": q["id"], "selected_answers": ["A"]})
-        elif q["code"] == "BE-JR-03":
-            answers.append({"question_id": q["id"], "selected_answers": ["B"]})
-        elif q["code"] == "BE-JR-04":
-            answers.append({"question_id": q["id"], "selected_answers": ["B"]})
-        else:
-            answers.append({"question_id": q["id"], "selected_answers": ["A"]})
-
-    submit_resp = await client.post(
-        f"/api/v1/testing/{session_id}/submit",
-        headers=cand_headers,
-        json={"answers": answers},
-    )
-    assert submit_resp.status_code == 200
-    result = submit_resp.json()
+    keys = {
+        variant["code"]: variant["correct_answers"]
+        for code in BACKEND_FAMILIES if code.startswith("BE-JR-")
+        for variant in prepared_variants(code)
+    }
+    for skill in roadmap_resp.json()["skills"]:
+        started = await client.post(
+            f"/api/v1/testing/roadmap/{roadmap_id}/skills/{skill['code']}/start",
+            headers=cand_headers,
+        )
+        assert started.status_code == 201
+        session_id = started.json()["session_id"]
+        questions = started.json()["questions"]
+        assert len(questions) == 10
+        answers = [
+            {"question_id": q["id"], "selected_answers": keys[q["code"]]}
+            for q in questions
+        ]
+        submit_resp = await client.post(
+            f"/api/v1/testing/{session_id}/submit",
+            headers=cand_headers, json={"answers": answers},
+        )
+        assert submit_resp.status_code == 200
+        result = submit_resp.json()
     assert result["passed"] is True
     assert result["verified_grade"] == "junior"
     assert result["percentage"] >= 70.0
     assert len(result["skill_breakdown"]) > 0
+    assert len(result["skill_breakdown"]) == 1
+    assert all(item["correct_count"] == item["total_questions"] == 10 for item in result["skill_breakdown"])
+    assert result["correct_count"] == len(questions)
+    assert result["total_questions"] == len(questions)
+    assert len(result["question_review"]) == len(questions)
+    assert all(item["is_correct"] and item["explanation"] for item in result["question_review"])
+
+    saved_result = await client.get(f"/api/v1/testing/{session_id}", headers=cand_headers)
+    assert saved_result.status_code == 200
+    assert saved_result.json()["question_review"] == result["question_review"]
 
     # Check candidate profile has updated verified_grade
     get_profile = await client.get("/api/v1/candidates/profile", headers=cand_headers)

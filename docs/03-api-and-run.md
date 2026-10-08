@@ -1,8 +1,8 @@
 # API и локальный запуск
 
-Ниже перечислены API, которые есть в коде. На 8 октября 2026 года прошли 28 backend-тестов; отдельный бенчмарк B-31 не уложился в свой порог времени ответа. Основной сценарий проверен на запущенном Compose с PostgreSQL.
+Ниже перечислены API, которые есть в коде. Основной сценарий проверен на запущенном Compose с PostgreSQL. Отдельный бенчмарк B-31 пока не уложился в свой порог времени ответа.
 
-Рядом с зарплатой в потребности, вакансии и приглашении надо писать: **«до вычета НДФЛ»** или **«на руки»**. Сейчас в API есть только сумма и валюта; пометку ещё нужно добавить. Жюри должно суметь пройти тест самостоятельно. Для запуска на их стенде не должны требоваться GPU и работающая LLM.
+Рядом с зарплатой в потребности, вакансии и приглашении нужно писать: **«до вычета НДФЛ»** или **«на руки»**. Поле `salary_tax_type` хранится во всех трёх API; в форме потребности пометку ещё нужно показать. Жюри должно суметь пройти тест самостоятельно. Для запуска на их стенде не должны требоваться GPU и работающая LLM.
 
 ## Интерактивная документация (Swagger / ReDoc)
 
@@ -84,16 +84,25 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | `PUT` | `/candidates/profile` | Частичное обновление данных и настроек видимости | `Bearer JWT` (Candidate) | Поля для обновления (город, стек, резюме, грейд, `agreed_publication`, `visibility_public` и др.) | `200 OK`: `CandidateProfileResponse` |
 | `POST` | `/candidates/link-fsp` | Привязать или обновить ФСП ID | `Bearer JWT` (Candidate) | `{ "fsp_id": "FSP-78-042" }` | `200 OK`: `CandidateProfileResponse` с обновленными достижениями |
 | `POST` | `/candidates/resume/upload` | Загрузить PDF-резюме и извлечь данные (парсинг `pypdf`) | `Bearer JWT` (Candidate) | Multipart Form (`file: UploadFile`) | `200 OK`: `ResumeParsedData` (email, телефон, контакты, стек, предложенный грейд) |
-| `GET` | `/candidates/profile/pdf` | Скачать стандартизированный PDF-профиль (`reportlab`) | `Bearer JWT` (Candidate) | — | `200 OK`: PDF-файл (`application/pdf`) с подтвержденными навыками и статусом ФСП |
+| `GET` | `/candidates/profile/pdf` | Скачать PDF-профиль после согласия на публикацию | `Bearer JWT` (Candidate) | — | `200 OK`: PDF без контактов; `403`, если согласия нет. Самостоятельно указанные навыки не помечаются как подтверждённые, данные ФСП обозначены как демонстрационные. |
 
 ---
 
 ### 3. Тестирование и подтверждение категории (`/api/v1/testing`)
 
+Новый сценарий Backend использует `/testing/roadmap`: набор обязательных навыков можно проходить по частям в течение трёх дней. В ответе есть `expires_at` и `retake_used`; после неудачной пересдачи Junior — `retry_available_at`. После завершения первого набора повторный `POST /testing/roadmap` с тем же грейдом открывает одну пересдачу всех навыков с новым трёхдневным сроком. После второй неудачи Middle/Senior предлагается грейд ниже; Junior может открыть новый цикл через неделю. Прежний `/testing/start` остался для совместимости и не присваивает грейд. Правила — в [описании тестирования](02-testing-matching.md).
+
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/testing/start` | Начать тест на заявленный грейд и специализацию (проверка правила 90 дней) | `Bearer JWT` (Candidate) | `{ "specialization": "Backend", "target_grade": "senior" }` | `201 Created`: `TestStartResponse` (сессия, вопросы без ответов, варианты, темы) |
-| `POST` | `/testing/{session_id}/submit` | Отправить ответы на тест и получить подтвержденный грейд | `Bearer JWT` (Candidate) | `{ "answers": [ { "question_id": "...", "selected_answers": ["B"] } ] }` | `200 OK`: `TestResultResponse` (баллы, процент, статус сдачи, разбивка по навыкам, присвоенный грейд, рекомендации) |
+| `POST` | `/testing/roadmap` | Открыть или продолжить набор обязательных навыков выбранного Backend-грейда | `Bearer JWT` (Candidate) | `{ "specialization": "Backend", "target_grade": "junior" }` либо `{}` для данных профиля | `201 Created`: прогресс набора и четыре навыка |
+| `GET` | `/testing/roadmap/current` | Последний набор кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: набор или `null` |
+| `GET` | `/testing/roadmap/{assessment_id}` | Прогресс конкретного набора | `Bearer JWT` (Candidate) | — | `200 OK`: результаты навыков и итог, если набор завершён |
+| `POST` | `/testing/roadmap/{assessment_id}/stop` | Прервать текущий набор перед переходом на уровень ниже | `Bearer JWT` (Candidate) | `{}` | `200 OK`: набор со статусом `cancelled` |
+| `POST` | `/testing/roadmap/{assessment_id}/skills/{skill_code}/start` | Начать или продолжить обязательный навык | `Bearer JWT` (Candidate) | — | `201 Created`: задания навыка без ключей; завершённый навык или истёкший набор даёт `409` |
+| `GET` | `/testing/additional` | Доступные дополнительные тесты текущего подтверждённого грейда | `Bearer JWT` (Candidate) | — | `200 OK`: навыки и последние результаты |
+| `POST` | `/testing/additional/{skill_code}/start` | Начать дополнительный тест | `Bearer JWT` (Candidate) | `{ "target_grade": "junior" }` — текущий подтверждённый грейд | `201 Created`: вопросы навыка; неподдерживаемая пара даёт `400` |
+| `POST` | `/testing/start` | Прежний общий тест, только для совместимости; грейд не присваивает | `Bearer JWT` (Candidate) | `{ "specialization": "Backend", "target_grade": "senior" }` | `201 Created`: 12 заданий без ключей |
+| `POST` | `/testing/{session_id}/submit` | Отправить ответы на тест навыка или прежний общий тест | `Bearer JWT` (Candidate) | `{ "answers": [ { "question_id": "...", "selected_answers": ["B"] } ] }` | `200 OK`: результат навыка; после последнего обязательного навыка — решение о грейде |
 | `GET` | `/testing/history` | История попыток тестирования кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: Список пройденных сессий |
 | `GET` | `/testing/{session_id}` | Детальные результаты конкретной сессии | `Bearer JWT` (Candidate) | — | `200 OK`: `TestResultResponse` |
 
@@ -134,7 +143,7 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/invitations` | Отправить прямое приглашение кандидату (контакты скрыты до принятия) | `Bearer JWT` (Employer) | `{ "candidate_id": "...", "need_id": "...", "offer_description": "...", "contact_method": "...", "salary_min": 250000, "salary_max": 350000, "currency": "RUB" }` | `201 Created`: `InvitationResponse` (`status="sent"`, `candidate_contacts=None`) |
+| `POST` | `/invitations` | Отправить приглашение кандидату; `need_id`, если указан, должен принадлежать компании. Контакты скрыты до принятия. | `Bearer JWT` (Employer) | `{ "candidate_id": "...", "need_id": "...", "offer_description": "...", "contact_method": "...", "salary_min": 250000, "salary_max": 350000, "salary_tax_type": "gross", "currency": "RUB" }` (`gross` — до вычета НДФЛ, `net` — на руки) | `201 Created`: `InvitationResponse` (`status="sent"`, `candidate_contacts=None`) |
 | `GET` | `/invitations/sent` | Список отправленных компанией приглашений | `Bearer JWT` (Employer) | — | `200 OK`: Список приглашений (контакты раскрываются только если `status="accepted"`) |
 | `GET` | `/invitations/my` | Входящие приглашения кандидата (автоматически переводит статус в `viewed`) | `Bearer JWT` (Candidate) | — | `200 OK`: Список входящих офферов |
 | `POST` | `/invitations/{id}/accept` | Принять приглашение (раскрывает контакты работодателю) | `Bearer JWT` (Candidate) | `{ "reply": "Спасибо, согласен!" }` | `200 OK`: `InvitationResponse` (`status="accepted"`) |
@@ -142,14 +151,14 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 ---
 
-### 8. Реестр ФСП и Keycloak OIDC Mock (`/api/v1/fsp`)
+### 8. Демонстрационные данные ФСП (`/api/v1/fsp`)
 
 | Метод | URL | Описание | Параметры | Ответ |
 | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/fsp/athletes` | Список спортсменов демонстрационного реестра | — | `200 OK`: Массив спортсменов с рейтингом и разрядами |
-| `GET` | `/fsp/verify/{fsp_id}` | Проверка ФСП ID и подтягивание турниров | `fsp_id` (например, `FSP-77-001`, `FSP-78-042`) | `200 OK`: `FSPVerificationResult` (`found`, `athlete_name`, `sport_category`, `achievements`) |
-| `GET` | `/fsp/keycloak/userinfo` | OIDC Keycloak UserInfo эндпоинт | `fsp_id` | `200 OK`: JSON профиля спортсмена для OAuth2 SSO |
-| `POST` | `/fsp/login-by-fsp-id` | Быстрый вход (SSO) в 1 клик по ФСП ID | `fsp_id` в Query | `200 OK`: `TokenResponse` (автоматическая регистрация и авторизация) |
+| `GET` | `/fsp/athletes` | Тестовые записи ФСП | — | `200 OK`: вымышленные участники и достижения |
+| `GET` | `/fsp/verify/{fsp_id}` | Поиск ID в демонстрационных данных | `fsp_id` (например, `FSP-77-001`) | `200 OK`: найденная тестовая запись или пустой результат; совпадение не подтверждает личность |
+
+Вход по одному ФСП ID отключён: известный ID из демо-набора не доказывает владение учётной записью. Путь `/fsp/keycloak/userinfo` также удалён; настоящую интеграцию OIDC можно добавить после настройки доверенного провайдера и проверки токена. Поле `fsp_verified` в текущем API означает совпадение ID с записью, а не проверку личности. В демо достижения не меняют подтверждённый грейд.
 
 ---
 

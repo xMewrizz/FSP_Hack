@@ -1,8 +1,11 @@
+import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.api.deps import get_current_candidate, get_db
+
+from app.api.deps import get_current_candidate, get_current_user, get_db
+from app.core.constants import UserRole
 from app.models.candidate import CandidateProfile
 from app.models.user import User
 from app.schemas.resume import ResumeParsedData
@@ -47,9 +50,9 @@ async def upload_resume(
 
 @router.get(
     "/profile/pdf",
-    summary="Скачать стандартизированный PDF-профиль кандидата (с верификацией ФСП и тестов)",
+    summary="Скачать стандартизированный PDF-профиль текущего кандидата",
 )
-async def download_profile_pdf(
+async def download_my_profile_pdf(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
@@ -64,10 +67,48 @@ async def download_profile_pdf(
     if not profile:
         raise HTTPException(status_code=404, detail="Профиль кандидата не найден")
 
-    pdf_bytes = pdf_service.generate_candidate_profile_pdf(profile, current_user.email)
+    pdf_bytes = pdf_service.generate_candidate_profile_pdf(profile)
 
+    filename = "fsp_candidate_profile.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="fsp_candidate_profile.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/{candidate_id}/pdf",
+    summary="Скачать стандартизированный PDF-профиль кандидата по ID (Работодатель, 152-ФЗ)",
+)
+async def download_candidate_pdf_by_id(
+    candidate_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(CandidateProfile)
+        .options(
+            selectinload(CandidateProfile.fsp_achievements),
+            selectinload(CandidateProfile.user),
+        )
+        .where(CandidateProfile.id == candidate_id)
+    )
+    res = await db.execute(stmt)
+    profile = res.scalar_one_or_none()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Кандидат не найден")
+
+    if current_user.id != profile.user_id:
+        if current_user.role != UserRole.EMPLOYER or not profile.agreed_publication or not profile.visibility_public:
+            raise HTTPException(status_code=404, detail="Кандидат не найден")
+
+    pdf_bytes = pdf_service.generate_candidate_profile_pdf(profile)
+
+    filename = "fsp_candidate_profile.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -127,7 +127,7 @@ PREDEFINED_QUESTIONS: list[dict[str, Any]] = [
         "code": "BE-MID-04",
         "specialization": "Backend",
         "grade": "middle",
-        "topic": "Архитектура & Паттерны",
+        "topic": "SQLAlchemy & транзакции",
         "question_type": "single_choice",
         "question_text": "После добавления новой строки вызывают `Session.rollback()`. Что верно сразу после успешного вызова?",
         "options": [
@@ -146,7 +146,7 @@ PREDEFINED_QUESTIONS: list[dict[str, Any]] = [
         "code": "BE-SR-01",
         "specialization": "Backend",
         "grade": "senior",
-        "topic": "Распределённые системы & CAP",
+        "topic": "Распределённые системы & идемпотентность",
         "question_type": "single_choice",
         "question_text": "Первый перевод с ключом идемпотентности откатился до сохранения ключа и денег. Клиент повторил запрос с теми же параметрами. Что должен сделать сервис?",
         "options": [
@@ -317,3 +317,15 @@ PREDEFINED_QUESTIONS: list[dict[str, Any]] = [
         "weight": 2.0,
     },
 ]
+
+from app.core.question_bank_expansion import extra_base_questions
+
+PREDEFINED_QUESTIONS.extend(extra_base_questions())
+
+from app.core.question_bank_curriculum import curriculum_base_questions
+
+PREDEFINED_QUESTIONS.extend(curriculum_base_questions())
+
+from app.core.question_bank_sources import source_base_questions
+
+PREDEFINED_QUESTIONS.extend(source_base_questions())

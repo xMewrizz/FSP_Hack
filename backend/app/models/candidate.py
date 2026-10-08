@@ -42,8 +42,10 @@ class CandidateProfile(Base, TimestampMixin):
     resume_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     specialization: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
+    programming_language: Mapped[str | None] = mapped_column(String(50), nullable=True)
     declared_grade: Mapped[str | None] = mapped_column(String(50), index=True, nullable=True)
     verified_grade: Mapped[str | None] = mapped_column(String(50), index=True, nullable=True)
+    verified_specialization: Mapped[str | None] = mapped_column(String(100), nullable=True)
     verified_grade_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     work_format: Mapped[str | None] = mapped_column(String(50), default="remote", nullable=True)

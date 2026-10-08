@@ -18,7 +18,7 @@ FSP_REGISTRY_FIXTURES: dict[str, dict[str, Any]] = {
                 "rank_or_place": "1 место (Золото)",
                 "sport_category": "Мастер спорта",
                 "score_or_rating": 2680.5,
-                "verified": True,
+                "verified": False,
             },
             {
                 "fsp_id": "FSP-77-001",
@@ -27,7 +27,7 @@ FSP_REGISTRY_FIXTURES: dict[str, dict[str, Any]] = {
                 "rank_or_place": "2 место (Серебро)",
                 "sport_category": "Мастер спорта",
                 "score_or_rating": 2540.0,
-                "verified": True,
+                "verified": False,
             },
             {
                 "fsp_id": "FSP-77-001",
@@ -36,7 +36,7 @@ FSP_REGISTRY_FIXTURES: dict[str, dict[str, Any]] = {
                 "rank_or_place": "1 место",
                 "sport_category": "КМС",
                 "score_or_rating": 2400.0,
-                "verified": True,
+                "verified": False,
             },
         ],
     },
@@ -54,7 +54,7 @@ FSP_REGISTRY_FIXTURES: dict[str, dict[str, Any]] = {
                 "rank_or_place": "1 место",
                 "sport_category": "КМС",
                 "score_or_rating": 2320.0,
-                "verified": True,
+                "verified": False,
             },
             {
                 "fsp_id": "FSP-78-042",
@@ -63,7 +63,7 @@ FSP_REGISTRY_FIXTURES: dict[str, dict[str, Any]] = {
                 "rank_or_place": "3 место",
                 "sport_category": "КМС",
                 "score_or_rating": 2210.0,
-                "verified": True,
+                "verified": False,
             },
         ],
     },
@@ -81,7 +81,7 @@ FSP_REGISTRY_FIXTURES: dict[str, dict[str, Any]] = {
                 "rank_or_place": "4 место",
                 "sport_category": "1-й разряд",
                 "score_or_rating": 1950.0,
-                "verified": True,
+                "verified": False,
             },
         ],
     },
@@ -99,7 +99,7 @@ FSP_REGISTRY_FIXTURES: dict[str, dict[str, Any]] = {
                 "rank_or_place": "1 место",
                 "sport_category": "КМС",
                 "score_or_rating": 2290.0,
-                "verified": True,
+                "verified": False,
             },
         ],
     },
@@ -161,13 +161,13 @@ class FSPService:
                 sport_category=data["sport_category"],
                 achievements_count=len(achievements),
                 achievements=achievements,
-                message=f"Подтверждено: {data['full_name']} ({data['sport_category']})",
+                message=f"Найдена тестовая запись: {data['full_name']} ({data['sport_category']}). Личность кандидата не подтверждена.",
             )
 
         return FSPVerificationResult(
             found=False,
             fsp_id=clean_id,
-            message="Участник не найден в реестре",
+            message="Запись не найдена в демонстрационных данных",
         )
 
 

@@ -81,6 +81,17 @@ async def test_candidate_registration_and_verification(client: AsyncClient):
     prof_resp = await client.get("/api/v1/candidate/profile", headers=headers)
     assert prof_resp.status_code == 200
     assert prof_resp.json()["fsp_verified"] is True
+    assert prof_resp.json()["verified_grade"] is None
+
+    linked = await client.post(
+        "/api/v1/candidate/link-fsp", headers=headers,
+        json={"fsp_id": "FSP-78-042"},
+    )
+    assert linked.status_code == 200
+    assert linked.json()["fsp_id"] == "FSP-78-042"
+    assert len(linked.json()["achievements"]) == 2
+    assert all(not item["verified"] for item in linked.json()["achievements"])
+    assert linked.json()["verified_grade"] is None
 
 
 @pytest.mark.asyncio
@@ -150,19 +161,14 @@ async def test_fsp_mock_endpoints(client: AsyncClient):
     assert not_found_resp.status_code == 200
     assert not_found_resp.json()["found"] is False
 
-    # 4. Keycloak userinfo stub
+    # ФСП ID из публичного демо-списка не может служить для входа.
     userinfo_resp = await client.get("/api/v1/fsp/keycloak/userinfo?fsp_id=FSP-77-001")
-    assert userinfo_resp.status_code == 200
-    assert "email" in userinfo_resp.json()
-    assert userinfo_resp.json()["fsp_verified"] is True
+    assert userinfo_resp.status_code == 404
 
-    # 5. Прямой вход через кнопку 'Войти через ФСП ID'
     quick_login = await client.post("/api/v1/fsp/login-by-fsp-id?fsp_id=FSP-77-001")
-    assert quick_login.status_code == 200
-    tokens = quick_login.json()
-    assert "access_token" in tokens
-    assert tokens["role"] == "candidate"
-    assert tokens["onboarding_completed"] is True
+    assert quick_login.status_code == 404
+    assert "тестовая запись" in v_data["message"].lower()
+    assert all(not item["verified"] for item in v_data["achievements"])
 
 
 @pytest.mark.asyncio

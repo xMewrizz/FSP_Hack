@@ -76,7 +76,9 @@ class NeedService:
         return [NeedService._build_response(n, employer.company_name) for n in needs]
 
     @staticmethod
-    async def get_need(db: AsyncSession, need_id: uuid.UUID) -> EmployerNeedResponse:
+    async def get_need(
+        db: AsyncSession, need_id: uuid.UUID, user: User | None = None
+    ) -> EmployerNeedResponse:
         stmt = (
             select(EmployerNeed)
             .options(selectinload(EmployerNeed.employer))
@@ -89,6 +91,12 @@ class NeedService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Потребность не найдена",
+            )
+
+        if user and need.employer and need.employer.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="У вас нет прав для просмотра чужой потребности",
             )
 
         return NeedService._build_response(need, need.employer.company_name)

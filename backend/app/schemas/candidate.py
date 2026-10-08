@@ -16,6 +16,7 @@ class CandidateOnboardingRequest(BaseModel):
     
     # IT-специализация и грейд
     specialization: str = Field(..., description="IT-специализация (Backend, Frontend, etc.)")
+    programming_language: str | None = Field(None, description="Язык программирования для базового теста")
     declared_grade: Grade = Field(..., description="Предполагаемый грейд (junior, middle, senior, lead)")
     
     # Формат работы и город
@@ -62,6 +63,7 @@ class CandidateProfileUpdateRequest(BaseModel):
     github_url: str | None = None
     work_format: WorkFormat | None = None
     specialization: str | None = None
+    programming_language: str | None = None
     declared_grade: Grade | None = None
     salary_expectation: float | None = Field(default=None, gt=0)
     salary_tax_type: Literal["gross", "net"] | None = None
@@ -97,8 +99,10 @@ class CandidateProfileResponse(BaseModel):
     resume_url: str | None = None
 
     specialization: str | None = None
+    programming_language: str | None = None
     declared_grade: str | None = None
     verified_grade: str | None = None
+    verified_specialization: str | None = None
     work_format: str | None = None
     salary_expectation: float | None = None
     salary_tax_type: str = "gross"

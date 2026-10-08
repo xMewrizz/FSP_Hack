@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 import uuid
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -11,7 +11,8 @@ class InvitationCreate(BaseModel):
     contact_method: str = Field(..., min_length=3)
     salary_min: float = Field(..., gt=0)
     salary_max: float = Field(..., gt=0)
-    currency: str = "RUB"
+    salary_tax_type: Literal["gross", "net"] = "gross"
+    currency: Literal["RUB"] = "RUB"
 
     @model_validator(mode="after")
     def validate_salary(self):
@@ -42,6 +43,7 @@ class InvitationResponse(BaseModel):
     contact_method: str
     salary_min: float
     salary_max: float
+    salary_tax_type: str = "gross"
     currency: str
     status: str
     candidate_reply: str | None

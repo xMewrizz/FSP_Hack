@@ -1,5 +1,6 @@
 from typing import Any
 import uuid
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -7,6 +8,7 @@ from app.models.candidate import CandidateProfile
 from app.models.fsp import FSPAchievement
 from app.models.need import EmployerNeed
 from app.models.test import TestSession
+from app.models.user import User
 from app.schemas.matching import (
     CandidateMatchItem,
     MatchExplanation,
@@ -43,7 +45,7 @@ def _matches_skill(req_name: str, cand_skills: set[str], bio_text: str) -> bool:
 class MatchingService:
     @staticmethod
     async def match_candidates_for_need(
-        db: AsyncSession, need_id: uuid.UUID
+        db: AsyncSession, need_id: uuid.UUID, current_user: User | None = None
     ) -> MatchingCandidatesResponse:
         stmt_need = (
             select(EmployerNeed)
@@ -54,11 +56,15 @@ class MatchingService:
         need = res_need.scalar_one_or_none()
 
         if not need:
-            return MatchingCandidatesResponse(
-                need_id=need_id,
-                need_title=None,
-                total=0,
-                candidates=[],
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Потребность не найдена",
+            )
+
+        if current_user and need.employer and need.employer.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="У вас нет прав для просмотра подбора по чужой потребности",
             )
 
         stmt_cand = (
@@ -255,8 +261,11 @@ class MatchingService:
             )
             scored_candidates.append(item)
 
-        # Sort descending by match_score
-        scored_candidates.sort(key=lambda x: x.match_score, reverse=True)
+        # Sort descending: verified candidates strictly first (ТЗ: неподтвержденные идут после подтвержденных), then by match_score
+        scored_candidates.sort(
+            key=lambda x: (x.verified_grade is not None, x.match_score),
+            reverse=True,
+        )
 
         return MatchingCandidatesResponse(
             need_id=need.id,
@@ -339,6 +348,10 @@ class MatchingService:
                 )
             )
 
+        results.sort(
+            key=lambda x: (x.verified_grade is not None, x.match_score),
+            reverse=True,
+        )
         return results
 
 

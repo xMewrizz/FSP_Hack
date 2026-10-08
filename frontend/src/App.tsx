@@ -360,6 +360,7 @@ type CandidateProfileData = {
   bio: string | null;
   city: string | null;
   specialization: string | null;
+  programming_language: string | null;
   declared_grade: string | null;
   verified_grade: string | null;
   work_format: string | null;
@@ -401,6 +402,35 @@ type TestStartData = {
   target_grade: string;
   questions: TestQuestionData[];
   total_questions: number;
+  skill_code?: string | null;
+  assessment_id?: string | null;
+};
+
+type GradeRoadmapData = {
+  id: string;
+  specialization: string;
+  programming_language: string | null;
+  target_grade: string;
+  status: string;
+  skills: Array<{ code: string; label: string; status: string; percentage: number | null; level_out_of_ten: number | null; session_id: string | null }>;
+  percentage: number | null;
+  passed: boolean | null;
+  grade_confirmed: boolean;
+  verified_grade: string | null;
+  suggested_grade: string | null;
+  expires_at: string | null;
+  retake_used: boolean;
+  retry_available_at: string | null;
+  promotion_available_at: string | null;
+};
+
+type AdditionalSkillTestData = {
+  code: string;
+  label: string;
+  target_grade: string;
+  latest_percentage: number | null;
+  level_out_of_ten: number | null;
+  latest_session_id: string | null;
 };
 
 type TestResultData = {
@@ -410,9 +440,24 @@ type TestResultData = {
   score: number;
   max_score: number;
   percentage: number;
-  passed: boolean;
+  correct_count?: number;
+  total_questions?: number;
+  required_correct?: number;
+  passed: boolean | null;
+  grade_confirmed?: boolean;
+  skill_code?: string | null;
+  assessment_id?: string | null;
   verified_grade: string | null;
-  skill_breakdown: Array<{ topic: string; score: number; max_score: number; percentage: number }>;
+  skill_breakdown: Array<{ topic: string; score: number; max_score: number; percentage: number; correct_count?: number; total_questions?: number }>;
+  question_review?: Array<{
+    code: string;
+    topic: string;
+    question_text: string;
+    selected_answers: string[];
+    correct_answers: string[];
+    is_correct: boolean;
+    explanation: string;
+  }>;
   feedback: string;
   suggested_grade: string | null;
 };
@@ -422,10 +467,13 @@ type TestHistoryData = {
   specialization: string;
   target_grade: string;
   percentage: number;
-  passed: boolean;
+  passed: boolean | null;
+  grade_confirmed?: boolean;
   status: string;
   created_at: string;
   completed_at: string | null;
+  skill_code?: string | null;
+  assessment_id?: string | null;
 };
 
 function mapMatchToCandidate(item: MatchingCandidate, index: number): Candidate {
@@ -691,7 +739,7 @@ const pageCopy: Record<string, { eyebrow: string; title: string }> = {
   Аналитика: { eyebrow: "КАЧЕСТВО ПОДБОРА", title: "Аналитика" },
   Настройки: { eyebrow: "УПРАВЛЕНИЕ АККАУНТОМ", title: "Настройки" },
   Профиль: { eyebrow: "ЛИЧНЫЙ КАБИНЕТ", title: "Профиль и резюме" },
-  Тестирование: { eyebrow: "АДАПТИВНЫЙ ТЕСТ", title: "Тестирование" },
+  Тестирование: { eyebrow: "ПРОВЕРКА НАВЫКОВ", title: "Тестирование" },
   "Мой грейд": { eyebrow: "ПОДТВЕРЖДЁННЫЕ КОМПЕТЕНЦИИ", title: "Категория и уровень" },
   Задания: { eyebrow: "АКТУАЛЬНОСТЬ ПРОФИЛЯ", title: "Регулярные задания" },
   Вакансии: { eyebrow: "ОТКРЫТЫЕ ПОЗИЦИИ", title: "Вакансии" },
@@ -708,7 +756,7 @@ const navHints: Record<string, string> = {
   Аналитика: "Оценивайте качество подбора и динамику ответов по приглашениям.",
   Настройки: "Управляйте профилем компании, приватностью и параметрами аккаунта.",
   Профиль: "Обновляйте опыт и условия работы, которые увидят работодатели.",
-  Тестирование: "Подтвердите заявленный уровень адаптивным набором заданий.",
+  Тестирование: "Пройдите обязательные навыки выбранного уровня по отдельности.",
   "Мой грейд": "Смотрите подтверждённый уровень, результаты тестов и карту навыков.",
   Задания: "Решайте короткие кейсы, чтобы поддерживать актуальность навыков.",
   Вакансии: "Ищите позиции с открытой зарплатой и отслеживайте свои отклики.",
@@ -1056,7 +1104,7 @@ function EmployerScreen({
                 <div><strong>{candidate.role}</strong><span>{candidate.level} · {candidate.verifiedGrade ? "подтверждён" : "заявлен"}</span></div>
                 <div className="mini-tags">{candidate.skills.slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div>
                 <strong className="green">{candidate.score}%</strong>
-                <div><strong>{candidate.fspVerified ? "Проверен" : "Нет"}</strong><span>{candidate.achievementsCount ?? 0} достижений</span></div>
+                <div><strong>{candidate.fspVerified ? "Демо" : "Нет"}</strong><span>{candidate.achievementsCount ?? 0} тестовых достижений</span></div>
                 <Button variant="outline" onClick={() => onOpenResume(candidate)}>Открыть профиль</Button>
               </div>
             ))}
@@ -1314,6 +1362,7 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
     contact_method: string;
     salary_min: number;
     salary_max: number;
+    salary_tax_type: "gross" | "net";
     currency: string;
     status: string;
     candidate_reply: string | null;
@@ -1369,7 +1418,7 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
                 <strong>{employer ? item.candidate_name : item.company_name}</strong>
                 <p>{item.need_title ?? "Предложение о работе"}</p>
                 <p className="invitation-description">{item.offer_description}</p>
-                <div className="tags"><span>{money(item.salary_min)}–{money(item.salary_max)} ₽</span><span>Связь: {item.contact_method}</span></div>
+                <div className="tags"><span>{money(item.salary_min)}–{money(item.salary_max)} ₽ {item.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}</span><span>Связь: {item.contact_method}</span></div>
                 {item.candidate_reply && <p className="invitation-description">Ответ: {item.candidate_reply}</p>}
               </div>
               <div className="invitation-status"><span className={`status-pill status-pill--${item.status === "accepted" ? "green" : "violet"}`}>{statusLabels[item.status] ?? item.status}</span></div>
@@ -1394,6 +1443,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [testSession, setTestSession] = useState<TestStartData | null>(null);
   const [testResult, setTestResult] = useState<TestResultData | null>(null);
   const [testHistory, setTestHistory] = useState<TestHistoryData[]>([]);
+  const [roadmap, setRoadmap] = useState<GradeRoadmapData | null>(null);
+  const [additionalTests, setAdditionalTests] = useState<AdditionalSkillTestData[]>([]);
   const [testStarting, setTestStarting] = useState(false);
   const [testSubmitting, setTestSubmitting] = useState(false);
   const [testDone, setTestDone] = useState(false);
@@ -1417,7 +1468,18 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   }, [active]);
 
   useEffect(() => {
-    if (active !== "Профиль" && active !== "Настройки" && active !== "Мой грейд") return;
+    if (active !== "Тестирование" && active !== "Мой грейд") return;
+    Promise.all([
+      apiGet<GradeRoadmapData | null>("/testing/roadmap/current"),
+      apiGet<AdditionalSkillTestData[]>("/testing/additional"),
+    ]).then(([currentRoadmap, extra]) => {
+      setRoadmap(currentRoadmap);
+      setAdditionalTests(extra);
+    }).catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить результаты тестов", "error"));
+  }, [active]);
+
+  useEffect(() => {
+    if (active !== "Профиль" && active !== "Настройки" && active !== "Мой грейд" && active !== "Тестирование") return;
     setProfileLoading(true);
     apiGet<CandidateProfileData>("/candidate/profile")
       .then((data) => {
@@ -1454,6 +1516,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         city: profile.city,
         work_format: profile.work_format,
         specialization: profile.specialization,
+        programming_language: profile.programming_language,
         declared_grade: profile.declared_grade,
         salary_expectation: profile.salary_expectation ? Number(profile.salary_expectation) : null,
         salary_tax_type: profile.salary_tax_type ?? "gross",
@@ -1531,7 +1594,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     try {
       const updated = await apiPost<CandidateProfileData>("/candidate/link-fsp", { fsp_id: fspInput.trim() });
       setProfile(updated);
-      onNotify(updated.fsp_verified ? "ФСП ID подтверждён" : "ФСП ID не найден. Проверьте номер и попробуйте ещё раз.");
+      onNotify(updated.fsp_verified ? "Тестовая запись ФСП найдена. Личность не проверена." : "Запись ФСП не найдена в демонстрационных данных.");
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось проверить ФСП ID", "error");
     }
@@ -1540,7 +1603,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const startAdaptiveTest = async () => {
     setTestStarting(true);
     try {
-      const session = await apiPost<TestStartData>(testPurpose === "fsp-olympiad" ? "/fsp/olympiad/start" : "/testing/start", {});
+      const session = await apiPost<TestStartData>("/fsp/olympiad/start", {});
       setTestSession(session);
       setQuestion(0);
       setAnswer("");
@@ -1551,6 +1614,79 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       setTestDone(false);
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось начать тестирование", "error");
+    } finally {
+      setTestStarting(false);
+    }
+  };
+
+  const beginRoadmap = async (targetGrade?: string) => {
+    setTestStarting(true);
+    try {
+      const next = await apiPost<GradeRoadmapData>("/testing/roadmap", targetGrade ? { target_grade: targetGrade } : {});
+      setRoadmap(next);
+      setTestDone(false);
+      setTestResult(null);
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось открыть набор тестов", "error");
+    } finally {
+      setTestStarting(false);
+    }
+  };
+
+  const switchToLowerRoadmap = async () => {
+    if (!roadmap?.suggested_grade) return;
+    setTestStarting(true);
+    try {
+      if (roadmap.status === "in_progress") {
+        await apiPost<GradeRoadmapData>(`/testing/roadmap/${roadmap.id}/stop`, {});
+      }
+      const next = await apiPost<GradeRoadmapData>("/testing/roadmap", { target_grade: roadmap.suggested_grade });
+      setRoadmap(next);
+      setTestDone(false);
+      setTestResult(null);
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось открыть набор уровнем ниже", "error");
+      apiGet<GradeRoadmapData | null>("/testing/roadmap/current").then(setRoadmap).catch(() => undefined);
+    } finally {
+      setTestStarting(false);
+    }
+  };
+
+  const startRoadmapSkill = async (skillCode: string) => {
+    if (!roadmap) return;
+    setTestStarting(true);
+    try {
+      const session = await apiPost<TestStartData>(`/testing/roadmap/${roadmap.id}/skills/${skillCode}/start`, {});
+      setTestSession(session);
+      setQuestion(0);
+      setAnswer("");
+      setSelectedAnswers([]);
+      setSubmittedAnswers([]);
+      setTestResult(null);
+      setTestStarted(true);
+      setTestDone(false);
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось открыть тест навыка", "error");
+    } finally {
+      setTestStarting(false);
+    }
+  };
+
+  const startAdditionalSkill = async (skillCode: string, targetGrade: string) => {
+    setTestStarting(true);
+    try {
+      const session = await apiPost<TestStartData>(`/testing/additional/${skillCode}/start`, { target_grade: targetGrade });
+      setTestPurpose("grade");
+      setTestSession(session);
+      setQuestion(0);
+      setAnswer("");
+      setSelectedAnswers([]);
+      setSubmittedAnswers([]);
+      setTestResult(null);
+      setTestStarted(true);
+      setTestDone(false);
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось открыть тест навыка", "error");
     } finally {
       setTestStarting(false);
     }
@@ -1576,7 +1712,12 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         setTestResult(result);
         setTestDone(true);
         setTestStarted(false);
-        if (testPurpose === "grade") apiGet<TestHistoryData[]>("/testing/history").then(setTestHistory).catch(() => undefined);
+        if (testPurpose === "grade") {
+          apiGet<TestHistoryData[]>("/testing/history").then(setTestHistory).catch(() => undefined);
+          if (result.assessment_id) apiGet<GradeRoadmapData>(`/testing/roadmap/${result.assessment_id}`).then(setRoadmap).catch(() => undefined);
+          if (result.skill_code && !result.assessment_id) apiGet<AdditionalSkillTestData[]>("/testing/additional").then(setAdditionalTests).catch(() => undefined);
+          if (result.grade_confirmed) apiGet<CandidateProfileData>("/candidate/profile").then(setProfile).catch(() => undefined);
+        }
       } catch (error) {
         onNotify(error instanceof Error ? error.message : "Не удалось отправить ответы", "error");
       } finally {
@@ -1625,7 +1766,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <MetricCard label="ПРИГЛАШЕНИЯ" value={String(candidateInvitations.length)} detail={`${pendingInvitations} ждут ответа`} accent />
           <MetricCard label="ЗАЯВЛЕННЫЙ УРОВЕНЬ" value={profile?.declared_grade ?? "—"} detail="Из профиля" />
           <MetricCard label="ПОДТВЕРЖДЁННЫЙ УРОВЕНЬ" value={profile?.verified_grade ?? "—"} detail={profile?.verified_grade ? "Тест пройден" : "Можно пройти тест"} />
-          <MetricCard label="ФСП ID" value={profile?.fsp_verified ? "Проверен" : "Не привязан"} detail={profile?.fsp_id ?? ""} />
+          <MetricCard label="ФСП ID" value={profile?.fsp_verified ? "Демо-запись" : "Не привязан"} detail={profile?.fsp_id ?? ""} />
         </div>
         <div className="dashboard-grid">
           <section className="feature-card">
@@ -1641,7 +1782,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             </div>
           </section>
           <section className="feature-card feature-card--fsp" data-tour="fsp-tools">
-            <div className="feature-head"><div><span>ФСП · ПРАКТИЧЕСКИЙ ТРЕК</span><strong>{profile?.fsp_verified ? "Участник подтверждён" : "Проверьте навыки на олимпиаде"}</strong></div><div className="fsp-symbol">◆</div></div>
+            <div className="feature-head"><div><span>ФСП · ПРАКТИЧЕСКИЙ ТРЕК</span><strong>{profile?.fsp_verified ? "Тестовые данные ФСП добавлены" : "Проверьте навыки на олимпиаде"}</strong></div><div className="fsp-symbol">◆</div></div>
             <p className="feature-description feature-description--left">Олимпиадные задачи дополняют профиль практическими результатами, но грейд не подтверждают — его подтверждает только тест. Сильные стороны по темам помогут дополнить подтверждённый профиль.</p>
             <div className="fsp-actions"><Button onClick={() => { setTestPurpose("fsp-olympiad"); onNavigate("Тестирование"); }}>Написать олимпиаду</Button><label className="button button--outline diploma-upload"><Icon name="briefcase" />{diplomaUploading ? "Передаём…" : "Догрузить диплом"}<input type="file" accept="application/pdf,image/png,image/jpeg" disabled={diplomaUploading} onChange={(event) => void uploadFspDiploma(event.target.files?.[0])} /></label><Button variant="ghost" onClick={() => onNavigate("Настройки")}>Связать ФСП ID</Button></div>
             {diplomaStatus && <div className="fsp-upload-status" role="status">{diplomaStatus}</div>}
@@ -1692,7 +1833,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             <div className="feature-head"><div><span>РЕЗЮМЕ</span><strong>Опыт и документы</strong></div></div>
             <div className="upload-box"><Icon name="briefcase" size={26} /><strong>Загрузить PDF-резюме</strong><span>До 10 МБ. Распознанные значения можно проверить перед сохранением.</span><input className="resume-file-input" type="file" accept="application/pdf,.pdf" onChange={(event) => void uploadResume(event.target.files?.[0])} /></div>
             {parsedResume && <div className="resume-entry"><span>РАСПОЗНАННЫЕ ДАННЫЕ · ПРОВЕРЬТЕ ПЕРЕД СОХРАНЕНИЕМ</span><strong>{parsedResume.extracted_skills.length ? parsedResume.extracted_skills.join(" · ") : "Навыки не распознаны"}</strong><p>{parsedResume.text_preview.slice(0, 320) || "Текстовое превью недоступно."}</p></div>}
-            <Button variant="outline" onClick={() => void downloadProfilePdf()}>Скачать PDF-профиль</Button>
+            <p className="feature-description feature-description--left">PDF доступен после согласия на публикацию профиля. Контакты в PDF не входят.</p>
+            <Button variant="outline" disabled={!profile?.agreed_publication} onClick={() => void downloadProfilePdf()}>Скачать PDF-профиль</Button>
           </section>
         </div>
       </div>
@@ -1701,14 +1843,50 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
 
   if (active === "Тестирование") {
     if (testDone) {
-      return <div className="page-content"><div className="test-result"><div className="result-check"><Icon name={testResult?.passed ? "check" : "close"} size={34} /></div><span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП · РЕЗУЛЬТАТ" : "РЕЗУЛЬТАТ ТЕСТА"}</span><strong>{testPurpose === "fsp-olympiad" ? "Проверка навыков завершена" : testResult?.passed ? `Подтверждён ${testResult.verified_grade ?? testResult.target_grade}` : "Уровень не подтверждён"}</strong><p>{testResult?.feedback}</p><div className="result-score"><b>{testResult?.percentage ?? 0}%</b><span>{testResult?.score ?? 0} из {testResult?.max_score ?? 0} баллов</span></div><div className="skill-table">{testResult?.skill_breakdown.map((skill) => <div key={skill.topic}><span>{skill.topic}</span><Progress value={skill.percentage} /><strong>{skill.percentage}%</strong></div>)}</div>{testPurpose === "fsp-olympiad" && <p>Результаты тем сохранены в локальном demo-профиле.</p>}{testResult?.suggested_grade && <p>Рекомендуемый следующий уровень: {testResult.suggested_grade}</p>}<Button onClick={() => { setTestDone(false); setTestResult(null); }}>К тестированию</Button></div></div>;
+      return (
+        <div className="page-content">
+          <div className="test-result">
+            <div className="result-check"><Icon name={testResult?.passed === null ? "chart" : testResult?.passed ? "check" : "close"} size={34} /></div>
+            <span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП · РЕЗУЛЬТАТ" : "РЕЗУЛЬТАТ ТЕСТА"}</span>
+            <strong>{testPurpose === "fsp-olympiad" ? "Проверка навыков завершена" : testResult?.grade_confirmed ? `Подтверждён ${testResult.target_grade}` : "Результат навыка сохранён"}</strong>
+            <p>{testResult?.feedback}</p>
+            <div className="result-score">
+              <b>{testResult?.correct_count !== undefined ? `${testResult.correct_count} из ${testResult.total_questions} заданий` : `${testResult?.percentage ?? 0}%`}</b>
+              <span>{testPurpose === "grade" ? `${testResult?.percentage ?? 0}% правильных ответов` : `${testResult?.score ?? 0} из ${testResult?.max_score ?? 0} баллов`}</span>
+              {testPurpose === "grade" && testResult?.assessment_id && <span>Для грейда нужны все обязательные навыки: от 75% суммарно и от 50% по каждому.</span>}
+              {testPurpose === "grade" && testResult?.skill_code && !testResult.assessment_id && <span>Это дополнительный навык; его баллы не входят в расчёт грейда.</span>}
+            </div>
+            {testResult?.question_review?.length ? (
+              <>
+                <div className="topic-summary">
+                  <h3>Ответы по темам</h3>
+                  {testResult.skill_breakdown.map((skill) => <div key={skill.topic}><span>{skill.topic}</span><strong>{skill.correct_count} из {skill.total_questions}</strong></div>)}
+                </div>
+                <div className="question-review">
+                  <h3>Разбор заданий</h3>
+                  {testResult.question_review.map((item, index) => <div className="question-review__item" key={item.code}>
+                    <strong>{index + 1}. {item.topic} — {item.is_correct ? "верно" : "ошибка"}</strong>
+                    <p>{item.question_text}</p>
+                    <p>Ваш ответ: {item.selected_answers.join("; ") || "нет ответа"}</p>
+                    {!item.is_correct && <p>Правильный ответ: {item.correct_answers.join("; ")}</p>}
+                    <p>{item.explanation}</p>
+                  </div>)}
+                </div>
+              </>
+            ) : <div className="skill-table">{testResult?.skill_breakdown.map((skill) => <div key={skill.topic}><span>{skill.topic}</span><Progress value={skill.percentage} /><strong>{skill.percentage}%</strong></div>)}</div>}
+            {testPurpose === "fsp-olympiad" && <p>Результаты тем сохранены в локальном demo-профиле.</p>}
+            {testPurpose === "grade" && testResult?.suggested_grade && <p>Можно пройти полный набор на уровень {testResult.suggested_grade}.</p>}
+            <Button onClick={() => { setTestDone(false); setTestResult(null); }}>К тестированию</Button>
+          </div>
+        </div>
+      );
     }
     if (testStarted) {
       const currentQuestion = testSession?.questions[question];
       if (!currentQuestion) return <div className="page-content"><div className="empty-state">Загружаем задание…</div></div>;
       return (
         <div className="test-shell">
-          <div className="test-top"><div><span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП" : "ПОДТВЕРЖДЕНИЕ ГРЕЙДА"} · {testSession?.specialization} · {testSession?.target_grade}</span><strong>Задание {question + 1} из {testSession?.total_questions}</strong></div></div>
+          <div className="test-top"><div><span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП" : `${testSession?.assessment_id ? "ОБЯЗАТЕЛЬНЫЙ" : "ДОПОЛНИТЕЛЬНЫЙ"} НАВЫК: ${roadmap?.skills.find((item) => item.code === testSession?.skill_code)?.label ?? additionalTests.find((item) => item.code === testSession?.skill_code)?.label ?? testSession?.skill_code}`} · {testSession?.specialization} · {testSession?.target_grade}</span><strong>Задание {question + 1} из {testSession?.total_questions}</strong></div></div>
           <Progress value={((question + 1) / (testSession?.total_questions ?? 1)) * 100} />
           <div className="test-content test-content--focused">
             <div className="question-card"><span>{currentQuestion.topic}</span><strong>{currentQuestion.question_text}</strong><div className="answers">{currentQuestion.options.map((option) => {
@@ -1726,15 +1904,27 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         </div>
       );
     }
+    const lowerAfterRetake = roadmap?.target_grade === "senior" ? "middle" : roadmap?.target_grade === "middle" ? "junior" : null;
+    const juniorRetryAt = roadmap?.retry_available_at ?? (roadmap?.retake_used && roadmap.expires_at ? new Date(Date.parse(roadmap.expires_at) + 7 * 24 * 60 * 60 * 1000).toISOString() : null);
+    const juniorRetryLocked = juniorRetryAt !== null && Date.parse(juniorRetryAt) > Date.now();
     return (
       <div className="page-content">
-        <div className="test-intro">
-          <div className="test-intro__graphic"><span>&lt;/&gt;</span><i /><b /></div>
-          <span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП" : "ПОДТВЕРЖДЕНИЕ УРОВНЯ"}</span><strong>{testPurpose === "fsp-olympiad" ? "Практические задачи по навыкам" : "Тест по данным вашего профиля"}</strong><p>{testPurpose === "fsp-olympiad" ? "Проверьте практические навыки в задачах по темам. В локальном demo результат сохранится в текущей сессии." : "Набор заданий и целевой уровень будут сформированы сервером. Результат появится здесь после отправки ответов."}</p>
-          <div className="notice-box">Для подтверждения категории необходимо набрать проходной балл. Неудачная попытка не понижает заявленный уровень. {TEST_AVAILABILITY_HINT} Если пара «специализация + грейд» не поддерживается, сервер вернёт явную ошибку — вопросы другого направления не подставляются.</div>
-          <div className="assessment-mode" role="group" aria-label="Режим проверки"><button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}>Тест уровня</button><button type="button" className={testPurpose === "fsp-olympiad" ? "active" : ""} onClick={() => setTestPurpose("fsp-olympiad")}>Олимпиада ФСП</button></div>
-          <div className="test-choice-actions"><Button disabled={testStarting} onClick={() => void startAdaptiveTest()}>{testStarting ? "Подготавливаем…" : testPurpose === "fsp-olympiad" ? "Начать олимпиаду" : "Начать тестирование"} <Icon name="chevron" /></Button><span>Достижения ФСП можно связать в настройках, дипломы передать через локальный demo-процесс.</span></div>
-        </div>
+        <div className="assessment-mode" role="group" aria-label="Режим проверки"><button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}>Грейд</button><button type="button" className={testPurpose === "fsp-olympiad" ? "active" : ""} onClick={() => setTestPurpose("fsp-olympiad")}>Олимпиада ФСП</button></div>
+        {testPurpose === "grade" ? <><section className="feature-card">
+          <div className="feature-head"><div><span>ОБЯЗАТЕЛЬНЫЕ НАВЫКИ</span><strong>{roadmap ? `${roadmap.specialization} · ${roadmap.target_grade}` : "Подтверждение грейда"}</strong></div></div>
+          <p className="feature-description feature-description--left">Проходите навыки по одному в течение трёх дней. Задания в открытом наборе не меняются. Грейд присваивается после всех шагов при общем результате от 75% и результате каждого навыка от 50%. Пороги предварительные. {TEST_AVAILABILITY_HINT}</p>
+          {!roadmap ? <Button disabled={testStarting} onClick={() => void beginRoadmap()}>{testStarting ? "Открываем…" : "Открыть набор тестов"}</Button> : <>
+            {roadmap.status === "in_progress" && roadmap.expires_at && <p className="feature-description feature-description--left">Набор открыт до {new Date(roadmap.expires_at).toLocaleString("ru-RU")}. {roadmap.retake_used ? "Это пересдача всего набора." : "После всех шагов можно один раз пересдать весь набор с новым сроком в три дня."}</p>}
+            {roadmap.status === "expired" && <div className="notice-box">Срок набора истёк. Результаты остались в истории, грейд по нему не присваивается.</div>}
+            {roadmap.status === "cancelled" && <div className="notice-box">Набор прерван. Пройденные шаги остались в истории.</div>}
+            <div className="topic-summary"><h3>Ваши шаги</h3>{roadmap.skills.map((skill) => <div key={skill.code}><span>{skill.label} · {skill.status === "completed" ? `${skill.level_out_of_ten} из 10 на уровне ${roadmap.target_grade}` : skill.status === "in_progress" ? "Начат" : "Не пройден"}</span>{roadmap.status === "in_progress" && skill.status !== "completed" && <Button variant="outline" disabled={testStarting} onClick={() => void startRoadmapSkill(skill.code)}>{skill.status === "in_progress" ? "Продолжить" : "Начать"}</Button>}</div>)}</div>
+            {roadmap.status === "in_progress" && roadmap.suggested_grade && <div className="test-choice-actions"><Button variant="outline" disabled={testStarting} onClick={() => void switchToLowerRoadmap()}>Прервать набор и попробовать {roadmap.suggested_grade}</Button></div>}
+            {(roadmap.status === "expired" || roadmap.status === "cancelled") && (roadmap.retake_used ? lowerAfterRetake ? <Button disabled={testStarting} onClick={() => void beginRoadmap(lowerAfterRetake)}>Попробовать {lowerAfterRetake}</Button> : <Button disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button> : <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Открыть новый набор</Button>)}
+            {roadmap.status === "completed" && <div className="notice-box">Общий результат: {roadmap.percentage}%. {roadmap.passed ? `Грейд ${roadmap.target_grade} подтверждён.` : "Грейд не подтверждён; прежний уровень не меняется."}</div>}
+            {roadmap.status === "completed" && <div className="test-choice-actions">{!roadmap.retake_used && <Button variant="outline" disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Пересдать весь набор</Button>}{roadmap.retake_used && !roadmap.passed && roadmap.target_grade === "junior" && <><Button variant="outline" disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button>{juniorRetryLocked && juniorRetryAt && <span>Повторить Junior можно с {new Date(juniorRetryAt).toLocaleDateString("ru-RU")}</span>}</>}{roadmap.suggested_grade && <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.suggested_grade ?? undefined)}>Попробовать {roadmap.suggested_grade}</Button>}{roadmap.passed && roadmap.target_grade !== "senior" && <><Button disabled={testStarting || (roadmap.promotion_available_at !== null && Date.parse(roadmap.promotion_available_at) > Date.now())} onClick={() => void beginRoadmap(roadmap.target_grade === "junior" ? "middle" : "senior")}>Хочу поднять грейд</Button>{roadmap.promotion_available_at && Date.parse(roadmap.promotion_available_at) > Date.now() && <span>Повышение доступно с {new Date(roadmap.promotion_available_at).toLocaleDateString("ru-RU")}</span>}</>}</div>}
+          </>}
+        </section>
+        <section className="feature-card"><div className="feature-head"><div><span>ОТДЕЛЬНЫЕ ТЕСТЫ</span><strong>Дополнительные навыки</strong></div></div><p className="feature-description feature-description--left">Эти результаты видны в профиле и не влияют на грейд. Показываем только навыки, для которых есть готовые задания.</p>{additionalTests.length ? <div className="topic-summary">{additionalTests.map((skill) => <div key={`${skill.code}-${skill.target_grade}`}><span>{skill.label} · {skill.target_grade}{skill.level_out_of_ten !== null ? ` · ${skill.level_out_of_ten} из 10` : " · ещё не проверен"}</span><Button variant="outline" disabled={testStarting} onClick={() => void startAdditionalSkill(skill.code, skill.target_grade)}>{skill.latest_session_id ? "Пройти снова" : "Начать"}</Button></div>)}</div> : <p className="feature-description feature-description--left">Дополнительных тестов пока нет.</p>}</section></> : <div className="test-intro"><div className="test-intro__graphic"><span>&lt;/&gt;</span><i /><b /></div><span>ОЛИМПИАДА ФСП</span><strong>Практические задачи по навыкам</strong><p>Результат олимпиады дополняет профиль, но не присваивает грейд.</p><div className="test-choice-actions"><Button disabled={testStarting} onClick={() => void startAdaptiveTest()}>{testStarting ? "Подготавливаем…" : "Начать олимпиаду"}</Button></div></div>}
       </div>
     );
   }
@@ -1742,11 +1932,13 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   if (active === "Мой грейд") {
     return (
       <div className="page-content">
-        <div className="grade-hero"><div><span>{profile?.specialization ?? "ПРОФИЛЬ КАНДИДАТА"}</span><strong>{profile?.verified_grade ? `Подтверждён ${profile.verified_grade}` : "Уровень не подтверждён"}</strong><p>Заявленный уровень: {profile?.declared_grade ?? "не указан"}</p></div><div className="grade-stamp"><Icon name={profile?.verified_grade ? "check" : "chart"} /><span>{profile?.verified_grade ? "ПОДТВЕРЖДЁН" : "НУЖЕН ТЕСТ"}</span><strong>{profile?.fsp_verified ? "ФСП проверен" : ""}</strong></div></div>
+        <div className="grade-hero"><div><span>{profile?.specialization ?? "ПРОФИЛЬ КАНДИДАТА"}</span><strong>{profile?.verified_grade ? `Подтверждён ${profile.verified_grade}` : "Уровень не подтверждён"}</strong><p>Заявленный уровень: {profile?.declared_grade ?? "не указан"}</p></div><div className="grade-stamp"><Icon name={profile?.verified_grade ? "check" : "chart"} /><span>{profile?.verified_grade ? "ПОДТВЕРЖДЁН" : "НУЖЕН ТЕСТ"}</span><strong>{profile?.fsp_verified ? "ФСП: ДЕМО" : ""}</strong></div></div>
         <div className="dashboard-grid">
-          <section className="feature-card feature-card--wide"><div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Результаты подтверждения</strong></div><Button onClick={() => onNavigate("Тестирование")}>Пройти тест</Button></div>{testHistory.length ? <div className="history-table history-table--tests">{testHistory.map((item) => <div key={item.id}><span>{new Date(item.created_at).toLocaleDateString("ru-RU")}</span><strong>{item.specialization} · {item.target_grade}</strong><b>{item.passed ? "Подтверждён" : item.status === "completed" ? "Не пройден" : "В процессе"}</b><em>{item.percentage}%</em></div>)}</div> : <div className="empty-state">Истории тестирования пока нет</div>}</section>
-          <section className="feature-card"><div className="feature-head"><div><span>ПРОФИЛЬ</span><strong>Текущая категория</strong></div></div><div className="profile-status-row"><span>Специализация</span><strong>{profile?.specialization ?? "Не указана"}</strong></div><div className="profile-status-row"><span>Заявленный уровень</span><strong>{profile?.declared_grade ?? "Не указан"}</strong></div><div className="profile-status-row"><span>Подтверждённый уровень</span><strong>{profile?.verified_grade ?? "Нет"}</strong></div></section>
+          <section className="feature-card feature-card--wide"><div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Результаты проверок</strong></div><Button onClick={() => onNavigate("Тестирование")}>Пройти тест</Button></div>{testHistory.length ? <div className="history-table history-table--tests">{testHistory.map((item) => <div key={item.id}><span>{new Date(item.created_at).toLocaleDateString("ru-RU")}</span><strong>{item.skill_code ? `${roadmap?.skills.find((skill) => skill.code === item.skill_code)?.label ?? additionalTests.find((skill) => skill.code === item.skill_code)?.label ?? item.skill_code} · ${item.target_grade}` : `${item.specialization} · ${item.target_grade}`}</strong><b>{item.status === "completed" ? item.assessment_id ? "Обязательный навык" : item.skill_code ? "Дополнительный навык" : "Общий тест прежнего формата" : item.status === "expired" ? "Срок истёк" : item.status === "cancelled" ? "Прерван" : "В процессе"}</b><em>{item.status === "completed" ? `${item.percentage}%` : "—"}</em></div>)}</div> : <div className="empty-state">Истории тестирования пока нет</div>}</section>
+          <section className="feature-card"><div className="feature-head"><div><span>ПРОФИЛЬ</span><strong>Текущая категория</strong></div></div><div className="profile-status-row"><span>Специализация</span><strong>{profile?.specialization ?? "Не указана"}</strong></div><div className="profile-status-row"><span>Язык базового теста</span><strong>{profile?.programming_language ?? "Не выбран"}</strong></div><div className="profile-status-row"><span>Заявленный уровень</span><strong>{profile?.declared_grade ?? "Не указан"}</strong></div><div className="profile-status-row"><span>Подтверждённый уровень</span><strong>{profile?.verified_grade ?? "Нет"}</strong></div></section>
         </div>
+        {roadmap && <section className="feature-card"><div className="feature-head"><div><span>ПОСЛЕДНИЙ БАЗОВЫЙ НАБОР</span><strong>{roadmap.specialization} · {roadmap.target_grade}</strong></div></div><div className="topic-summary">{roadmap.skills.map((skill) => <div key={skill.code}><span>{skill.label}</span><strong>{skill.status === "completed" ? `${skill.level_out_of_ten} из 10 на уровне ${roadmap.target_grade}` : "Не пройден"}</strong></div>)}</div>{roadmap.status === "completed" && <p className="feature-description feature-description--left">Итого {roadmap.percentage}% · {roadmap.passed ? "грейд подтверждён" : "грейд не подтверждён"}</p>}</section>}
+        {additionalTests.some((skill) => skill.latest_session_id) && <section className="feature-card"><div className="feature-head"><div><span>ДОПОЛНИТЕЛЬНЫЕ НАВЫКИ</span><strong>Отдельные результаты</strong></div></div><div className="topic-summary">{additionalTests.filter((skill) => skill.latest_session_id).map((skill) => <div key={`${skill.code}-${skill.target_grade}`}><span>{skill.label}</span><strong>{skill.level_out_of_ten} из 10 на уровне {skill.target_grade}</strong></div>)}</div></section>}
       </div>
     );
   }
@@ -1798,7 +1990,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     <div className="page-content">
       <div className="settings-layout">
         <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Кому виден профиль</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Согласие на OSINT-проверку</span><strong>{profile?.agreed_osint ? "Сохранено" : "Не предоставлено"}</strong></div><label className="consent-large"><input type="checkbox" checked={profile?.agreed_publication ?? false} onChange={(event) => setProfile((current) => current ? { ...current, agreed_publication: event.target.checked, visibility_public: event.target.checked ? current.visibility_public : false } : current)} /><span>Разрешаю показывать мой профиль работодателям</span></label><label className="consent-large"><input type="checkbox" checked={profile?.visibility_public ?? false} disabled={!profile?.agreed_publication} onChange={(event) => setProfile((current) => current ? { ...current, visibility_public: event.target.checked } : current)} /><span>Показывать профиль в поиске и подборке</span></label><p className="feature-description feature-description--left">Без согласия на публикацию профиль остаётся скрытым. Видимость можно выключить в любой момент.</p><Button disabled={!profile || profileSaving} onClick={() => void saveCandidatePrivacy()}>{profileSaving ? "Сохраняем…" : "Сохранить настройки"}</Button></section>
-        <section className="feature-card"><div className="feature-head"><div><span>ИНТЕГРАЦИИ</span><strong>Данные ФСП</strong></div></div><label className="field field--flush"><span>ФСП ID</span><input value={fspInput} onChange={(event) => setFspInput(event.target.value)} placeholder="Например, FSP-77-001" /></label><div className="integration-card"><div className="fsp-symbol">◆</div><div><strong>{profile?.fsp_verified ? "ID подтверждён" : "ID не подтверждён"}</strong><span>{profile?.fsp_id ?? "Не привязан"}</span></div><Button variant="outline" disabled={!fspInput.trim()} onClick={() => void linkFspId()}>Проверить</Button></div></section>
+        <section className="feature-card"><div className="feature-head"><div><span>ИНТЕГРАЦИИ</span><strong>Данные ФСП</strong></div></div><p className="feature-description feature-description--left">Пока доступны только тестовые записи. Совпадение ID не подтверждает личность и не влияет на грейд.</p><label className="field field--flush"><span>ФСП ID</span><input value={fspInput} onChange={(event) => setFspInput(event.target.value)} placeholder="Например, FSP-77-001" /></label><div className="integration-card"><div className="fsp-symbol">◆</div><div><strong>{profile?.fsp_verified ? "Тестовая запись найдена" : "Запись не найдена"}</strong><span>{profile?.fsp_id ?? "Не привязан"}</span></div><Button variant="outline" disabled={!fspInput.trim()} onClick={() => void linkFspId()}>Найти</Button></div></section>
       </div>
     </div>
   );
@@ -2081,13 +2273,11 @@ function AuthScreen({
   onLogin,
   onRegister,
   onVerify,
-  onFspLogin,
   onDemoLogin,
 }: {
   onLogin: (email: string, password: string) => Promise<void>;
   onRegister: (email: string, password: string, role: "employer" | "candidate") => Promise<string | undefined>;
   onVerify: (email: string, code: string) => Promise<void>;
-  onFspLogin: (fspId: string) => Promise<void>;
   onDemoLogin: (role: "candidate" | "employer") => Promise<void>;
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -2100,8 +2290,6 @@ function AuthScreen({
   const [demoCode, setDemoCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [fspLoginOpen, setFspLoginOpen] = useState(false);
-  const [fspId, setFspId] = useState("");
 
   const submitCredentials = async () => {
     if (!email || !password || (mode === "register" && !confirmed)) return;
@@ -2128,19 +2316,6 @@ function AuthScreen({
       await onVerify(email, code);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Не удалось подтвердить email");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const signInWithFsp = async () => {
-    if (!fspId.trim()) return;
-    setBusy(true);
-    setError("");
-    try {
-      await onFspLogin(fspId.trim());
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Не удалось войти через ФСП ID");
     } finally {
       setBusy(false);
     }
@@ -2201,7 +2376,6 @@ function AuthScreen({
           </div>
         )}
         {error && <div className="form-error" role="alert">{error}</div>}
-        <div className="auth-sso"><span>или</span>{fspLoginOpen ? <><label className="field field--flush"><span>ФСП ID</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="FSP-77-001" /></label><Button variant="outline" disabled={busy || !fspId.trim()} onClick={() => void signInWithFsp()}>{busy ? "Проверяем…" : "Войти по ФСП ID"}</Button></> : <Button variant="outline" onClick={() => setFspLoginOpen(true)}>Продолжить через ФСП ID</Button>}<small>Вход через реестр ФСП</small></div>
         <div className="demo-access">
           <span>ДЕМО-ДОСТУП</span>
           <div>
@@ -2218,6 +2392,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
   first_name: string;
   last_name: string;
   specialization: string;
+  programming_language: string | null;
   declared_grade: string;
   work_format: string;
   city: string;
@@ -2248,6 +2423,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         specialization,
+        programming_language: specialization === "Backend" ? "Python" : null,
         declared_grade: grade,
         work_format: format === "Удалённо" ? "remote" : format === "Гибрид" ? "hybrid" : "office",
         city: city.trim(),
@@ -2269,7 +2445,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
         <div className="onboarding-progress">{steps.map((item, index) => <div key={item} className={index <= step ? "active" : ""}><b>{index + 1}</b><span>{item}</span></div>)}</div>
         <div className="onboarding-content">
           {step === 0 && <><span>ШАГ 1</span><strong>Заполните профиль</strong><p>Укажите имя и подтвердите согласие на обработку данных перед созданием профиля.</p><div className="field-row field-row--flush"><label className="field"><span>ИМЯ</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" /></label><label className="field"><span>ФАМИЛИЯ</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" /></label></div><label className="consent-large"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Согласен на обработку персональных данных по 152-ФЗ.</span></label></>}
-          {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Грейд подтверждает только тест. Достижения ФСП влияют на порядок в подборке, но грейд не подтверждают. {TEST_AVAILABILITY_HINT}</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>{!isTestablePair(specialization, grade) && <p className="feature-description feature-description--left">Для пары «{specialization} · {grade}» теста пока нет — профиль сохранить можно, но сквозной сценарий (тест → подборка → приглашение) сейчас проходится только на Backend Junior / Middle / Senior. <Button variant="outline" onClick={() => { setSpecialization("Backend"); setGrade("middle"); }}>Выбрать Backend · Middle для теста</Button></p>}</>}
+          {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Грейд подтверждает только тест. Достижения ФСП влияют на порядок в подборке, но грейд не подтверждают. {TEST_AVAILABILITY_HINT}</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>{specialization === "Backend" && <label className="field field--flush"><span>ЯЗЫК БАЗОВОГО ТЕСТА</span><select value="Python" disabled><option value="Python">Python</option></select><small>Сейчас для Backend подготовлен только Python. Другие языки добавим отдельными наборами.</small></label>}{!isTestablePair(specialization, grade) && <p className="feature-description feature-description--left">Для пары «{specialization} · {grade}» теста пока нет — профиль сохранить можно, но сквозной сценарий с подтверждённым грейдом сейчас проходится на Backend Junior / Middle / Senior. <Button variant="outline" onClick={() => { setSpecialization("Backend"); setGrade("middle"); }}>Выбрать Backend · Middle для теста</Button></p>}</>}
           {step === 2 && <><span>ШАГ 3</span><strong>Где и как вы хотите работать</strong><div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={city} onChange={(event) => setCity(event.target.value)} /></label><label className="field"><span>ФОРМАТ</span><select value={format} onChange={(event) => setFormat(event.target.value)}><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div><ToggleRow title="Готов к переезду" detail="Работодатели смогут учитывать это при подборе" /></>}
           {step === 3 && <><span>ШАГ 4</span><strong>Резюме и опыт</strong><p>После завершения настройки откройте раздел «Профиль», чтобы загрузить PDF. Распознанные данные можно проверить и исправить перед сохранением.</p><div className="notice-box">Для продолжения загрузка резюме не обязательна.</div></>}
           {step === 4 && <><span>ШАГ 5</span><strong>Публикация и данные ФСП</strong><p>Профиль можно сохранить скрытым и открыть для работодателей позже в настройках.</p><label className="consent-large"><input type="checkbox" checked={publication} onChange={(event) => setPublication(event.target.checked)} /><span>Разрешаю показывать мой профиль работодателям в поиске и подборке</span></label><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label><label className="consent-large"><input type="checkbox" checked={osint} onChange={(event) => setOsint(event.target.checked)} /><span>Разрешаю проверку истории резюме для расчёта оценки доверия. Без согласия будет установлено нейтральное значение 0,50.</span></label></>}
@@ -2370,6 +2546,7 @@ function App() {
   const [offerDescription, setOfferDescription] = useState("Приглашаем в продуктовую команду. Будем рады обсудить задачи и ваш опыт.");
   const [inviteSalaryMin, setInviteSalaryMin] = useState("220000");
   const [inviteSalaryMax, setInviteSalaryMax] = useState("280000");
+  const [inviteSalaryType, setInviteSalaryType] = useState<"gross" | "net">("gross");
   const [inviteContact, setInviteContact] = useState("");
   const [notice, setNotice] = useState("");
   const [resumeCandidate, setResumeCandidate] = useState<Candidate | null>(null);
@@ -2514,11 +2691,6 @@ function App() {
     enterWithSession(await apiPost<AuthResponse>("/auth/verify-email", { email, code }));
   };
 
-  const fspLogin = async (fspId: string) => {
-    const response = await apiPost<AuthResponse>(`/fsp/login-by-fsp-id?fsp_id=${encodeURIComponent(fspId)}`);
-    enterWithSession(response);
-  };
-
   const demoLogin = async (demoRole: "candidate" | "employer") => {
     try {
       await apiPost("/system/seed");
@@ -2588,6 +2760,7 @@ function App() {
         contact_method: inviteContact.trim(),
         salary_min: salaryMin,
         salary_max: salaryMax,
+        salary_tax_type: inviteSalaryType,
         currency: "RUB",
       });
       setInviteOpen(false);
@@ -2600,7 +2773,7 @@ function App() {
   };
 
   if (!authenticated) {
-    return <AuthScreen onLogin={login} onRegister={register} onVerify={verifyEmail} onFspLogin={fspLogin} onDemoLogin={demoLogin} />;
+    return <AuthScreen onLogin={login} onRegister={register} onVerify={verifyEmail} onDemoLogin={demoLogin} />;
   }
 
   if (onboarding) {
@@ -2804,7 +2977,7 @@ function App() {
                 <div className="candidate-card__footer">
                   <span>Обновлён {candidate.updated}</span>
                   {candidate.backendId && candidate.achievementsCount && candidate.achievementsCount > 0 && (
-                    <span className="fsp-badge">◆ Достижения ФСП: {candidate.achievementsCount}</span>
+                    <span className="fsp-badge">◆ Демо-данные ФСП: {candidate.achievementsCount}</span>
                   )}
                   <button
                     type="button"
@@ -2873,7 +3046,7 @@ function App() {
             </div>
             <div className="profile-metrics">
               <div><span>ОЦЕНКА ДОВЕРИЯ</span><strong>Нет данных</strong><small>Не предоставляется matching API</small></div>
-              <div><span>ФСП</span><strong>{selected.achievementsCount || "—"}</strong><small>{selected.fspVerified ? "достижения подтверждены" : "Нет подтверждения"}</small></div>
+              <div><span>ФСП</span><strong>{selected.achievementsCount || "—"}</strong><small>{selected.fspVerified ? "тестовая запись; личность не проверена" : "Нет записи"}</small></div>
               <div><span>АКТУАЛЬНОСТЬ</span><strong>—</strong><small>Нет данных</small></div>
             </div>
             <div className="profile-panel__actions">
@@ -2970,11 +3143,18 @@ function App() {
               </label>
             </div>
             <label className="field">
+              <span>КАК УКАЗАНА ЗАРПЛАТА</span>
+              <select value={inviteSalaryType} onChange={(event) => setInviteSalaryType(event.target.value as "gross" | "net")}>
+                <option value="gross">До вычета НДФЛ</option>
+                <option value="net">На руки</option>
+              </select>
+            </label>
+            <label className="field">
               <span>СПОСОБ СВЯЗИ</span>
               <input value={inviteContact} onChange={(event) => setInviteContact(event.target.value)} placeholder="Email или Telegram" />
             </label>
             <div className="salary-note">
-              Зарплатный диапазон обязателен и будет показан кандидату до принятия приглашения.
+              Зарплатный диапазон и способ расчёта будут показаны кандидату до принятия приглашения.
             </div>
             <div className="modal__actions">
               <Button variant="ghost" onClick={() => setInviteOpen(false)}>Отмена</Button>

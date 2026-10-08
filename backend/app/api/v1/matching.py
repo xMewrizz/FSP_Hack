@@ -22,7 +22,7 @@ async def match_candidates(
     current_user: User = Depends(get_current_employer),
     db: AsyncSession = Depends(get_db),
 ):
-    return await matching_service.match_candidates_for_need(db, need_id)
+    return await matching_service.match_candidates_for_need(db, need_id, current_user)
 
 
 @router.get(
