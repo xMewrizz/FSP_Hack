@@ -58,12 +58,12 @@ class RankingTests(unittest.TestCase):
         self.assertIsNone(score_candidate(NEED, candidate(verified_grade="senior")))
         self.assertIsNone(score_candidate(NEED, candidate(verified_grade=None, declared_grade="junior")))
 
-    def test_unconfirmed_is_separate_even_with_more_points(self):
+    def test_declared_grade_is_not_admitted(self):
         confirmed = candidate(id="1", skills=["Python"], test_percentage=70)
-        unconfirmed = candidate(id="2", verified_grade=None, test_percentage=None)
-        groups = rank_candidates(NEED, [unconfirmed, confirmed])
-        self.assertEqual([item["candidate_id"] for item in groups["confirmed"]], ["1"])
-        self.assertEqual([item["candidate_id"] for item in groups["unconfirmed"]], ["2"])
+        declared_only = candidate(id="2", verified_grade=None, skills=["Python", "PostgreSQL"], test_percentage=None)
+        self.assertIsNone(score_candidate(NEED, declared_only))
+        ranked = rank_candidates(NEED, [declared_only, confirmed])
+        self.assertEqual([item["candidate_id"] for item in ranked], ["1"])
 
     def test_required_skill_outweighs_fsp_bonus(self):
         full = score_candidate(NEED, candidate())
@@ -101,6 +101,9 @@ class RankingTests(unittest.TestCase):
         self.assertIn("| Frontend Middle |", text)
         self.assertIn("| DevOps Junior |", text)
         self.assertIn("Независимых оценок релевантности пока нет", text)
+        self.assertNotIn("Только заявили грейд", text)
+        self.assertIn("Заявленный грейд допуска не даёт", text)
+        self.assertIn("Пустая выдача: Frontend Middle, DevOps Junior", text)
 
 
 if __name__ == "__main__":
