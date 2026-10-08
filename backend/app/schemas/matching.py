@@ -9,6 +9,8 @@ class MatchExplanation(BaseModel):
     matched_skills: list[str]
     missing_skills: list[str]
     fsp_bonus: bool
+    salary_match: bool | None = None
+    salary_note: str | None = None
     summary: str
 
 
@@ -27,6 +29,8 @@ class CandidateMatchItem(BaseModel):
     fsp_rating: float | None
     achievements_count: int
     skills: list[str]
+    salary_expectation: float | None = None
+    salary_tax_type: str | None = None
     test_percentage: float | None
     match_score: float
     match_explanation: MatchExplanation

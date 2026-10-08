@@ -23,6 +23,25 @@ GRADE_WEIGHTS = {
 }
 
 
+def _matches_skill(req_name: str, cand_skills: set[str], bio_text: str) -> bool:
+    if req_name in cand_skills:
+        return True
+    if bio_text and req_name in bio_text:
+        return True
+    req_words = {w for w in req_name.replace("&", " ").replace("/", " ").replace(",", " ").split() if len(w) > 1}
+    for cand_s in cand_skills:
+        if req_name == cand_s:
+            return True
+        cand_words = {w for w in cand_s.replace("&", " ").replace("/", " ").replace(",", " ").split() if len(w) > 1}
+        if req_words and cand_words and (req_words <= cand_words or cand_words <= req_words):
+            return True
+        if len(req_name) >= 3 and (f" {req_name} " in f" {cand_s} " or cand_s.startswith(f"{req_name} ") or cand_s.endswith(f" {req_name}")):
+            return True
+        if len(cand_s) >= 3 and (f" {cand_s} " in f" {req_name} " or req_name.startswith(f"{cand_s} ") or req_name.endswith(f" {cand_s}")):
+            return True
+    return False
+
+
 class MatchingService:
     @staticmethod
     async def match_candidates_for_need(
@@ -66,55 +85,108 @@ class MatchingService:
         scored_candidates: list[CandidateMatchItem] = []
 
         req_grade_val = GRADE_WEIGHTS.get((need.required_grade or "").lower(), 1)
-        req_skills_list = [
-            s.get("name", "").lower() for s in (need.required_skills or []) if isinstance(s, dict)
-        ]
+        
+        # 1. Parse required skills with weights
+        req_skills_items: list[tuple[str, float]] = []
+        for s in (need.required_skills or []):
+            if isinstance(s, dict):
+                name = (s.get("name") or "").strip().lower()
+                if not name:
+                    continue
+                try:
+                    w = float(s.get("weight", 1.0))
+                except (ValueError, TypeError):
+                    w = 1.0
+                req_skills_items.append((name, max(0.1, w)))
+
+        need_tax = (getattr(need, "salary_tax_type", "gross") or "gross").lower()
+        tax_labels = {
+            "gross": "до вычета НДФЛ",
+            "net": "на руки",
+        }
+        need_tax_label = tax_labels.get(need_tax, need_tax)
 
         for cand in candidates:
-            # 1. Grade match score (max 40)
+            # 1. Grade match score (max 35)
             cand_grade_str = (cand.verified_grade or cand.declared_grade or "junior").lower()
             cand_grade_val = GRADE_WEIGHTS.get(cand_grade_str, 1)
 
             grade_matched = False
             if cand.verified_grade and cand_grade_val >= req_grade_val:
-                grade_score = 40.0
+                grade_score = 35.0
                 grade_matched = True
             elif cand.verified_grade and cand_grade_val == req_grade_val - 1:
-                grade_score = 25.0
-            elif cand.declared_grade and cand_grade_val >= req_grade_val:
                 grade_score = 22.0
+            elif cand.declared_grade and cand_grade_val >= req_grade_val:
+                grade_score = 20.0
             else:
-                grade_score = 15.0
+                grade_score = 12.0
 
-            # 2. Skills match score (max 35)
+            # 2. Skills match score with dynamic weights (max 35)
             cand_skills_normalized = {s.lower() for s in (cand.skills or [])}
             bio_text = (cand.bio or "").lower()
 
             matched_skills = []
             missing_skills = []
+            matched_weight = 0.0
+            total_weight = sum(w for _, w in req_skills_items)
 
-            if req_skills_list:
-                for req_s in req_skills_list:
-                    if req_s in cand_skills_normalized or req_s in bio_text:
-                        matched_skills.append(req_s.capitalize())
+            if req_skills_items:
+                for req_name, req_w in req_skills_items:
+                    if _matches_skill(req_name, cand_skills_normalized, bio_text):
+                        matched_skills.append(req_name.capitalize())
+                        matched_weight += req_w
                     else:
-                        missing_skills.append(req_s.capitalize())
-                skills_ratio = len(matched_skills) / len(req_skills_list)
+                        missing_skills.append(req_name.capitalize())
+                skills_ratio = matched_weight / total_weight if total_weight > 0 else 0.0
                 skills_score = round(skills_ratio * 35.0, 1)
             else:
                 skills_score = 30.0
 
-            # 3. Work format & location (max 15)
-            format_score = 10.0
+            # 3. Work format & location (max 10)
+            format_score = 7.0
             if cand.work_format == "remote" or need.work_format == "remote":
-                format_score = 15.0
+                format_score = 10.0
             elif cand.work_format == need.work_format:
-                format_score = 15.0
+                format_score = 10.0
 
             if need.city and cand.city and need.city.lower() == cand.city.lower():
-                format_score = min(15.0, format_score + 3.0)
+                format_score = min(10.0, format_score + 2.0)
 
-            # 4. FSP bonus (max 10)
+            # 4. Salary expectations & Tax type matching (max 10)
+            cand_tax = (getattr(cand, "salary_tax_type", "gross") or "gross").lower()
+            cand_tax_label = tax_labels.get(cand_tax, cand_tax)
+            cand_salary = cand.salary_expectation
+
+            if cand_salary is None:
+                salary_match = None
+                salary_note = "Ожидания по зарплате не указаны (договорная)"
+                salary_score = 5.0
+            else:
+                if cand_tax == need_tax:
+                    if cand_salary <= need.salary_max:
+                        salary_match = True
+                        salary_note = (
+                            f"Ожидания ({int(cand_salary):,} ₽ {need_tax_label}) "
+                            f"укладываются в бюджет вакансии (до {int(need.salary_max):,} ₽)"
+                        )
+                        salary_score = 10.0
+                    else:
+                        salary_match = False
+                        salary_note = (
+                            f"Ожидания ({int(cand_salary):,} ₽ {need_tax_label}) "
+                            f"выше максимума ({int(need.salary_max):,} ₽)"
+                        )
+                        salary_score = 0.0
+                else:
+                    salary_match = False
+                    salary_note = (
+                        f"Разный налоговый базис: потребность «{need_tax_label}», "
+                        f"соискатель «{cand_tax_label}»"
+                    )
+                    salary_score = 2.0
+
+            # 5. FSP bonus (max 10)
             fsp_bonus = False
             fsp_score = 0.0
             fsp_category = None
@@ -128,7 +200,7 @@ class MatchingService:
                     fsp_category = top_ach.sport_category
                     fsp_rating = top_ach.score_or_rating
 
-            total_score = round(min(100.0, grade_score + skills_score + format_score + fsp_score), 1)
+            total_score = round(min(100.0, grade_score + skills_score + format_score + salary_score + fsp_score), 1)
 
             # Summary formulation
             summary_parts = []
@@ -141,6 +213,13 @@ class MatchingService:
                 summary_parts.append(f"Совпадение по стеку: {', '.join(matched_skills)}.")
             if missing_skills:
                 summary_parts.append(f"Требуется уточнить: {', '.join(missing_skills)}.")
+            if salary_match is True:
+                summary_parts.append(f"Зарплатные ожидания соответствуют («{need_tax_label}»).")
+            elif salary_match is False:
+                if cand_tax != need_tax:
+                    summary_parts.append(f"Требуется согласование налогового типа («{cand_tax_label}» vs «{need_tax_label}»).")
+                else:
+                    summary_parts.append("Зарплатные ожидания превышают максимум вилки.")
             if fsp_bonus:
                 summary_parts.append("Участник соревнований ФСП (высокий алгоритмический рейтинг).")
 
@@ -149,6 +228,8 @@ class MatchingService:
                 matched_skills=matched_skills,
                 missing_skills=missing_skills,
                 fsp_bonus=fsp_bonus,
+                salary_match=salary_match,
+                salary_note=salary_note,
                 summary=" ".join(summary_parts),
             )
 
@@ -172,6 +253,8 @@ class MatchingService:
                 fsp_rating=fsp_rating,
                 achievements_count=len(cand.fsp_achievements),
                 skills=cand.skills or [],
+                salary_expectation=cand.salary_expectation,
+                salary_tax_type=getattr(cand, "salary_tax_type", "gross") or "gross",
                 test_percentage=test_perc,
                 match_score=total_score,
                 match_explanation=explanation,
@@ -251,6 +334,8 @@ class MatchingService:
                     fsp_rating=top_ach.score_or_rating if top_ach else None,
                     achievements_count=len(cand.fsp_achievements),
                     skills=cand.skills or [],
+                    salary_expectation=cand.salary_expectation,
+                    salary_tax_type=getattr(cand, "salary_tax_type", "gross") or "gross",
                     test_percentage=test_perc,
                     match_score=test_perc or 80.0,
                     match_explanation=MatchExplanation(

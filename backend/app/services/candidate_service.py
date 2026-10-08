@@ -70,6 +70,10 @@ class CandidateService:
         profile.programming_language = new_language
         profile.declared_grade = data.declared_grade.value
         profile.work_format = data.work_format.value
+        profile.salary_expectation = data.salary_expectation
+        profile.salary_tax_type = data.salary_tax_type
+        if data.skills:
+            profile.skills = data.skills
 
         profile.agreed_152_fz = True
         profile.agreed_152_fz_at = now
@@ -298,6 +302,9 @@ class CandidateService:
             verified_grade=profile.verified_grade,
             verified_specialization=profile.verified_specialization,
             work_format=profile.work_format,
+            salary_expectation=profile.salary_expectation,
+            salary_tax_type=getattr(profile, "salary_tax_type", "gross") or "gross",
+            skills=profile.skills or [],
             fsp_id=profile.fsp_id,
             fsp_verified=profile.fsp_verified,
             agreed_152_fz=profile.agreed_152_fz,

@@ -1,14 +1,22 @@
 from datetime import datetime
 from typing import Any, Literal
 import uuid
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.core.constants import Grade, WorkFormat
 
 
 class SkillRequirement(BaseModel):
-    name: str
-    weight: float = 1.0
+    name: str = Field(..., min_length=1, max_length=100)
+    weight: float = Field(default=1.0, ge=0.1, le=10.0, description="Важность навыка (рекомендуется шкала 1..5)")
     required: bool = True
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        clean = v.strip()
+        if not clean:
+            raise ValueError("Название навыка не может быть пустым")
+        return clean
 
 
 class EmployerNeedCreate(BaseModel):
@@ -18,11 +26,25 @@ class EmployerNeedCreate(BaseModel):
     required_skills: list[SkillRequirement] = Field(default_factory=list)
     salary_min: float = Field(..., gt=0)
     salary_max: float = Field(..., gt=0)
-    salary_tax_type: Literal["gross", "net"] = "gross"
+    salary_tax_type: Literal["gross", "net"] = Field(
+        "gross",
+        description="Тип зарплаты: «до вычета НДФЛ» (gross) или «на руки» (net)",
+    )
     currency: str = "RUB"
     work_format: WorkFormat = WorkFormat.REMOTE
     city: str | None = None
     description: str = ""
+
+    @field_validator("salary_tax_type", mode="before")
+    @classmethod
+    def normalize_tax_type(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            clean = v.strip().lower()
+            if clean in ("gross", "до вычета", "до вычета ндфл", "до вычета ндфл (gross)"):
+                return "gross"
+            if clean in ("net", "на руки", "на руки (net)"):
+                return "net"
+        return v
 
     @model_validator(mode="after")
     def validate_salary(self):
@@ -38,12 +60,26 @@ class EmployerNeedUpdate(BaseModel):
     required_skills: list[SkillRequirement] | None = None
     salary_min: float | None = Field(default=None, gt=0)
     salary_max: float | None = Field(default=None, gt=0)
-    salary_tax_type: Literal["gross", "net"] | None = None
+    salary_tax_type: Literal["gross", "net"] | None = Field(
+        default=None,
+        description="Тип зарплаты: «до вычета НДФЛ» (gross) или «на руки» (net)",
+    )
     currency: str | None = None
     work_format: WorkFormat | None = None
     city: str | None = None
     description: str | None = None
     is_active: bool | None = None
+
+    @field_validator("salary_tax_type", mode="before")
+    @classmethod
+    def normalize_tax_type(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            clean = v.strip().lower()
+            if clean in ("gross", "до вычета", "до вычета ндфл", "до вычета ндфл (gross)"):
+                return "gross"
+            if clean in ("net", "на руки", "на руки (net)"):
+                return "net"
+        return v
 
     @model_validator(mode="after")
     def validate_salary(self):

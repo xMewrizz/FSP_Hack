@@ -32,6 +32,7 @@ class EmployerNeed(Base, TimestampMixin):
 
     salary_min: Mapped[float] = mapped_column(Float, nullable=False)
     salary_max: Mapped[float] = mapped_column(Float, nullable=False)
+    # Пометка «до вычета НДФЛ» (gross) или «на руки» (net)
     salary_tax_type: Mapped[str] = mapped_column(String(20), default="gross", nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="RUB", nullable=False)
 

@@ -70,16 +70,23 @@ def score_candidate(need: dict[str, Any], candidate: dict[str, Any]) -> dict[str
     else:
         work_points = (5.0 if format_match else 0.0) + (5.0 if format_match and city_match else 0.0)
 
+    need_tax = _norm(need.get("salary_tax_type") or need.get("salary_basis"))
+    cand_tax = _norm(candidate.get("salary_tax_type") or candidate.get("salary_basis"))
+    cand_salary = (
+        candidate.get("salary_expectation_min")
+        if candidate.get("salary_expectation_min") is not None
+        else candidate.get("salary_expectation")
+    )
     salary_comparable = bool(
-        _norm(need.get("salary_basis"))
-        and _norm(need.get("salary_basis")) == _norm(candidate.get("salary_basis"))
+        need_tax
+        and need_tax == cand_tax
         and need.get("salary_max") is not None
-        and candidate.get("salary_expectation_min") is not None
+        and cand_salary is not None
     )
     try:
         salary_match = bool(
             salary_comparable
-            and float(candidate["salary_expectation_min"]) <= float(need["salary_max"])
+            and float(cand_salary) <= float(need["salary_max"])
         )
     except (TypeError, ValueError):
         salary_comparable = False

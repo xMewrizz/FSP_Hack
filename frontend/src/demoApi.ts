@@ -12,6 +12,8 @@ type DemoCandidate = {
   fsp_verified: boolean;
   achievements_count: number;
   skills: string[];
+  salary_expectation?: number | null;
+  salary_tax_type?: "gross" | "net";
   match_score: number;
   available_from: string;
   trust_score: number;
@@ -30,6 +32,7 @@ type DemoNeed = {
   required_skills: Array<{ name: string; weight: number; required: boolean }>;
   salary_min: number;
   salary_max: number;
+  salary_tax_type: "gross" | "net";
   currency: string;
   work_format: string;
   city: string;
@@ -70,6 +73,8 @@ const candidateProfile = {
   declared_grade: "middle",
   verified_grade: "middle",
   work_format: "remote",
+  salary_expectation: 240000,
+  salary_tax_type: "gross" as const,
   fsp_id: "FSP-77-001",
   fsp_verified: true,
   agreed_152_fz: true,
@@ -104,6 +109,8 @@ const candidates: DemoCandidate[] = [
     fsp_verified: true,
     achievements_count: 2,
     skills: ["Python", "FastAPI", "PostgreSQL", "Docker", "Redis"],
+    salary_expectation: 250000,
+    salary_tax_type: "gross",
     match_score: 94,
     available_from: "2026-10-15",
     trust_score: 0.92,
@@ -116,7 +123,7 @@ const candidates: DemoCandidate[] = [
       { id: "current", label: "Текущая", date: "2026-10-01", summary: "Обновил описание архитектурных задач и добавил опыт разработки высоконагруженного API." },
       { id: "2025", label: "2025", date: "2025-05-18", summary: "Предыдущая версия: фокус на backend-разработке и оптимизации PostgreSQL." },
     ],
-    match_explanation: { summary: "Подтверждённый Middle. Сильные API и базы данных.", matched_skills: ["Python", "PostgreSQL", "REST"], missing_skills: ["Kafka"] },
+    match_explanation: { summary: "Подтверждённый Middle. Сильные API и базы данных. Зарплатные ожидания соответствуют («до вычета НДФЛ»).", matched_skills: ["Python", "PostgreSQL", "REST"], missing_skills: ["Kafka"], salary_match: true, salary_note: "Ожидания (250,000 ₽ до вычета НДФЛ) укладываются в бюджет вакансии" },
   },
   {
     candidate_id: "demo-candidate-elena",
@@ -130,6 +137,8 @@ const candidates: DemoCandidate[] = [
     fsp_verified: true,
     achievements_count: 1,
     skills: ["Go", "gRPC", "PostgreSQL", "Kafka", "Kubernetes"],
+    salary_expectation: 230000,
+    salary_tax_type: "net",
     match_score: 89,
     available_from: "2026-11-01",
     trust_score: 0.88,
@@ -142,7 +151,7 @@ const candidates: DemoCandidate[] = [
       { id: "current", label: "Текущая", date: "2026-09-27", summary: "Добавлен опыт с Kafka и эксплуатацией сервисов в Kubernetes." },
       { id: "2025", label: "2025", date: "2025-11-10", summary: "Предыдущая версия: Go, gRPC и проектирование API." },
     ],
-    match_explanation: { summary: "Сильные распределённые системы и опыт с очередями.", matched_skills: ["PostgreSQL", "Kafka"], missing_skills: ["Python"] },
+    match_explanation: { summary: "Сильные распределённые системы и опыт с очередями. Требуется согласование налогового типа («на руки» vs «до вычета НДФЛ»).", matched_skills: ["PostgreSQL", "Kafka"], missing_skills: ["Python"], salary_match: false, salary_note: "Разный налоговый базис: потребность «до вычета НДФЛ», соискатель «на руки»" },
   },
   {
     candidate_id: "demo-candidate-dmitry",
@@ -214,6 +223,7 @@ const needs: DemoNeed[] = [
     ],
     salary_min: 220000,
     salary_max: 280000,
+    salary_tax_type: "gross",
     currency: "RUB",
     work_format: "remote",
     city: "Москва",
@@ -231,6 +241,7 @@ const needs: DemoNeed[] = [
     required_skills: [{ name: "Kubernetes", weight: 1, required: true }],
     salary_min: 230000,
     salary_max: 300000,
+    salary_tax_type: "gross",
     currency: "RUB",
     work_format: "hybrid",
     city: "Москва",
@@ -421,6 +432,7 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       required_skills: Array.isArray(body.required_skills) ? body.required_skills : [],
       salary_min: Number(body.salary_min ?? 0),
       salary_max: Number(body.salary_max ?? 0),
+      salary_tax_type: (body.salary_tax_type as "gross" | "net") || "gross",
       currency: "RUB",
       work_format: String(body.work_format ?? "remote"),
       city: String(body.city ?? ""),
