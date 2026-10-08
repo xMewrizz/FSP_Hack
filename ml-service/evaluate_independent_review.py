@@ -1,4 +1,4 @@
-"""Проверить независимую разметку и сравнить две сортировки после согласования меток."""
+"""Сравнить две сортировки по предварительным или согласованным оценкам."""
 
 from __future__ import annotations
 
@@ -67,32 +67,37 @@ def ndcg_at_5(order: list[str], labels: dict[str, int], need_code: str) -> float
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--final-labels", type=Path, help="Согласованные метки; JSONL с pair_id, label, reason")
+    parser.add_argument("--ai-draft", action="store_true", help="Предварительный расчёт по текущей разметке")
     args = parser.parse_args()
+    if args.ai_draft and args.final_labels is not None:
+        parser.error("Укажите только --ai-draft или --final-labels")
 
     first_path = DATA / "relevance_reviewer_1.jsonl"
-    second_path = DATA / "relevance_reviewer_2.jsonl"
     first = read_jsonl(first_path)
-    second = read_jsonl(second_path)
-    check_same_context(first, second)
     expected = set(first)
-    for path, rows in ((first_path, first), (second_path, second)):
-        filled = sum(type(row.get("label")) is int and row["label"] in (0, 1, 2) for row in rows.values())
-        print(f"{path.name}: {filled}/{len(expected)} оценок")
-    if args.final_labels is None:
-        print("Согласованных меток нет; метрики подбора не рассчитывались")
-        return
-    if args.final_labels.resolve() in (first_path.resolve(), second_path.resolve()):
-        raise ValueError("Согласованные метки нужно сохранить отдельно от исходных форм")
-
-    left = checked_labels(first, expected, first_path)
-    right = checked_labels(second, expected, second_path)
-    agreed = sum(left[pair_id] == right[pair_id] for pair_id in expected)
-    print(f"Совпадение предварительной AI-оценки и второго проверяющего: {agreed}/{len(expected)}")
-    for pair_id in sorted(expected):
-        if left[pair_id] != right[pair_id]:
-            print(f"Расхождение {pair_id}: {left[pair_id]} и {right[pair_id]}")
-
-    final = checked_labels(read_jsonl(args.final_labels), expected, args.final_labels)
+    if args.ai_draft:
+        final = checked_labels(first, expected, first_path)
+        print("Предварительный расчёт на AI-оценках синтетических профилей. Независимой проверки нет.")
+    else:
+        second_path = DATA / "relevance_reviewer_2.jsonl"
+        second = read_jsonl(second_path)
+        check_same_context(first, second)
+        for path, rows in ((first_path, first), (second_path, second)):
+            filled = sum(type(row.get("label")) is int and row["label"] in (0, 1, 2) for row in rows.values())
+            print(f"{path.name}: {filled}/{len(expected)} оценок")
+        if args.final_labels is None:
+            print("Согласованных меток нет; метрики подбора не рассчитывались")
+            return
+        if args.final_labels.resolve() in (first_path.resolve(), second_path.resolve()):
+            raise ValueError("Согласованные метки нужно сохранить отдельно от исходных форм")
+        left = checked_labels(first, expected, first_path)
+        right = checked_labels(second, expected, second_path)
+        agreed = sum(left[pair_id] == right[pair_id] for pair_id in expected)
+        print(f"Совпадение предварительной AI-оценки и второго проверяющего: {agreed}/{len(expected)}")
+        for pair_id in sorted(expected):
+            if left[pair_id] != right[pair_id]:
+                print(f"Расхождение {pair_id}: {left[pair_id]} и {right[pair_id]}")
+        final = checked_labels(read_jsonl(args.final_labels), expected, args.final_labels)
     candidates = json.loads((DATA / "candidates.json").read_text(encoding="utf-8"))
     needs = json.loads((DATA / "needs.json").read_text(encoding="utf-8"))
     print("Сравнение прототипа B-14 с простой сортировкой; API подбора B-15 пока использует другую логику")
