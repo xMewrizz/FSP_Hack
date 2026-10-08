@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from app.core.question_variants import prepared_variants
 
 
 async def register_and_verify(client: AsyncClient, email: str, role: str) -> dict[str, str]:
@@ -131,7 +132,11 @@ async def test_failed_retake_does_not_remove_verified_grade(client: AsyncClient)
     assert first_failure.json()["passed"] is False
     assert first_failure.json()["verified_grade"] is None
 
-    correct = {"BE-JR-01": "D", "BE-JR-02": "A", "BE-JR-03": "B", "BE-JR-04": "B"}
+    correct = {
+        variant["code"]: variant["correct_answers"][0]
+        for number in range(1, 5)
+        for variant in prepared_variants(f"BE-JR-0{number}")
+    }
     started = await client.post("/api/v1/testing/start", headers=candidate, json={})
     assert started.status_code == 201
     answers = [

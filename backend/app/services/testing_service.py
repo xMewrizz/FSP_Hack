@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 import uuid
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.catalog import (
     CatalogError,
@@ -12,6 +12,7 @@ from app.core.catalog import (
 )
 from app.core.constants import Grade
 from app.core.question_bank import PREDEFINED_QUESTIONS
+from app.core.question_variants import variant_for_attempt
 from app.models.candidate import CandidateProfile
 from app.models.test import Question, TestSession
 from app.models.user import User
@@ -136,32 +137,60 @@ class TestingService:
                 detail=str(exc),
             )
 
-        # Build snapshot for storage
+        # Serialize starts for one candidate so concurrent requests do not
+        # receive the same next variant.
+        await db.execute(
+            select(CandidateProfile.id)
+            .where(CandidateProfile.id == profile.id)
+            .with_for_update()
+        )
+        previous_attempts = await db.scalar(
+            select(func.count(TestSession.id)).where(
+                TestSession.candidate_profile_id == profile.id,
+                TestSession.specialization == spec,
+                TestSession.target_grade == grade,
+            )
+        ) or 0
+
+        selected_variants = [
+            (question, variant_for_attempt(question.code, previous_attempts))
+            for question in sorted(questions, key=lambda item: item.code)
+        ]
+        try:
+            assert_no_substitution(spec, grade, [variant for _, variant in selected_variants])
+        except CatalogError as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
+        # The snapshot fixes the selected version and answer key for this attempt.
         snapshot = []
         client_questions = []
 
-        for q in questions:
+        for q, variant in selected_variants:
+            question_id = str(q.id if variant["variant_id"] == "v1" else uuid.uuid5(q.id, variant["variant_id"]))
             snapshot.append({
-                "id": str(q.id),
-                "code": q.code,
-                "topic": q.topic,
-                "question_type": q.question_type,
-                "question_text": q.question_text,
-                "options": q.options,
-                "correct_answers": q.correct_answers,
-                "weight": q.weight,
-                "explanation": q.explanation,
+                "id": question_id,
+                "code": variant["code"],
+                "family_code": variant["family_code"],
+                "variant_id": variant["variant_id"],
+                "parameters": variant.get("parameters", {}),
+                "topic": variant["topic"],
+                "question_type": variant["question_type"],
+                "question_text": variant["question_text"],
+                "options": variant["options"],
+                "correct_answers": variant["correct_answers"],
+                "weight": variant["weight"],
+                "explanation": variant["explanation"],
             })
 
             client_questions.append(
                 QuestionInTest(
-                    id=str(q.id),
-                    code=q.code,
-                    topic=q.topic,
-                    question_type=q.question_type,
-                    question_text=q.question_text,
-                    options=[QuestionOptionResponse(**opt) for opt in q.options],
-                    weight=q.weight,
+                    id=question_id,
+                    code=variant["code"],
+                    topic=variant["topic"],
+                    question_type=variant["question_type"],
+                    question_text=variant["question_text"],
+                    options=[QuestionOptionResponse(**opt) for opt in variant["options"]],
+                    weight=variant["weight"],
                 )
             )
 
@@ -210,6 +239,16 @@ class TestingService:
                 detail="Данный тест уже был завершен ранее",
             )
 
+        # Answers must refer to questions issued in this session.
+        snapshot_by_id = {question["id"]: question for question in session.questions_snapshot}
+        submitted_ids = [answer.question_id for answer in data.answers]
+        if len(submitted_ids) != len(set(submitted_ids)) or any(question_id not in snapshot_by_id for question_id in submitted_ids):
+            raise HTTPException(status_code=400, detail="Ответы содержат повтор или задание не из этой попытки")
+        for answer in data.answers:
+            allowed = {option["id"] for option in snapshot_by_id[answer.question_id]["options"]}
+            if any(choice not in allowed for choice in answer.selected_answers):
+                raise HTTPException(status_code=400, detail="Ответ содержит неизвестный вариант выбора")
+
         # Map answers
         user_answers_map = {ans.question_id: set(ans.selected_answers) for ans in data.answers}
 
@@ -256,7 +295,15 @@ class TestingService:
         session.status = "completed"
         session.completed_at = now
         session.skill_breakdown = [s.model_dump() for s in skill_breakdown]
-        session.answers_data = [a.model_dump() for a in data.answers]
+        session.answers_data = [
+            {
+                **answer.model_dump(),
+                "code": snapshot_by_id[answer.question_id]["code"],
+                "family_code": snapshot_by_id[answer.question_id].get("family_code", snapshot_by_id[answer.question_id]["code"]),
+                "variant_id": snapshot_by_id[answer.question_id].get("variant_id", "v1"),
+            }
+            for answer in data.answers
+        ]
 
         # Update candidate profile
         stmt_prof = select(CandidateProfile).where(CandidateProfile.id == session.candidate_profile_id)

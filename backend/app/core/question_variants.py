@@ -1,8 +1,7 @@
-"""Подготовленные варианты Backend-вопросов для последующих попыток.
+"""Подготовленные варианты Backend-вопросов для повторных попыток.
 
-`PREDEFINED_QUESTIONS` остаётся текущим банком для запуска теста. B-09 будет
-выбирать один вариант каждой семьи и сохранять его код и текст в снимке сессии.
-Здесь ничего не генерируется во время тестирования и не вызывается LLM.
+Во время тестирования выбирается один из готовых вариантов каждой семьи.
+Новые задания и ответы не генерируются; LLM не требуется.
 """
 
 from typing import Any
@@ -160,3 +159,11 @@ def prepared_variants(base_code: str) -> list[dict[str, Any]]:
             "parameters": case["params"],
         })
     return result
+
+
+def variant_for_attempt(base_code: str, previous_attempts: int) -> dict[str, Any]:
+    """Выбрать очередной вариант; соседние попытки не повторяют его."""
+    if previous_attempts < 0:
+        raise ValueError("Число предыдущих попыток не может быть отрицательным")
+    variants = prepared_variants(base_code)
+    return variants[previous_attempts % len(variants)]
