@@ -40,8 +40,8 @@ TESTABLE_PAIRS: set[tuple[str, str]] = {
     (spec, grade) for spec in TESTABLE_SPECIALIZATIONS for grade in TESTABLE_GRADES
 }
 
-# Минимум вопросов на пару, чтобы тест собирался (сейчас у Backend 4/грейд).
-MIN_QUESTIONS_PER_PAIR = 3
+# Текущее покрытие каждого доступного Backend-грейда.
+MIN_QUESTIONS_PER_PAIR = 12
 
 GRADE_LABELS_RU: dict[str, str] = {
     "junior": "Junior",

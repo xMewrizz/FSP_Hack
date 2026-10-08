@@ -1,6 +1,7 @@
 import pytest
+import uuid
 from httpx import AsyncClient
-from app.core.question_variants import prepared_variants
+from app.core.question_variants import BACKEND_FAMILIES, prepared_variants
 
 
 async def register_and_verify(client: AsyncClient, email: str, role: str) -> dict[str, str]:
@@ -79,15 +80,32 @@ async def test_invitation_rejection_and_foreign_record_access(client: AsyncClien
         },
     )
     assert onboard.status_code == 200
+    foreign_need = await client.post(
+        "/api/v1/needs", headers=outsider_employer,
+        json={"title": "Backend Junior", "specialization": "Backend", "required_grade": "junior",
+              "salary_min": 100000, "salary_max": 150000},
+    )
+    assert foreign_need.status_code == 201
+    payload = {
+        "candidate_id": onboard.json()["id"],
+        "offer_description": "Приглашаем в команду разработки",
+        "contact_method": "Telegram", "salary_min": 100000, "salary_max": 150000,
+        "salary_type": "net",
+    }
+    for need_id in (foreign_need.json()["id"], str(uuid.uuid4())):
+        bad = await client.post("/api/v1/invitations", headers=employer,
+                                json={**payload, "need_id": need_id})
+        assert bad.status_code == 404
+    assert (await client.get("/api/v1/invitations/my", headers=candidate)).json() == []
+    invalid_currency = await client.post("/api/v1/invitations", headers=employer,
+                                         json={**payload, "currency": "USD"})
+    assert invalid_currency.status_code == 422
     invited = await client.post(
         "/api/v1/invitations", headers=employer,
-        json={
-            "candidate_id": onboard.json()["id"],
-            "offer_description": "Приглашаем в команду разработки",
-            "contact_method": "Telegram", "salary_min": 100000, "salary_max": 150000,
-        },
+        json=payload,
     )
     assert invited.status_code == 201
+    assert invited.json()["salary_type"] == "net"
     invitation_id = invited.json()["id"]
     assert invited.json()["candidate_contacts"] is None
 
@@ -106,6 +124,7 @@ async def test_invitation_rejection_and_foreign_record_access(client: AsyncClien
     sent = await client.get("/api/v1/invitations/sent", headers=employer)
     assert sent.status_code == 200
     assert sent.json()[0]["status"] == "rejected"
+    assert sent.json()[0]["salary_type"] == "net"
     assert sent.json()[0]["candidate_contacts"] is None
 
 
@@ -134,20 +153,26 @@ async def test_failed_retake_does_not_remove_verified_grade(client: AsyncClient)
 
     correct = {
         variant["code"]: variant["correct_answers"][0]
-        for number in range(1, 5)
-        for variant in prepared_variants(f"BE-JR-0{number}")
+        for code in BACKEND_FAMILIES if code.startswith("BE-JR-")
+        for variant in prepared_variants(code)
     }
-    started = await client.post("/api/v1/testing/start", headers=candidate, json={})
-    assert started.status_code == 201
-    answers = [
-        {"question_id": q["id"], "selected_answers": [correct[q["code"]]]}
-        for q in started.json()["questions"]
-    ]
-    passed = await client.post(
-        f"/api/v1/testing/{started.json()['session_id']}/submit",
-        headers=candidate, json={"answers": answers},
-    )
-    assert passed.status_code == 200
+    roadmap = await client.post("/api/v1/testing/roadmap", headers=candidate, json={})
+    assert roadmap.status_code == 201
+    for skill in roadmap.json()["skills"]:
+        started = await client.post(
+            f"/api/v1/testing/roadmap/{roadmap.json()['id']}/skills/{skill['code']}/start",
+            headers=candidate,
+        )
+        assert started.status_code == 201
+        answers = [
+            {"question_id": q["id"], "selected_answers": [correct[q["code"]]]}
+            for q in started.json()["questions"]
+        ]
+        passed = await client.post(
+            f"/api/v1/testing/{started.json()['session_id']}/submit",
+            headers=candidate, json={"answers": answers},
+        )
+        assert passed.status_code == 200
     assert passed.json()["verified_grade"] == "junior"
 
     retake = await client.post("/api/v1/testing/start", headers=candidate, json={})
@@ -164,4 +189,4 @@ async def test_failed_retake_does_not_remove_verified_grade(client: AsyncClient)
     assert profile.json()["verified_grade"] == "junior"
     history = await client.get("/api/v1/testing/history", headers=candidate)
     assert history.status_code == 200
-    assert len(history.json()) == 3
+    assert len(history.json()) == 6

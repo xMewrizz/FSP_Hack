@@ -2236,6 +2236,17 @@ body {
 .result-score b { color: var(--green); font-size: 2.875rem; }
 .result-score span { color: var(--muted); font-size: 0.5625rem; }
 
+.topic-summary { margin: 1.5rem 0; text-align: left; }
+.topic-summary h3 { margin: 0 0 0.75rem; font-size: 0.875rem; }
+.topic-summary > div { display: flex; justify-content: space-between; gap: 1rem; border-top: 0.0625rem solid var(--line); padding: 0.625rem 0; font-size: 0.6875rem; }
+.topic-summary > div span { color: var(--muted-light); }
+
+.question-review { margin: 1.5rem 0; text-align: left; }
+.question-review h3 { margin: 0 0 0.75rem; font-size: 0.875rem; }
+.question-review__item { border-top: 0.0625rem solid var(--line); padding: 0.875rem 0; }
+.question-review__item strong { font-size: 0.75rem; }
+.question-review__item p { margin: 0.5rem 0 0; color: var(--muted-light); font-size: 0.6875rem; line-height: 1.5; }
+
 .grade-stamp {
   min-width: 10.625rem;
   border: 0.0625rem solid rgba(57,217,138,.35);

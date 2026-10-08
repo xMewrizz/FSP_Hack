@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Any
 import uuid
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel
+
 from app.core.constants import Grade
 
 
@@ -32,6 +33,8 @@ class TestStartResponse(BaseModel):
     status: str
     questions: list[QuestionInTest]
     total_questions: int
+    skill_code: str | None = None
+    assessment_id: uuid.UUID | None = None
 
 
 class AnswerSubmission(BaseModel):
@@ -48,6 +51,18 @@ class SkillScore(BaseModel):
     score: float
     max_score: float
     percentage: float
+    correct_count: int = 0
+    total_questions: int = 0
+
+
+class QuestionReview(BaseModel):
+    code: str
+    topic: str
+    question_text: str
+    selected_answers: list[str]
+    correct_answers: list[str]
+    is_correct: bool
+    explanation: str
 
 
 class TestResultResponse(BaseModel):
@@ -57,12 +72,19 @@ class TestResultResponse(BaseModel):
     score: float
     max_score: float
     percentage: float
-    passed: bool
+    correct_count: int
+    total_questions: int
+    required_correct: int
+    passed: bool | None
+    grade_confirmed: bool
     verified_grade: str | None
     skill_breakdown: list[SkillScore]
+    question_review: list[QuestionReview]
     feedback: str
     suggested_grade: str | None
     completed_at: datetime | None
+    skill_code: str | None = None
+    assessment_id: uuid.UUID | None = None
 
 
 class TestSessionHistoryItem(BaseModel):
@@ -70,7 +92,47 @@ class TestSessionHistoryItem(BaseModel):
     specialization: str
     target_grade: str
     percentage: float
-    passed: bool
+    passed: bool | None
+    grade_confirmed: bool
     status: str
     created_at: datetime
     completed_at: datetime | None
+    skill_code: str | None = None
+    assessment_id: uuid.UUID | None = None
+
+
+class AssessmentSkillProgress(BaseModel):
+    code: str
+    label: str
+    status: str
+    percentage: float | None = None
+    level_out_of_ten: float | None = None
+    session_id: uuid.UUID | None = None
+
+
+class GradeAssessmentResponse(BaseModel):
+    id: uuid.UUID
+    specialization: str
+    programming_language: str | None = None
+    target_grade: str
+    status: str
+    skills: list[AssessmentSkillProgress]
+    percentage: float | None = None
+    passed: bool | None = None
+    grade_confirmed: bool = False
+    verified_grade: str | None = None
+    suggested_grade: str | None = None
+    completed_at: datetime | None = None
+    expires_at: datetime | None = None
+    retake_used: bool = False
+    retry_available_at: datetime | None = None
+    promotion_available_at: datetime | None = None
+
+
+class AdditionalSkillTestResponse(BaseModel):
+    code: str
+    label: str
+    target_grade: str
+    latest_percentage: float | None = None
+    level_out_of_ten: float | None = None
+    latest_session_id: uuid.UUID | None = None

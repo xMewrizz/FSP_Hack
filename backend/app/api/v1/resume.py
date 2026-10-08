@@ -47,7 +47,7 @@ async def upload_resume(
 
 @router.get(
     "/profile/pdf",
-    summary="Скачать стандартизированный PDF-профиль кандидата (с верификацией ФСП и тестов)",
+    summary="Скачать PDF-профиль из данных, разрешённых к публикации",
 )
 async def download_profile_pdf(
     current_user: User = Depends(get_current_candidate),
@@ -64,7 +64,7 @@ async def download_profile_pdf(
     if not profile:
         raise HTTPException(status_code=404, detail="Профиль кандидата не найден")
 
-    pdf_bytes = pdf_service.generate_candidate_profile_pdf(profile, current_user.email)
+    pdf_bytes = pdf_service.generate_candidate_profile_pdf(profile)
 
     return Response(
         content=pdf_bytes,

@@ -3,7 +3,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-from app.core.question_variants import prepared_variants
+from app.core.question_variants import BACKEND_FAMILIES, prepared_variants
 from app.models.test import TestSession as SessionModel
 from conftest import TestingSessionLocal
 
@@ -34,7 +34,7 @@ async def test_retries_rotate_prepared_variants_and_save_answer_version(client: 
         started = await client.post("/api/v1/testing/start", headers=headers, json={})
         assert started.status_code == 201
         attempt = started.json()
-        assert len(attempt["questions"]) == 4
+        assert len(attempt["questions"]) == 12
         assert all(
             question["code"] == prepared_variants(question["code"].split("-V")[0])[int(expected_version[1]) - 1]["code"]
             for question in attempt["questions"]
@@ -62,8 +62,8 @@ async def test_retries_rotate_prepared_variants_and_save_answer_version(client: 
 
     correct = {
         variant["code"]: variant["correct_answers"]
-        for number in range(1, 5)
-        for variant in prepared_variants(f"BE-JR-0{number}")
+        for code in BACKEND_FAMILIES if code.startswith("BE-JR-")
+        for variant in prepared_variants(code)
     }
     answers = [
         {"question_id": question["id"], "selected_answers": correct[question["code"]]}
@@ -81,7 +81,8 @@ async def test_retries_rotate_prepared_variants_and_save_answer_version(client: 
         assert session is not None
         assert {q["variant_id"] for q in session.questions_snapshot} == {"v2"}
         assert {q["family_code"] for q in session.questions_snapshot} == {
-            f"BE-JR-0{number}" for number in range(1, 5)
+            code for code in BACKEND_FAMILIES
+            if code.startswith("BE-JR-") and int(code.split("-")[-1]) <= 12
         }
         assert all(q["correct_answers"] for q in session.questions_snapshot)
         assert {answer["variant_id"] for answer in session.answers_data} == {"v2"}

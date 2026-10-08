@@ -45,6 +45,7 @@ class Invitation(Base, TimestampMixin):
 
     salary_min: Mapped[float] = mapped_column(Float, nullable=False)
     salary_max: Mapped[float] = mapped_column(Float, nullable=False)
+    salary_type: Mapped[str] = mapped_column(String(10), default="gross", nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="RUB", nullable=False)
 
     status: Mapped[str] = mapped_column(String(50), default="sent", index=True, nullable=False)

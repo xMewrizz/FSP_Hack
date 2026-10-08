@@ -10,7 +10,7 @@ import uuid
 
 import httpx
 
-from app.core.question_bank import PREDEFINED_QUESTIONS
+from app.core.question_variants import prepared_variants
 
 
 def check(response: httpx.Response, expected: int) -> dict:
@@ -68,28 +68,42 @@ def main() -> None:
             ),
             200,
         )
-        session = check(
+        roadmap = check(
             client.post(
-                "/testing/start",
+                "/testing/roadmap",
                 headers=candidate_headers,
                 json={"specialization": "Backend", "target_grade": "junior"},
             ),
             201,
         )
-        keys = {question["code"]: question["correct_answers"] for question in PREDEFINED_QUESTIONS}
-        answers = [
-            {"question_id": question["id"], "selected_answers": keys[question["code"]]}
-            for question in session["questions"]
-        ]
-        result = check(
-            client.post(
-                f"/testing/{session['session_id']}/submit",
-                headers=candidate_headers,
-                json={"answers": answers},
-            ),
-            200,
-        )
-        assert result["passed"] and result["verified_grade"] == "junior"
+        for skill in roadmap["skills"]:
+            session = check(
+                client.post(
+                    f"/testing/roadmap/{roadmap['id']}/skills/{skill['code']}/start",
+                    headers=candidate_headers,
+                ),
+                201,
+            )
+            answers = []
+            for question in session["questions"]:
+                family_code = question["code"].split("-V")[0]
+                variant = next(
+                    item for item in prepared_variants(family_code)
+                    if item["code"] == question["code"]
+                )
+                answers.append({
+                    "question_id": question["id"],
+                    "selected_answers": variant["correct_answers"],
+                })
+            result = check(
+                client.post(
+                    f"/testing/{session['session_id']}/submit",
+                    headers=candidate_headers,
+                    json={"answers": answers},
+                ),
+                200,
+            )
+        assert result["grade_confirmed"] and result["verified_grade"] == "junior"
 
         employer_headers = register(client, employer_email, "employer")
         check(
@@ -148,7 +162,7 @@ def main() -> None:
         accepted_invitation = next(item for item in sent if item["id"] == invitation["id"])
         assert accepted_invitation["candidate_contacts"]["email"] == candidate_email
 
-    print("B-00 live smoke: registration, test, matching, invitation, acceptance: OK")
+    print("Live smoke: registration, four skill tests, matching, invitation, acceptance: OK")
 
 
 if __name__ == "__main__":

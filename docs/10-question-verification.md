@@ -1,6 +1,6 @@
 # Сверка ответов Backend-заданий
 
-7 октября 2026 года я сверил 12 исходных вопросов и 24 варианта с указанными ниже источниками и условиями задач. Это проверка фактов и ключей, а не испытание сложности на кандидатах. Пробных прохождений пока не было. Отдельного Backend-рецензента в команде нет, поэтому независимую экспертную проверку не заявляем.
+Для 12 исходных вопросов и 24 вариантов сверены технические факты и ключи с указанными ниже источниками и условиями задач. Это не испытание сложности на кандидатах. Пробных прохождений пока не было. Отдельного Backend-рецензента в команде нет, поэтому независимую экспертную проверку не заявляем.
 
 В столбце «Ключи» ответы идут в порядке: исходный вопрос / V2 / V3. Полный текст вопросов остаётся в [листе](09-question-review-sheet.md), а объяснения — в коде банка. Лист не нужно заполнять Тимофею или другим участникам, если тема им незнакома.
 
@@ -19,4 +19,37 @@
 | BE-SR-03 | B / A / C | [Описание circuit breaker Мартина Фаулера](https://martinfowler.com/bliki/CircuitBreaker.html) подтверждает Closed, Open и Half-open. Конкретный порог и события заданы внутри вопросов: три ошибки подряд открывают цепь; успех сбрасывает счётчик; после паузы до пробного вызова состояние Half-open. |
 | BE-SR-04 | C / A / C | [Описание transactional outbox от AWS](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html): откат общей транзакции отменяет обе записи; сохранённое событие можно доставить позже; повторная отправка возможна, поэтому получатель должен распознавать дубликат. |
 
-**Итог сверки:** в текущих 36 вариантах не обнаружено расхождения между ключом и указанным источником либо условиями задачи. Поэтому подготовка первого банка B-02 завершена. Это не доказывает, что варианты одинаково сложны и что четыре вопроса на грейд достоверно определяют квалификацию: проверка этого остаётся в B-19. Если в дальнейшем обнаружится неоднозначный вопрос, его исключаем из подсчёта до исправления.
+В этих 36 вариантах не обнаружено расхождения между ключом и указанным источником либо условиями задачи. Позже банк расширили; состав описан в [банке](07-question-bank.md). Число заданий само по себе не доказывает, что варианты одинаково сложны или определяют квалификацию: это проверяется в B-19. Если обнаружится неоднозначный вопрос, его исключаем из подсчёта до исправления.
+
+## Добавленные задания
+
+Для новых семей ниже проверены формулировки, смысл правильного варианта и соответствие ключа после перестановки вариантов ответа. В каждой строке ключи идут для V1 / V2 / V3. Проверка выполнена по указанным источникам и условиям задач; независимого Backend-рецензента по-прежнему нет.
+
+| Семья | Ключи | Основание |
+|---|---|---|
+| BE-JR-05 | B / A / D | [Агрегатные функции PostgreSQL](https://www.postgresql.org/docs/16/functions-aggregate.html): `COUNT(DISTINCT user_id)` считает уникальные ненулевые значения. |
+| BE-JR-06 | A / D / C | [Транзакции PostgreSQL](https://www.postgresql.org/docs/current/tutorial-transactions.html): COMMIT фиксирует, ROLLBACK отменяет изменения. |
+| BE-JR-07 | C / B / A | [Коллекции Python](https://docs.python.org/3.12/tutorial/datastructures.html): `list.sort()` меняет список на месте и возвращает `None`; `sorted()` создаёт новый список. |
+| BE-JR-08 | B / A / D | [Копирование в Python](https://docs.python.org/3/library/copy.html): присваивание сохраняет ссылку, `copy()` и полный срез создают новый внешний список. |
+| BE-JR-09 | D / C / B | [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html): 201 — создание, 204 — успешный ответ без тела, 404 — ресурс не найден. |
+| BE-JR-10 | B / A / D | [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html): GET запрашивает представление, HEAD — его метаданные без тела, OPTIONS — сведения о возможностях ресурса. |
+| BE-JR-11 | B / A / D | [Git commit](https://git-scm.com/docs/git-commit): рабочее дерево, индекс и новый коммит — разные состояния. |
+| BE-JR-12 | B / A / D | [Git restore](https://git-scm.com/docs/git-restore) и [Git revert](https://git-scm.com/docs/git-revert.html): убрать staged, вернуть рабочий файл, отменить опубликованный коммит новым. |
+| BE-MID-05 | C / B / A | [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html): порядок результатов соответствует аргументам, а не времени завершения. |
+| BE-MID-06 | A / D / C | [asyncio.Queue](https://docs.python.org/3.12/library/asyncio-queue.html): `join()` ждёт соответствующего числа вызовов `task_done()`. |
+| BE-MID-07 | A / D / C | [Частичные индексы PostgreSQL](https://www.postgresql.org/docs/current/indexes-partial.html): в индекс входят строки, удовлетворяющие предикату. |
+| BE-MID-08 | A / D / C | [EXPLAIN PostgreSQL](https://www.postgresql.org/docs/current/using-explain.html): Seq Scan может быть подходящим планом; фактическое время смотрят через EXPLAIN ANALYZE. |
+| BE-MID-09 | C / B / A | [Cache-aside Redis](https://redis.io/docs/latest/develop/use-cases/cache-aside/php/): после изменения источника старое значение кэша нужно удалить или обновить. |
+| BE-MID-10 | A / D / C | [Ключи Redis](https://redis.io/docs/latest/develop/use/keyspace/): разные представления должны иметь разные ключи; проверка доступа остаётся отдельной. |
+| BE-MID-11 | C / B / A | [SQLAlchemy Session](https://docs.sqlalchemy.org/en/20/orm/session_basics.html): различие flush, commit и rollback. |
+| BE-MID-12 | C / B / A | [SQLAlchemy Session](https://docs.sqlalchemy.org/en/20/orm/session_basics.html): после ошибки flush для повторного использования Session нужен явный rollback. |
+| BE-SR-05 | B / A / D | В условиях перевод и ключ находятся в одной БД; атомарная фиксация нужна, чтобы повтор на другом экземпляре не списал деньги снова. [Пример контракта идемпотентности](https://docs.stripe.com/api/idempotent_requests). |
+| BE-SR-06 | D / C / B | [Контракт идемпотентных запросов Stripe](https://docs.stripe.com/api/idempotent_requests): точный повтор получает прежний результат, изменение параметров при том же ключе — конфликт. |
+| BE-SR-07 | D / C / B | [AWS об ограничении нагрузки](https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_mitigate_interaction_failure_throttle_requests.html): явный предел помогает не накапливать бесконечную очередь при перегрузке. |
+| BE-SR-08 | B / A / D | [Описание виртуальных узлов Redis](https://redis.io/blog/cache-layer-architecture-guide/): несколько позиций физического узла помогают распределять доли ровнее. |
+| BE-SR-09 | D / C / B | [Circuit breaker](https://martinfowler.com/bliki/CircuitBreaker.html): переход после пробного вызова задан прямо в каждом условии. |
+| BE-SR-10 | B / A / D | [Bulkhead pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/bulkhead): раздельные ресурсы ограничивают распространение отказа. |
+| BE-SR-11 | B / A / D | [Transactional outbox](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html): возможны дубликаты, получателю нужна идемпотентная обработка. |
+| BE-SR-12 | D / C / B | [Transactional outbox](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html): заказ и запись события фиксируются или откатываются вместе. |
+
+Ключи и технические факты проверены для прежних 108 вариантов. Ещё 36 вариантов добавлены под постоянный набор обязательных навыков; их ключи связаны с вариантами автоматическими тестами, но условия пока не проверены независимым специалистом. После этого подготовлены ещё 84 самостоятельных вопроса с тремя вариантами каждый. Для них [собраны ссылки на первоисточники](13-backend-question-sources.md); независимой технической проверки пока нет. Сходство сложности внутри семьи и пригодность порога для грейда остаются предметом B-19.

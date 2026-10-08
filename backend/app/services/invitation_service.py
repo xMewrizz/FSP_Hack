@@ -58,8 +58,9 @@ class InvitationService:
             )
             res_need = await db.execute(stmt_need)
             need = res_need.scalar_one_or_none()
-            if need:
-                need_title = need.title
+            if not need:
+                raise HTTPException(status_code=404, detail="Потребность компании не найдена")
+            need_title = need.title
 
         invitation = Invitation(
             employer_id=employer.id,
@@ -70,6 +71,7 @@ class InvitationService:
             contact_method=data.contact_method,
             salary_min=data.salary_min,
             salary_max=data.salary_max,
+            salary_type=data.salary_type,
             currency=data.currency,
             status="sent",
         )
@@ -243,6 +245,7 @@ class InvitationService:
             contact_method=invitation.contact_method,
             salary_min=invitation.salary_min,
             salary_max=invitation.salary_max,
+            salary_type=invitation.salary_type,
             currency=invitation.currency,
             status=invitation.status,
             candidate_reply=invitation.candidate_reply,
