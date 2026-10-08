@@ -66,6 +66,7 @@ class InvitationService:
             contact_method=data.contact_method,
             salary_min=data.salary_min,
             salary_max=data.salary_max,
+            salary_tax_type=data.salary_tax_type,
             currency=data.currency,
             status="sent",
         )
@@ -121,7 +122,11 @@ class InvitationService:
     async def get_my_invitations(
         db: AsyncSession, user: User
     ) -> list[InvitationResponse]:
-        stmt_cand = select(CandidateProfile).where(CandidateProfile.user_id == user.id)
+        stmt_cand = (
+            select(CandidateProfile)
+            .options(selectinload(CandidateProfile.user))
+            .where(CandidateProfile.user_id == user.id)
+        )
         res_cand = await db.execute(stmt_cand)
         candidate = res_cand.scalar_one_or_none()
 
@@ -239,6 +244,7 @@ class InvitationService:
             contact_method=invitation.contact_method,
             salary_min=invitation.salary_min,
             salary_max=invitation.salary_max,
+            salary_tax_type=getattr(invitation, "salary_tax_type", "gross") or "gross",
             currency=invitation.currency,
             status=invitation.status,
             candidate_reply=invitation.candidate_reply,

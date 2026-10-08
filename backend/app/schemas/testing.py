@@ -72,5 +72,29 @@ class TestSessionHistoryItem(BaseModel):
     percentage: float
     passed: bool
     status: str
+    suggested_grade: str | None = None
     created_at: datetime
     completed_at: datetime | None
+
+
+class AvailableGradeInfo(BaseModel):
+    grade: str
+    is_available: bool
+    is_recommended: bool
+    is_current_verified: bool
+    reason: str | None = None
+
+
+class TestingStatusResponse(BaseModel):
+    specialization: str | None = None
+    declared_grade: str | None = None
+    verified_grade: str | None = None
+    verified_grade_updated_at: datetime | None = None
+    cooldown_active: bool = False
+    cooldown_days_remaining: int = 0
+    cooldown_expires_at: datetime | None = None
+    last_completed_test: TestSessionHistoryItem | None = None
+    suggested_grade: str | None = None
+    recommended_action: str
+    available_grades: list[AvailableGradeInfo]
+

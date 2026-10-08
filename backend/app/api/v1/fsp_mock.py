@@ -106,7 +106,7 @@ async def login_by_fsp_id(
             city=athlete_data.get("region", "Москва"),
             specialization="Backend",
             declared_grade="senior",
-            verified_grade="senior",
+            verified_grade=None,  # Грейд подтверждается только тестом (ТЗ B-08)
             fsp_id=v_res.fsp_id,
             fsp_verified=True,
             agreed_152_fz=True,
@@ -126,6 +126,8 @@ async def login_by_fsp_id(
                 sport_category=ach.sport_category,
                 score_or_rating=ach.score_or_rating,
                 verified=True,
+                is_demo=True,
+                disclaimer="Демонстрационные данные стенда. Не является официальной выпиской реестра ФСП",
             )
             db.add(achievement)
         await db.commit()

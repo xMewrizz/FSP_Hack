@@ -63,3 +63,15 @@ async def link_fsp_id(
     db: AsyncSession = Depends(get_db),
 ):
     return await candidate_service.link_fsp_id(db, current_user, request.fsp_id)
+
+
+@router.delete(
+    "/link-fsp",
+    response_model=CandidateProfileResponse,
+    summary="Отвязать ФСП ID от профиля",
+)
+async def unlink_fsp_id(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await candidate_service.unlink_fsp_id(db, current_user)

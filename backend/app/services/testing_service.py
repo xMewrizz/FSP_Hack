@@ -11,6 +11,7 @@ from app.models.test import Question, TestSession
 from app.models.user import User
 from app.schemas.testing import (
     AnswerSubmission,
+    AvailableGradeInfo,
     QuestionInTest,
     QuestionOptionResponse,
     SkillScore,
@@ -19,6 +20,7 @@ from app.schemas.testing import (
     TestStartRequest,
     TestStartResponse,
     TestSubmitRequest,
+    TestingStatusResponse,
 )
 
 
@@ -64,14 +66,56 @@ class TestingService:
         grade = (data.target_grade.value if data.target_grade else None) or profile.declared_grade or "junior"
 
         # Check 90 days rule if candidate is trying to change an already verified grade
-        if profile.verified_grade and profile.verified_grade_updated_at:
-            delta = datetime.now(timezone.utc) - profile.verified_grade_updated_at
-            if delta < timedelta(days=90) and profile.verified_grade != grade:
-                days_left = 90 - delta.days
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Изменение подтвержденного грейда ограничено правилом 90 дней (ТЗ). Осталось {days_left} дн.",
+        if profile.verified_grade and profile.verified_grade_updated_at and profile.verified_grade != grade:
+            updated_at = profile.verified_grade_updated_at
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
+            delta = datetime.now(timezone.utc) - updated_at
+            if delta < timedelta(days=90):
+                # Query last completed test session to see if this change was unlocked by recommendation
+                stmt_last = (
+                    select(TestSession)
+                    .where(
+                        TestSession.user_id == user.id,
+                        TestSession.status == "completed",
+                    )
+                    .order_by(TestSession.completed_at.desc())
+                    .limit(1)
                 )
+                res_last = await db.execute(stmt_last)
+                last_session = res_last.scalar_one_or_none()
+
+                is_allowed_recommendation = False
+                if last_session:
+                    # Confident score (>= 90%) allows recommended upgrade
+                    if (
+                        last_session.passed
+                        and (last_session.percentage or 0.0) >= 90.0
+                        and last_session.suggested_grade == grade
+                    ):
+                        is_allowed_recommendation = True
+                    # Failed attempt allows taking recommended lower grade without cooldown block
+                    elif not last_session.passed and last_session.suggested_grade == grade:
+                        is_allowed_recommendation = True
+
+                if not is_allowed_recommendation:
+                    days_left = max(1, 90 - delta.days)
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            f"Изменение подтвержденного грейда ограничено правилом 90 дней (ТЗ). "
+                            f"Осталось {days_left} дн., либо пройдите тест по рекомендации (результат >= 90%)."
+                        ),
+                    )
+
+        # Expire any previous uncompleted in-progress sessions for this user
+        stmt_prev = select(TestSession).where(
+            TestSession.user_id == user.id,
+            TestSession.status == "in_progress",
+        )
+        res_prev = await db.execute(stmt_prev)
+        for prev_s in res_prev.scalars().all():
+            prev_s.status = "expired"
 
         await TestingService.ensure_questions_seeded(db)
 
@@ -167,6 +211,11 @@ class TestingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Данный тест уже был завершен ранее",
             )
+        if session.status == "expired":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Сессия тестирования истекла или была начата более поздняя сессия",
+            )
 
         # Map answers
         user_answers_map = {ans.question_id: set(ans.selected_answers) for ans in data.answers}
@@ -225,7 +274,6 @@ class TestingService:
         if passed:
             profile.verified_grade = session.target_grade
             profile.verified_grade_updated_at = now
-            session.feedback = f"Поздравляем! Вы набрали {percentage}% и успешно подтвердили квалификацию {session.target_grade}."
             if percentage >= 90.0:
                 if session.target_grade == "junior":
                     suggested_grade = "middle"
@@ -233,16 +281,25 @@ class TestingService:
                     suggested_grade = "senior"
                 elif session.target_grade == "senior":
                     suggested_grade = "lead"
+                session.feedback = (
+                    f"Поздравляем! Вы набрали {percentage}% и уверенно подтвердили квалификацию {session.target_grade}. "
+                    f"При таком высоком результате вам открыт отдельный тест на повышение ({suggested_grade})."
+                )
+            else:
+                session.feedback = (
+                    f"Поздравляем! Вы набрали {percentage}% и успешно подтвердили квалификацию {session.target_grade}."
+                )
         else:
-            session.feedback = (
-                f"Вы набрали {percentage}%. Для подтверждения грейда {session.target_grade} "
-                f"необходимо минимум 70%. Согласно ТЗ, грейд не снижается принудительно — "
-                f"рекомендуем пройти тест на уровень ниже."
-            )
             if session.target_grade == "senior":
                 suggested_grade = "middle"
             elif session.target_grade == "middle":
                 suggested_grade = "junior"
+
+            session.feedback = (
+                f"Вы набрали {percentage}%. Для подтверждения грейда {session.target_grade} "
+                f"необходимо минимум 70%. Согласно ТЗ, грейд не снижается принудительно"
+                + (f" — рекомендуем пройти тест на уровень ниже ({suggested_grade})." if suggested_grade else ".")
+            )
 
         session.suggested_grade = suggested_grade
 
@@ -327,11 +384,157 @@ class TestingService:
                 percentage=s.percentage,
                 passed=s.passed,
                 status=s.status,
+                suggested_grade=s.suggested_grade,
                 created_at=s.created_at,
                 completed_at=s.completed_at,
             )
             for s in sessions
         ]
 
+    @staticmethod
+    async def get_status(db: AsyncSession, user: User) -> TestingStatusResponse:
+        stmt_prof = select(CandidateProfile).where(CandidateProfile.user_id == user.id)
+        res_prof = await db.execute(stmt_prof)
+        profile = res_prof.scalar_one_or_none()
+
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Профиль кандидата не найден. Сначала завершите онбординг.",
+            )
+
+        stmt_last = (
+            select(TestSession)
+            .where(
+                TestSession.user_id == user.id,
+                TestSession.status == "completed",
+            )
+            .order_by(TestSession.completed_at.desc())
+            .limit(1)
+        )
+        res_last = await db.execute(stmt_last)
+        last_session = res_last.scalar_one_or_none()
+
+        cooldown_active = False
+        cooldown_days_remaining = 0
+        cooldown_expires_at = None
+
+        if profile.verified_grade and profile.verified_grade_updated_at:
+            updated_at = profile.verified_grade_updated_at
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
+            delta = datetime.now(timezone.utc) - updated_at
+            if delta < timedelta(days=90):
+                cooldown_active = True
+                cooldown_days_remaining = max(1, 90 - delta.days)
+                cooldown_expires_at = updated_at + timedelta(days=90)
+
+        last_test_item = None
+        suggested_grade = None
+        if last_session:
+            suggested_grade = last_session.suggested_grade
+            last_test_item = TestSessionHistoryItem(
+                id=last_session.id,
+                specialization=last_session.specialization,
+                target_grade=last_session.target_grade,
+                percentage=last_session.percentage,
+                passed=last_session.passed,
+                status=last_session.status,
+                suggested_grade=last_session.suggested_grade,
+                created_at=last_session.created_at,
+                completed_at=last_session.completed_at,
+            )
+
+        # Formulate recommended action description
+        if not profile.verified_grade:
+            if last_session and not last_session.passed:
+                if suggested_grade:
+                    recommended_action = (
+                        f"Предыдущий тест на {last_session.target_grade} не сдан ({last_session.percentage}%). "
+                        f"Рекомендуем пройти тест на уровень ниже: {suggested_grade.capitalize()}."
+                    )
+                else:
+                    recommended_action = (
+                        f"Предыдущий тест на {last_session.target_grade} не сдан ({last_session.percentage}%). "
+                        f"Рекомендуем повторить попытку."
+                    )
+            else:
+                recommended_action = (
+                    f"Пройдите тестирование по специализации {profile.specialization or 'Backend'} "
+                    f"для подтверждения грейда {profile.declared_grade or 'junior'}."
+                )
+        else:
+            if last_session and last_session.passed and (last_session.percentage or 0.0) >= 90.0 and suggested_grade:
+                recommended_action = (
+                    f"Уверенный результат ({last_session.percentage}%)! "
+                    f"Вам открыт отдельный тест на повышение до {suggested_grade.capitalize()}."
+                )
+            elif last_session and not last_session.passed and suggested_grade:
+                recommended_action = (
+                    f"Текущий подтвержденный грейд ({profile.verified_grade.capitalize()}) сохранен. "
+                    f"Рекомендуем пройти тест на {suggested_grade.capitalize()}."
+                )
+            elif cooldown_active:
+                recommended_action = (
+                    f"Грейд {profile.verified_grade.capitalize()} подтвержден. "
+                    f"Плановая смена грейда доступна через {cooldown_days_remaining} дн."
+                )
+            else:
+                recommended_action = (
+                    f"Грейд {profile.verified_grade.capitalize()} подтвержден. "
+                    f"Срок 90 дней истек — доступна аттестация на любой грейд."
+                )
+
+        # Grades available to start
+        available_grades = []
+        for g in ["junior", "middle", "senior"]:
+            is_current = (profile.verified_grade == g)
+            is_rec = (suggested_grade == g)
+
+            if not profile.verified_grade:
+                is_avail = True
+                if is_rec:
+                    reason = "Рекомендован системой по результатам предыдущего теста"
+                else:
+                    reason = "Доступно для подтверждения грейда"
+            else:
+                if is_current:
+                    is_avail = True
+                    reason = "Текущий подтвержденный грейд (можно повторить тест)"
+                elif is_rec:
+                    is_avail = True
+                    reason = "Разблокирован отдельный тест по рекомендации системы"
+                elif not cooldown_active:
+                    is_avail = True
+                    reason = "Доступно (срок 90 дней истек)"
+                else:
+                    is_avail = False
+                    reason = f"Заблокировано правилом 90 дней (осталось {cooldown_days_remaining} дн.)"
+
+            available_grades.append(
+                AvailableGradeInfo(
+                    grade=g,
+                    is_available=is_avail,
+                    is_recommended=is_rec,
+                    is_current_verified=is_current,
+                    reason=reason,
+                )
+            )
+
+        return TestingStatusResponse(
+            specialization=profile.specialization,
+            declared_grade=profile.declared_grade,
+            verified_grade=profile.verified_grade,
+            verified_grade_updated_at=profile.verified_grade_updated_at,
+            cooldown_active=cooldown_active,
+            cooldown_days_remaining=cooldown_days_remaining,
+            cooldown_expires_at=cooldown_expires_at,
+            last_completed_test=last_test_item,
+            suggested_grade=suggested_grade,
+            recommended_action=recommended_action,
+            available_grades=available_grades,
+        )
+
 
 testing_service = TestingService()
+

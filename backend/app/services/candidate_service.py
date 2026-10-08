@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import uuid
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.models.candidate import CandidateProfile
@@ -168,7 +168,9 @@ class CandidateService:
         profile.fsp_id = fsp_clean
         v_res = await fsp_service.verify_fsp_id(fsp_clean)
 
-        profile.fsp_achievements.clear()
+        await db.execute(
+            delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id)
+        )
         if v_res.found:
             profile.fsp_verified = True
             for ach in v_res.achievements:
@@ -181,13 +183,48 @@ class CandidateService:
                     sport_category=ach.sport_category,
                     score_or_rating=ach.score_or_rating,
                     verified=True,
+                    is_demo=True,
+                    disclaimer="Демонстрационные данные стенда. Не является официальной выпиской реестра ФСП",
                 )
                 db.add(achievement)
         else:
             profile.fsp_verified = False
 
         await db.commit()
-        await db.refresh(profile)
+        refetched = await db.execute(
+            select(CandidateProfile)
+            .options(selectinload(CandidateProfile.fsp_achievements))
+            .where(CandidateProfile.id == profile.id)
+        )
+        profile = refetched.scalar_one()
+        return CandidateService._build_response(profile, user.email)
+
+    @staticmethod
+    async def unlink_fsp_id(
+        db: AsyncSession, user: User
+    ) -> CandidateProfileResponse:
+        stmt = select(CandidateProfile).where(CandidateProfile.user_id == user.id)
+        res = await db.execute(stmt)
+        profile = res.scalar_one_or_none()
+
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Профиль кандидата не найден",
+            )
+
+        profile.fsp_id = None
+        profile.fsp_verified = False
+        await db.execute(
+            delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id)
+        )
+        await db.commit()
+        refetched = await db.execute(
+            select(CandidateProfile)
+            .options(selectinload(CandidateProfile.fsp_achievements))
+            .where(CandidateProfile.id == profile.id)
+        )
+        profile = refetched.scalar_one()
         return CandidateService._build_response(profile, user.email)
 
     @staticmethod

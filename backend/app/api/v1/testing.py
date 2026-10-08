@@ -9,6 +9,7 @@ from app.schemas.testing import (
     TestStartRequest,
     TestStartResponse,
     TestSubmitRequest,
+    TestingStatusResponse,
 )
 from app.services.testing_service import testing_service
 
@@ -27,6 +28,18 @@ async def start_test(
     db: AsyncSession = Depends(get_db),
 ):
     return await testing_service.start_test(db, current_user, data)
+
+
+@router.get(
+    "/status",
+    response_model=TestingStatusResponse,
+    summary="Текущий статус подтверждения грейда, кулдаун 90 дней и доступные тесты",
+)
+async def get_testing_status(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await testing_service.get_status(db, current_user)
 
 
 @router.post(

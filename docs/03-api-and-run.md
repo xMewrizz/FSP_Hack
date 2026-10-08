@@ -63,8 +63,10 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | `GET` | `/candidates/profile` | Получить профиль текущего кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `CandidateProfileResponse` |
 | `PUT` | `/candidates/profile` | Частичное обновление данных профиля | `Bearer JWT` (Candidate) | Поля для обновления (город, стек, резюме, грейд и др.) | `200 OK`: `CandidateProfileResponse` |
 | `POST` | `/candidates/link-fsp` | Привязать или обновить ФСП ID | `Bearer JWT` (Candidate) | `{ "fsp_id": "FSP-78-042" }` | `200 OK`: `CandidateProfileResponse` с обновленными достижениями |
+| `DELETE` | `/candidates/link-fsp` | Отвязать ФСП ID от профиля и удалить достижения | `Bearer JWT` (Candidate) | — | `200 OK`: `CandidateProfileResponse` |
 | `POST` | `/candidates/resume/upload` | Загрузить PDF-резюме и извлечь данные (парсинг `pypdf`) | `Bearer JWT` (Candidate) | Multipart Form (`file: UploadFile`) | `200 OK`: `ResumeParsedData` (email, телефон, контакты, стек, предложенный грейд) |
-| `GET` | `/candidates/profile/pdf` | Скачать стандартизированный PDF-профиль (`reportlab`) | `Bearer JWT` (Candidate) | — | `200 OK`: PDF-файл (`application/pdf`) с подтвержденными навыками и статусом ФСП |
+| `GET` | `/candidates/profile/pdf` | Скачать стандартизированный PDF-профиль текущего кандидата (`reportlab` с поддержкой кириллицы) | `Bearer JWT` (Candidate) | `include_contacts: bool = True` | `200 OK`: PDF-файл (`application/pdf`) с подтвержденными навыками и статусом ФСП |
+| `GET` | `/candidates/{candidate_id}/pdf` | Скачать стандартизированный PDF-профиль кандидата (Работодатель, 152-ФЗ) | `Bearer JWT` (Employer) | `candidate_id: UUID` | `200 OK`: PDF-файл (контакты скрыты до принятия приглашения, 152-ФЗ) |
 
 ---
 
@@ -72,7 +74,8 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/testing/start` | Начать тест на заявленный грейд и специализацию (проверка правила 90 дней) | `Bearer JWT` (Candidate) | `{ "specialization": "Backend", "target_grade": "senior" }` | `201 Created`: `TestStartResponse` (сессия, вопросы без ответов, варианты, темы) |
+| `POST` | `/testing/start` | Начать тест на заявленный грейд и специализацию (проверка правила 90 дней и разблокировки по рекомендации) | `Bearer JWT` (Candidate) | `{ "specialization": "Backend", "target_grade": "senior" }` | `201 Created`: `TestStartResponse` (сессия, вопросы без ответов, варианты, темы) |
+| `GET` | `/testing/status` | Текущий статус подтверждения грейда, кулдаун 90 дней, рекомендации и доступные тесты (B-12) | `Bearer JWT` (Candidate) | — | `200 OK`: `TestingStatusResponse` (`verified_grade`, `cooldown_active`, `cooldown_days_remaining`, `recommended_action`, `available_grades`) |
 | `POST` | `/testing/{session_id}/submit` | Отправить ответы на тест и получить подтвержденный грейд | `Bearer JWT` (Candidate) | `{ "answers": [ { "question_id": "...", "selected_answers": ["B"] } ] }` | `200 OK`: `TestResultResponse` (баллы, процент, статус сдачи, разбивка по навыкам, присвоенный грейд, рекомендации) |
 | `GET` | `/testing/history` | История попыток тестирования кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: Список пройденных сессий |
 | `GET` | `/testing/{session_id}` | Детальные результаты конкретной сессии | `Bearer JWT` (Candidate) | — | `200 OK`: `TestResultResponse` |

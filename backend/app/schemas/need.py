@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 import uuid
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.core.constants import Grade, WorkFormat
@@ -18,6 +18,7 @@ class EmployerNeedCreate(BaseModel):
     required_skills: list[SkillRequirement] = Field(default_factory=list)
     salary_min: float = Field(..., gt=0)
     salary_max: float = Field(..., gt=0)
+    salary_tax_type: Literal["gross", "net"] = "gross"
     currency: str = "RUB"
     work_format: WorkFormat = WorkFormat.REMOTE
     city: str | None = None
@@ -37,6 +38,7 @@ class EmployerNeedUpdate(BaseModel):
     required_skills: list[SkillRequirement] | None = None
     salary_min: float | None = Field(default=None, gt=0)
     salary_max: float | None = Field(default=None, gt=0)
+    salary_tax_type: Literal["gross", "net"] | None = None
     currency: str | None = None
     work_format: WorkFormat | None = None
     city: str | None = None
@@ -61,6 +63,7 @@ class EmployerNeedResponse(BaseModel):
     required_skills: list[SkillRequirement]
     salary_min: float
     salary_max: float
+    salary_tax_type: str = "gross"
     currency: str
     work_format: str
     city: str | None

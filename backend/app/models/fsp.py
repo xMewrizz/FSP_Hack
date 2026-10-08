@@ -30,6 +30,12 @@ class FSPAchievement(Base, TimestampMixin):
     sport_category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     score_or_rating: Mapped[float | None] = mapped_column(Float, nullable=True)
     verified: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    disclaimer: Mapped[str] = mapped_column(
+        String(255),
+        default="Демонстрационные данные стенда. Не является официальной выпиской реестра ФСП",
+        nullable=False,
+    )
 
     candidate_profile: Mapped["CandidateProfile"] = relationship(
         "CandidateProfile",
