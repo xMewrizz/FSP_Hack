@@ -40,6 +40,7 @@ class NeedService:
             required_skills=skills_json,
             salary_min=data.salary_min,
             salary_max=data.salary_max,
+            salary_tax_type=data.salary_tax_type,
             currency=data.currency,
             work_format=data.work_format.value,
             city=data.city,
@@ -118,6 +119,13 @@ class NeedService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Потребность не найдена или принадлежит другой компании",
             )
+        new_min = data.salary_min if data.salary_min is not None else need.salary_min
+        new_max = data.salary_max if data.salary_max is not None else need.salary_max
+        if new_min > new_max:
+            raise HTTPException(
+                status_code=getattr(status, "HTTP_422_UNPROCESSABLE_CONTENT", 422),
+                detail="salary_min не может быть больше salary_max",
+            )
 
         update_dict = data.model_dump(exclude_unset=True)
         for key, val in update_dict.items():
@@ -179,6 +187,7 @@ class NeedService:
             required_skills=skills,
             salary_min=need.salary_min,
             salary_max=need.salary_max,
+            salary_tax_type=getattr(need, "salary_tax_type", "gross") or "gross",
             currency=need.currency,
             work_format=need.work_format,
             city=need.city,

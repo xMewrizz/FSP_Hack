@@ -13,7 +13,7 @@ from app.core.ranking import baseline_rank, rank_candidates  # noqa: E402
 
 
 DATA_DIR = REPO_ROOT / "ml-service" / "data" / "synthetic_v1"
-REPORT_PATH = REPO_ROOT / "docs" / "11-ranking-review.md"
+REPORT_PATH = REPO_ROOT / "docs" / "09-ranking-review.md"
 
 
 def build_report() -> str:

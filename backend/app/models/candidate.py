@@ -48,6 +48,7 @@ class CandidateProfile(Base, TimestampMixin):
 
     work_format: Mapped[str | None] = mapped_column(String(50), default="remote", nullable=True)
     salary_expectation: Mapped[float | None] = mapped_column(Float, nullable=True)
+    salary_tax_type: Mapped[str] = mapped_column(String(20), default="gross", nullable=False)
     skills: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
 
     fsp_id: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)

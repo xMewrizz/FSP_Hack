@@ -296,6 +296,8 @@ type MatchingCandidate = {
   declared_grade: string | null;
   city: string | null;
   work_format: string | null;
+  salary_expectation?: number | null;
+  salary_tax_type?: "gross" | "net" | null;
   fsp_verified: boolean;
   available_from?: string | null;
   trust_score?: number | null;
@@ -304,7 +306,13 @@ type MatchingCandidate = {
   achievements_count: number;
   skills: string[];
   match_score: number;
-  match_explanation: { summary: string; matched_skills: string[]; missing_skills: string[] };
+  match_explanation: {
+    summary: string;
+    matched_skills: string[];
+    missing_skills: string[];
+    salary_match?: boolean | null;
+    salary_note?: string | null;
+  };
 };
 
 type EmployerNeedRecord = {
@@ -312,8 +320,10 @@ type EmployerNeedRecord = {
   title: string;
   specialization: string;
   required_grade: string;
+  required_skills?: Array<{ name: string; weight: number; required?: boolean }>;
   salary_min: number;
   salary_max: number;
+  salary_tax_type: "gross" | "net";
   currency: string;
   work_format: string;
   city: string | null;
@@ -353,6 +363,9 @@ type CandidateProfileData = {
   declared_grade: string | null;
   verified_grade: string | null;
   work_format: string | null;
+  salary_expectation?: number | null;
+  salary_tax_type?: "gross" | "net";
+  skills?: string[];
   fsp_id: string | null;
   fsp_verified: boolean;
   agreed_152_fz: boolean;
@@ -433,7 +446,9 @@ function mapMatchToCandidate(item: MatchingCandidate, index: number): Candidate 
     role: item.specialization ?? "Специализация не указана",
     level: item.verified_grade ?? item.declared_grade ?? "Не указан",
     score: Math.round(item.match_score),
-    salary: "Не указана",
+    salary: item.salary_expectation
+      ? `${new Intl.NumberFormat("ru-RU").format(item.salary_expectation)} ₽ (${item.salary_tax_type === "net" ? "на руки" : "до вычета"})`
+      : "Не указана",
     location: item.city ?? "Не указан",
     format: item.work_format === "remote" ? "Удалённо" : item.work_format === "hybrid" ? "Гибрид" : item.work_format === "office" ? "Офис" : "Не указан",
     experience: "Не указан",
@@ -727,6 +742,72 @@ function Progress({ value }: { value: number }) {
   );
 }
 
+const DEFAULT_SKILLS_BY_SPEC: Record<string, Array<{ name: string; weight: number }>> = {
+  Backend: [
+    { name: "Python", weight: 5 },
+    { name: "FastAPI", weight: 4 },
+    { name: "PostgreSQL", weight: 4 },
+    { name: "Docker", weight: 3 },
+    { name: "CI/CD", weight: 3 },
+  ],
+  Frontend: [
+    { name: "React", weight: 5 },
+    { name: "TypeScript", weight: 5 },
+    { name: "Redux", weight: 3 },
+    { name: "CSS/HTML", weight: 4 },
+    { name: "Git", weight: 3 },
+  ],
+  Fullstack: [
+    { name: "TypeScript", weight: 5 },
+    { name: "React", weight: 4 },
+    { name: "Node.js", weight: 4 },
+    { name: "PostgreSQL", weight: 4 },
+    { name: "Docker", weight: 3 },
+  ],
+  Mobile: [
+    { name: "Kotlin", weight: 5 },
+    { name: "Android SDK", weight: 5 },
+    { name: "Swift", weight: 4 },
+    { name: "REST API", weight: 4 },
+    { name: "Git", weight: 3 },
+  ],
+  "DevOps / SRE": [
+    { name: "Docker", weight: 5 },
+    { name: "Kubernetes", weight: 5 },
+    { name: "CI/CD", weight: 4 },
+    { name: "Linux", weight: 4 },
+    { name: "Terraform", weight: 3 },
+  ],
+  "Data Science / ML": [
+    { name: "Python", weight: 5 },
+    { name: "Machine Learning", weight: 5 },
+    { name: "SQL", weight: 4 },
+    { name: "Pandas", weight: 4 },
+    { name: "Docker", weight: 3 },
+  ],
+  "QA / Testing": [
+    { name: "Автотестирование", weight: 5 },
+    { name: "Python", weight: 4 },
+    { name: "Postman", weight: 4 },
+    { name: "SQL", weight: 3 },
+    { name: "CI/CD", weight: 3 },
+  ],
+  "System Programming / C++": [
+    { name: "C++", weight: 5 },
+    { name: "Linux", weight: 4 },
+    { name: "Multithreading", weight: 4 },
+    { name: "Алгоритмы", weight: 4 },
+    { name: "Git", weight: 3 },
+  ],
+  GameDev: [
+    { name: "C++", weight: 5 },
+    { name: "Unreal Engine", weight: 5 },
+    { name: "C#", weight: 4 },
+    { name: "Unity", weight: 4 },
+    { name: "3D Математика", weight: 3 },
+  ],
+};
+
 function EmployerScreen({
   active,
   onOpenCandidates,
@@ -753,16 +834,49 @@ function EmployerScreen({
   const [needDescription, setNeedDescription] = useState("");
   const [needSalaryMin, setNeedSalaryMin] = useState("220000");
   const [needSalaryMax, setNeedSalaryMax] = useState("280000");
+  const [needSalaryTaxType, setNeedSalaryTaxType] = useState<"gross" | "net">("gross");
   const [needCity, setNeedCity] = useState("");
   const [needWorkFormat, setNeedWorkFormat] = useState("remote");
-  const [skillWeights, setSkillWeights] = useState<Record<string, number>>({
-    "API и интеграции": 5,
-    "Базы данных": 5,
-    "Язык программирования": 4,
-    "CI/CD": 3,
-    Тестирование: 3,
-    Алгоритмы: 2,
-  });
+  const [skillItems, setSkillItems] = useState<Array<{ name: string; weight: number }>>([
+    { name: "Python", weight: 5 },
+    { name: "FastAPI", weight: 4 },
+    { name: "PostgreSQL", weight: 4 },
+    { name: "Docker", weight: 3 },
+    { name: "CI/CD", weight: 3 },
+  ]);
+  const [newSkillName, setNewSkillName] = useState("");
+
+  const handleAddSkill = () => {
+    const trimmed = newSkillName.trim();
+    if (!trimmed) return;
+    if (trimmed.length > 100) {
+      onNotify("Название навыка не должно превышать 100 символов", "error");
+      return;
+    }
+    if (skillItems.some((s) => s.name.toLowerCase() === trimmed.toLowerCase())) {
+      onNotify("Этот навык уже добавлен", "error");
+      return;
+    }
+    setSkillItems((current) => [...current, { name: trimmed, weight: 3 }]);
+    setNewSkillName("");
+  };
+
+  const handleRemoveSkill = (indexToRemove: number) => {
+    setSkillItems((current) => current.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleUpdateSkillWeight = (indexToUpdate: number, weight: number) => {
+    setSkillItems((current) =>
+      current.map((item, idx) => (idx === indexToUpdate ? { ...item, weight } : item)),
+    );
+  };
+
+  const handleSpecializationChange = (newSpec: string) => {
+    setNeedSpecialization(newSpec);
+    if (DEFAULT_SKILLS_BY_SPEC[newSpec]) {
+      setSkillItems(DEFAULT_SKILLS_BY_SPEC[newSpec]);
+    }
+  };
   const [needSaving, setNeedSaving] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<EmployerProfileData | null>(null);
   const [companyLoading, setCompanyLoading] = useState(false);
@@ -829,20 +943,24 @@ function EmployerScreen({
       onNotify("Проверьте зарплатный диапазон", "error");
       return;
     }
+    if (skillItems.length === 0) {
+      onNotify("Укажите хотя бы один навык для подбора", "error");
+      return;
+    }
     setNeedSaving(true);
     try {
       const created = await apiPost<EmployerNeedRecord>("/needs", {
         title: needTitle,
         specialization: needSpecialization,
         required_grade: needGrade,
-        required_skills: [
-          ["REST", skillWeights["API и интеграции"]],
-          ["PostgreSQL", skillWeights["Базы данных"]],
-          ["Python", skillWeights["Язык программирования"]],
-          ["Docker", skillWeights["CI/CD"]],
-        ].map(([name, weight]) => ({ name: String(name), weight: Number(weight) / 5, required: true })),
+        required_skills: skillItems.map((item) => ({
+          name: item.name,
+          weight: item.weight,
+          required: true,
+        })),
         salary_min: salaryMin,
         salary_max: salaryMax,
+        salary_tax_type: needSalaryTaxType,
         currency: "RUB",
         work_format: needWorkFormat,
         city: needCity.trim() || null,
@@ -901,7 +1019,7 @@ function EmployerScreen({
               <button type="button" className="need-row" key={need.id} onClick={() => onNeedCreated(need)}>
                 <div className="need-row__icon"><Icon name="briefcase" /></div>
                 <div><strong>{need.title}</strong><span>{need.specialization} · {need.required_grade}</span></div>
-                <div><span>Зарплата</span><strong>{new Intl.NumberFormat("ru-RU").format(need.salary_min)}–{new Intl.NumberFormat("ru-RU").format(need.salary_max)} ₽</strong></div>
+                <div><span>Зарплата</span><strong>{new Intl.NumberFormat("ru-RU").format(need.salary_min)}–{new Intl.NumberFormat("ru-RU").format(need.salary_max)} ₽ ({need.salary_tax_type === "net" ? "на руки" : "до вычета"})</strong></div>
                 <div><span>Формат</span><strong>{need.work_format === "remote" ? "Удалённо" : need.work_format}</strong></div>
                 <Icon name="chevron" />
               </button>
@@ -953,7 +1071,19 @@ function EmployerScreen({
     return (
       <div className="page-content">
         <section className="existing-needs" aria-label="Сохранённые потребности">
-          {needs.map((need) => <article key={need.id}><div><strong>{need.title}</strong><span>{need.specialization} · {need.required_grade} · {new Intl.NumberFormat("ru-RU").format(need.salary_min)}–{new Intl.NumberFormat("ru-RU").format(need.salary_max)} ₽</span></div><Button variant="outline" onClick={() => onNeedCreated(need)}>Открыть подбор</Button></article>)}
+          {needs.map((need) => (
+            <article key={need.id}>
+              <div>
+                <strong>{need.title}</strong>
+                <span>
+                  {need.specialization} · {need.required_grade} · {new Intl.NumberFormat("ru-RU").format(need.salary_min)}–{new Intl.NumberFormat("ru-RU").format(need.salary_max)} ₽ ({need.salary_tax_type === "net" ? "на руки" : "до вычета"})
+                </span>
+              </div>
+              <Button variant="outline" onClick={() => onNeedCreated(need)}>
+                Открыть подбор
+              </Button>
+            </article>
+          ))}
           {needs.length === 0 && <span>Пока нет сохранённых потребностей. Создайте первую, чтобы запустить подбор.</span>}
         </section>
         <div className="steps">
@@ -967,32 +1097,73 @@ function EmployerScreen({
             <label className="field field--flush"><span>ОПИСАНИЕ ПОТРЕБНОСТИ</span><textarea value={needDescription} onChange={(event) => setNeedDescription(event.target.value)} placeholder="Опишите задачи команды, стек и приоритеты роли." /></label>
             <div className="field-row field-row--flush">
               <label className="field"><span>НАЗВАНИЕ РОЛИ</span><input value={needTitle} onChange={(event) => setNeedTitle(event.target.value)} /></label>
-              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => setNeedSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => handleSpecializationChange(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
             <label className="field field--flush"><span>ТРЕБУЕМЫЙ УРОВЕНЬ</span><select value={needGrade} onChange={(event) => setNeedGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
             <div className="field-row field-row--flush">
               <label className="field"><span>ЗАРПЛАТА ОТ, ₽</span><input inputMode="numeric" value={needSalaryMin} onChange={(event) => setNeedSalaryMin(event.target.value)} /></label>
               <label className="field"><span>ЗАРПЛАТА ДО, ₽</span><input inputMode="numeric" value={needSalaryMax} onChange={(event) => setNeedSalaryMax(event.target.value)} /></label>
             </div>
+            <label className="field field--flush">
+              <span>ТИП ЗАРПЛАТЫ</span>
+              <select
+                aria-label="Тип зарплаты"
+                value={needSalaryTaxType}
+                onChange={(event) => setNeedSalaryTaxType(event.target.value as "gross" | "net")}
+              >
+                <option value="gross">До вычета НДФЛ (gross)</option>
+                <option value="net">На руки (net)</option>
+              </select>
+            </label>
             <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
           </section>
           <section className="feature-card">
             <div className="feature-head"><div><span>ТРЕБОВАНИЯ ДЛЯ ПОДБОРА</span><strong>Важность навыков — от 1 до 5</strong></div></div>
-                <p className="feature-description feature-description--left">Чем выше значение, тем сильнее этот навык влияет на позицию кандидата в подборке.</p>
-                <div className="skill-weights">
-                  {[
-                    ["API и интеграции", 5],
-                    ["Базы данных", 5],
-                    ["Язык программирования", 4],
-                    ["CI/CD", 3],
-                    ["Тестирование", 3],
-                    ["Алгоритмы", 2],
-                  ].map(([skill]) => (
-                    <div key={String(skill)}><span>{skill}</span><input aria-label={`Вес ${skill}`} type="range" min="1" max="5" value={skillWeights[String(skill)]} onChange={(event) => setSkillWeights((current) => ({ ...current, [String(skill)]: Number(event.target.value) }))} /><strong>{skillWeights[String(skill)]}/5</strong></div>
-                  ))}
+            <p className="feature-description feature-description--left">Чем выше значение, тем сильнее этот навык влияет на позицию кандидата в подборке.</p>
+            <div className="skill-weights">
+              {skillItems.map((item, index) => (
+                <div key={`${item.name}-${index}`}>
+                  <span>{item.name}</span>
+                  <input
+                    aria-label={`Вес ${item.name}`}
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="1"
+                    value={item.weight}
+                    onChange={(event) => handleUpdateSkillWeight(index, Number(event.target.value))}
+                  />
+                  <strong>{item.weight}/5</strong>
+                  <button
+                    type="button"
+                    className="skill-weight-del"
+                    title={`Удалить ${item.name}`}
+                    aria-label={`Удалить ${item.name}`}
+                    onClick={() => handleRemoveSkill(index)}
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
                 </div>
-                <p className="feature-description feature-description--left">Требования и веса будут сохранены в потребности; подбор покажет кандидатов с объяснением совпадений.</p>
-                <Button disabled={needSaving} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
+              ))}
+            </div>
+            <div className="skill-add-row">
+              <input
+                type="text"
+                placeholder="Добавить навык (например, Redis)..."
+                aria-label="Новый навык"
+                value={newSkillName}
+                onChange={(e) => setNewSkillName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddSkill();
+                  }
+                }}
+              />
+              <Button variant="outline" onClick={handleAddSkill}>+ Добавить</Button>
+            </div>
+            <p className="feature-description feature-description--left">Требования и веса будут сохранены в потребности; подбор покажет кандидатов с объяснением совпадений.</p>
+            <Button disabled={needSaving} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
           </section>
         </div>
       </div>
@@ -1284,6 +1455,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         work_format: profile.work_format,
         specialization: profile.specialization,
         declared_grade: profile.declared_grade,
+        salary_expectation: profile.salary_expectation ? Number(profile.salary_expectation) : null,
+        salary_tax_type: profile.salary_tax_type ?? "gross",
         fsp_id: profile.fsp_id,
       });
       setProfile(updated);
@@ -1488,6 +1661,31 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             <div className="field-row field-row--flush"><label className="field"><span>ИМЯ</span><input value={profile?.first_name ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, first_name: event.target.value } : current)} /></label><label className="field"><span>ФАМИЛИЯ</span><input value={profile?.last_name ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, last_name: event.target.value } : current)} /></label></div>
             <label className="field field--flush"><span>О СЕБЕ</span><textarea value={profile?.bio ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, bio: event.target.value } : current)} /></label>
             <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={profile?.city ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, city: event.target.value } : current)} /></label><label className="field"><span>ФОРМАТ РАБОТЫ</span><select value={profile?.work_format ?? "remote"} onChange={(event) => setProfile((current) => current ? { ...current, work_format: event.target.value } : current)}><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
+            <div className="field-row field-row--flush">
+              <label className="field">
+                <span>ЖЕЛАЕМАЯ ЗАРПЛАТА, ₽</span>
+                <input
+                  inputMode="numeric"
+                  placeholder="Например, 200000"
+                  value={profile?.salary_expectation ?? ""}
+                  onChange={(event) => {
+                    const val = event.target.value.replace(/\D/g, "");
+                    setProfile((current) => current ? { ...current, salary_expectation: val ? Number(val) : null } : current);
+                  }}
+                />
+              </label>
+              <label className="field">
+                <span>ТИП ЗАРПЛАТЫ</span>
+                <select
+                  aria-label="Тип зарплаты кандидата"
+                  value={profile?.salary_tax_type ?? "gross"}
+                  onChange={(event) => setProfile((current) => current ? { ...current, salary_tax_type: event.target.value as "gross" | "net" } : current)}
+                >
+                  <option value="gross">До вычета НДФЛ</option>
+                  <option value="net">На руки</option>
+                </select>
+              </label>
+            </div>
             <Button disabled={!profile || profileSaving} className={profileSaving ? "button--disabled" : ""} onClick={() => void saveCandidateProfile()}>{profileSaving ? "Сохраняем…" : "Сохранить профиль"}</Button>
           </section>
           <section className="feature-card">
@@ -1635,7 +1833,7 @@ function ResumeModal({
           <div className="resume-modal__top"><span>ПРОФИЛЬ ИЗ БАНКА КАНДИДАТОВ</span><button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть профиль"><Icon name="close" /></button></div>
           <div className="resume-cover">
             <div className="resume-avatar">{candidate.initials}</div>
-            <div className="resume-cover__main"><div className="resume-name">{candidate.name}</div><strong>{candidate.role} · {candidate.level}</strong><span>{candidate.location} · {candidate.format}</span><span>Готов выйти: {candidate.availableFrom ? new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU") : "дата не указана"}</span></div>
+            <div className="resume-cover__main"><div className="resume-name">{candidate.name}</div><strong>{candidate.role} · {candidate.level}</strong><span>{candidate.location} · {candidate.format} · Ожидания: {candidate.salary}</span><span>Готов выйти: {candidate.availableFrom ? new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU") : "дата не указана"}</span></div>
             <div className="resume-match"><span>Совпадение</span><strong>{candidate.score}%</strong></div>
           </div>
           <div className="resume-versions resume-versions--backend">
@@ -1646,6 +1844,7 @@ function ResumeModal({
           <div className="resume-layout">
             <div className="resume-main">
               <section className="resume-section"><span>ПОЧЕМУ В ПОДБОРКЕ</span><p>{candidate.summary}</p></section>
+              <section className="resume-section"><span>ЗАРПЛАТНЫЕ ОЖИДАНИЯ</span><p>{candidate.salary}</p></section>
               <section className="resume-section"><span>СТЕК</span><div className="tags tags--large">{candidate.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></section>
               <section className="resume-section"><span>СОВПАВШИЕ НАВЫКИ</span><p>{candidate.matchedSkills?.join(", ") || "Нет данных"}</p></section>
               <section className="resume-section"><span>ТРЕБУЮТ УТОЧНЕНИЯ</span><p>{candidate.missingSkills?.join(", ") || "Нет данных"}</p></section>
@@ -2501,10 +2700,20 @@ function App() {
               <span className="status"><i /> Подбор активен</span>
             </div>
             <div className="need-summary__meta">
-              {activeNeed ? <><span>{activeNeed.specialization}</span><span>{new Intl.NumberFormat("ru-RU").format(activeNeed.salary_min)}–{new Intl.NumberFormat("ru-RU").format(activeNeed.salary_max)} ₽</span><span>{activeNeed.work_format === "remote" ? "Удалённо" : activeNeed.work_format}</span></> : <span>Создайте потребность, чтобы получить адресный подбор</span>}
+              {activeNeed ? (
+                <>
+                  <span>{activeNeed.specialization}</span>
+                  <span>
+                    {new Intl.NumberFormat("ru-RU").format(activeNeed.salary_min)}–{new Intl.NumberFormat("ru-RU").format(activeNeed.salary_max)} ₽ ({activeNeed.salary_tax_type === "net" ? "на руки" : "до вычета"})
+                  </span>
+                  <span>{activeNeed.work_format === "remote" ? "Удалённо" : activeNeed.work_format}</span>
+                </>
+              ) : (
+                <span>Создайте потребность, чтобы получить адресный подбор</span>
+              )}
             </div>
           </div>
-          <Button variant="ghost">Изменить</Button>
+          <Button variant="ghost" onClick={() => setActive("Потребности")}>Изменить</Button>
         </section>
 
         <section className="toolbar" data-tour="candidate-filters">
@@ -2691,7 +2900,11 @@ function App() {
             onNotify={showNotice}
             onNavigate={setActive}
             onNeedCreated={(need) => {
-              setEmployerNeeds((current) => current.some((item) => item.id === need.id) ? current : [need, ...current]);
+              setEmployerNeeds((current) =>
+                current.some((item) => item.id === need.id)
+                  ? current.map((item) => (item.id === need.id ? need : item))
+                  : [need, ...current],
+              );
               setActiveNeedId(need.id);
               setSelectedCandidate(null);
               setActive("Подборка");
