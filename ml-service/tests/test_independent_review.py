@@ -29,6 +29,16 @@ class IndependentReviewTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 review.checked_labels({"N01:A": {"label": 2, "reason": "навыки"}}, {"N01:A", "N01:B"}, path)
 
+    def test_reviewers_must_see_the_same_candidate_data(self):
+        first = {"N01:A": {"pair_id": "N01:A", "candidate_skills": ["Python"],
+                            "label": 2, "reason": "подходит", "reviewer_type": "AI draft (Codex)"}}
+        second = {"N01:A": {"pair_id": "N01:A", "candidate_skills": ["Python"],
+                             "label": None, "reason": ""}}
+        review.check_same_context(first, second)
+        second["N01:A"]["candidate_skills"] = ["Java"]
+        with self.assertRaises(ValueError):
+            review.check_same_context(first, second)
+
 
 if __name__ == "__main__":
     unittest.main()

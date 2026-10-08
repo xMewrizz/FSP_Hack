@@ -37,8 +37,19 @@ def checked_labels(rows: dict[str, dict], expected_ids: set[str], path: Path) ->
     return labels
 
 
+def check_same_context(first: dict[str, dict], second: dict[str, dict]) -> None:
+    if set(first) != set(second):
+        raise ValueError("Проверяющим достались разные наборы пар")
+    ignored = {"label", "reason", "reviewer_type"}
+    for pair_id in first:
+        left = {key: value for key, value in first[pair_id].items() if key not in ignored}
+        right = {key: value for key, value in second[pair_id].items() if key not in ignored}
+        if left != right:
+            raise ValueError(f"Описание пары {pair_id} различается между формами")
+
+
 def precision_at_3(order: list[str], labels: dict[str, int], need_code: str) -> float:
-    return sum(labels[f"{need_code}:{code}"] == 2 for code in order[:3]) / min(3, len(order))
+    return sum(labels[f"{need_code}:{code}"] == 2 for code in order[:3]) / min(3, len(order)) if order else 0.0
 
 
 def ndcg_at_5(order: list[str], labels: dict[str, int], need_code: str) -> float:
@@ -58,19 +69,21 @@ def main() -> None:
     second_path = DATA / "relevance_reviewer_2.jsonl"
     first = read_jsonl(first_path)
     second = read_jsonl(second_path)
-    if set(first) != set(second):
-        raise ValueError("Проверяющим достались разные наборы пар")
+    check_same_context(first, second)
     expected = set(first)
     for path, rows in ((first_path, first), (second_path, second)):
         filled = sum(type(row.get("label")) is int and row["label"] in (0, 1, 2) for row in rows.values())
         print(f"{path.name}: {filled}/{len(expected)} оценок")
     if args.final_labels is None:
+        print("Согласованных меток нет; метрики подбора не рассчитывались")
         return
+    if args.final_labels.resolve() in (first_path.resolve(), second_path.resolve()):
+        raise ValueError("Согласованные метки нужно сохранить отдельно от исходных форм")
 
     left = checked_labels(first, expected, first_path)
     right = checked_labels(second, expected, second_path)
     agreed = sum(left[pair_id] == right[pair_id] for pair_id in expected)
-    print(f"Совпадение проверяющих: {agreed}/{len(expected)}")
+    print(f"Совпадение предварительной AI-оценки и второго проверяющего: {agreed}/{len(expected)}")
     for pair_id in sorted(expected):
         if left[pair_id] != right[pair_id]:
             print(f"Расхождение {pair_id}: {left[pair_id]} и {right[pair_id]}")
@@ -78,7 +91,8 @@ def main() -> None:
     final = checked_labels(read_jsonl(args.final_labels), expected, args.final_labels)
     candidates = json.loads((DATA / "candidates.json").read_text(encoding="utf-8"))
     needs = json.loads((DATA / "needs.json").read_text(encoding="utf-8"))
-    print("Запрос | Сортировка | P@3 | nDCG@5 | Кандидатов")
+    print("Сравнение прототипа B-14 с простой сортировкой; API подбора B-15 пока использует другую логику")
+    print("Запрос | Сортировка | P@3 | nDCG@min(5,N) | Кандидатов | Максимум P@3")
     for need in needs:
         need_code = need["synthetic_code"]
         eligible = [item for item in candidates if f"{need_code}:{item['synthetic_code']}" in expected]
@@ -88,9 +102,11 @@ def main() -> None:
         baseline = baseline_rank(need, eligible)["confirmed"]
         if set(ranked) != {item["synthetic_code"] for item in eligible} or set(baseline) != set(ranked):
             raise ValueError(f"Сортировка потеряла кандидата для {need_code}")
-        for name, order in (("Текущая", ranked), ("Простая", baseline)):
+        relevant_count = sum(final[f"{need_code}:{code}"] == 2 for code in ranked)
+        maximum_p3 = min(relevant_count, 3) / min(3, len(ranked))
+        for name, order in (("Прототип B-14", ranked), ("Простая", baseline)):
             print(f"{need_code} | {name} | {precision_at_3(order, final, need_code):.3f} | "
-                  f"{ndcg_at_5(order, final, need_code):.3f} | {len(order)}")
+                  f"{ndcg_at_5(order, final, need_code):.3f} | {len(order)} | {maximum_p3:.3f}")
 
 
 if __name__ == "__main__":
