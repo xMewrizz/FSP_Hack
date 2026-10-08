@@ -14,6 +14,7 @@ class IndependentReviewTest(unittest.TestCase):
     def test_metrics_use_only_adjudicated_labels(self):
         labels = {"N01:A": 2, "N01:B": 0, "N01:C": 1, "N01:D": 2}
         self.assertAlmostEqual(review.precision_at_3(["A", "B", "C", "D"], labels, "N01"), 1 / 3)
+        self.assertEqual(review.first_relevant_rank(["B", "C", "D", "A"], labels, "N01"), 3)
         better = review.ndcg_at_5(["A", "D", "C", "B"], labels, "N01")
         worse = review.ndcg_at_5(["B", "C", "D", "A"], labels, "N01")
         self.assertAlmostEqual(better, 1.0)

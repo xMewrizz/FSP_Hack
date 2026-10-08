@@ -52,6 +52,10 @@ def precision_at_3(order: list[str], labels: dict[str, int], need_code: str) -> 
     return sum(labels[f"{need_code}:{code}"] == 2 for code in order[:3]) / min(3, len(order)) if order else 0.0
 
 
+def first_relevant_rank(order: list[str], labels: dict[str, int], need_code: str) -> int | None:
+    return next((index for index, code in enumerate(order, start=1) if labels[f"{need_code}:{code}"] == 2), None)
+
+
 def ndcg_at_5(order: list[str], labels: dict[str, int], need_code: str) -> float:
     values = [labels[f"{need_code}:{code}"] for code in order]
     def dcg(items: list[int]) -> float:
@@ -92,7 +96,7 @@ def main() -> None:
     candidates = json.loads((DATA / "candidates.json").read_text(encoding="utf-8"))
     needs = json.loads((DATA / "needs.json").read_text(encoding="utf-8"))
     print("Сравнение прототипа B-14 с простой сортировкой; API подбора B-15 пока использует другую логику")
-    print("Запрос | Сортировка | P@3 | nDCG@min(5,N) | Кандидатов | Максимум P@3")
+    print("Запрос | Сортировка | Первый релевантный | P@3 | nDCG@min(5,N) | Кандидатов | Максимум P@3")
     for need in needs:
         need_code = need["synthetic_code"]
         eligible = [item for item in candidates if f"{need_code}:{item['synthetic_code']}" in expected]
@@ -105,7 +109,9 @@ def main() -> None:
         relevant_count = sum(final[f"{need_code}:{code}"] == 2 for code in ranked)
         maximum_p3 = min(relevant_count, 3) / min(3, len(ranked))
         for name, order in (("Прототип B-14", ranked), ("Простая", baseline)):
-            print(f"{need_code} | {name} | {precision_at_3(order, final, need_code):.3f} | "
+            first_rank = first_relevant_rank(order, final, need_code)
+            print(f"{need_code} | {name} | {first_rank if first_rank is not None else 'нет'} | "
+                  f"{precision_at_3(order, final, need_code):.3f} | "
                   f"{ndcg_at_5(order, final, need_code):.3f} | {len(order)} | {maximum_p3:.3f}")
 
 
