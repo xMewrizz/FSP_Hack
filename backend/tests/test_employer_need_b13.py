@@ -474,3 +474,20 @@ async def test_system_seed_populates_b13_data(client: AsyncClient):
     assert alex is not None
     assert alex["salary_expectation"] == 320000.0
     assert alex["salary_tax_type"] == "gross"
+
+    ds_search = await client.get(
+        "/api/v1/matching/search?specialization=Data%20Science%20%2F%20ML",
+        headers=headers,
+    )
+    assert ds_search.status_code == 200
+    ds_candidates = ds_search.json()
+    assert len(ds_candidates) == 9
+    assert sorted(candidate["verified_grade"] for candidate in ds_candidates) == [
+        "junior", "junior", "junior", "middle", "middle", "middle", "senior", "senior", "senior",
+    ]
+    assert len({tuple(candidate["skills"]) for candidate in ds_candidates}) == 9
+    assert (await client.post("/api/v1/system/seed")).status_code == 201
+    repeated = await client.get(
+        "/api/v1/matching/search?specialization=Data%20Science%20%2F%20ML", headers=headers,
+    )
+    assert len(repeated.json()) == 9

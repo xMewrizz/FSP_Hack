@@ -3,7 +3,7 @@
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -181,7 +181,14 @@ class MatchingService:
                 CandidateProfile.onboarding_completed.is_(True),
                 CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
-                CandidateProfile.verified_grade.is_not(None),
+                func.lower(CandidateProfile.verified_grade) == need.required_grade.casefold(),
+                or_(
+                    func.lower(CandidateProfile.verified_specialization) == need.specialization.casefold(),
+                    and_(
+                        CandidateProfile.verified_specialization.is_(None),
+                        func.lower(CandidateProfile.specialization) == need.specialization.casefold(),
+                    ),
+                ),
             )
         )).all()
         if not candidates:
