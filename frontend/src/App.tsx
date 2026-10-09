@@ -1397,6 +1397,7 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
     try {
       const updated = await apiPost<(typeof items)[number]>(`/invitations/${id}/${action}`, {});
       setItems((current) => current.map((item) => item.id === id ? updated : item));
+      window.dispatchEvent(new Event("fsp-invitations-updated"));
       onNotify?.(action === "accept" ? "Приглашение принято. Работодатель увидит контакты в статусе отклика." : "Приглашение отклонено.");
     } catch (requestError) {
       onNotify?.(requestError instanceof Error ? requestError.message : "Не удалось обновить приглашение", "error");
@@ -2546,8 +2547,8 @@ function App() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [sent, setSent] = useState(false);
   const [offerDescription, setOfferDescription] = useState("Приглашаем в продуктовую команду. Будем рады обсудить задачи и ваш опыт.");
-  const [inviteSalaryMin, setInviteSalaryMin] = useState("220000");
-  const [inviteSalaryMax, setInviteSalaryMax] = useState("280000");
+  const [inviteSalaryMin, setInviteSalaryMin] = useState("");
+  const [inviteSalaryMax, setInviteSalaryMax] = useState("");
   const [inviteSalaryType, setInviteSalaryType] = useState<"gross" | "net">("gross");
   const [inviteContact, setInviteContact] = useState("");
   const [notice, setNotice] = useState("");
@@ -2558,6 +2559,8 @@ function App() {
   const [backendCandidates, setBackendCandidates] = useState<Candidate[]>([]);
   const [employerNeeds, setEmployerNeeds] = useState<EmployerNeedRecord[]>([]);
   const [activeNeedId, setActiveNeedId] = useState<string | null>(null);
+  const [sidebarIdentity, setSidebarIdentity] = useState({ name: "", email: "" });
+  const [sidebarPendingInvitations, setSidebarPendingInvitations] = useState(0);
   const [noticeType, setNoticeType] = useState<"success" | "error">("success");
   const [noticeTimer, setNoticeTimer] = useState<number | undefined>();
 
@@ -2613,6 +2616,38 @@ function App() {
     return () => { cancelled = true; };
   }, [authenticated, role, onlyFsp, offlineDemo]);
 
+  useEffect(() => {
+    if (!authenticated || onboarding) return;
+    let cancelled = false;
+    const refreshSidebar = () => {
+      const profileRequest = role === "employer"
+        ? apiGet<EmployerProfileData>("/employer/profile").then((data) => ({
+            name: data.company_name || "Компания", email: data.email,
+          }))
+        : apiGet<CandidateProfileData>("/candidate/profile").then((data) => ({
+            name: `${data.first_name} ${data.last_name}`.trim() || "Кандидат", email: data.email,
+          }));
+      profileRequest.then((identity) => {
+        if (!cancelled) setSidebarIdentity(identity);
+      }).catch(() => {
+        if (!cancelled) setSidebarIdentity({ name: "", email: "" });
+      });
+      apiGet<Array<{ status: string }>>(role === "employer" ? "/invitations/sent" : "/invitations/my")
+        .then((items) => {
+          if (!cancelled) setSidebarPendingInvitations(items.filter((item) =>
+            item.status === "sent" || item.status === "viewed",
+          ).length);
+        })
+        .catch(() => { if (!cancelled) setSidebarPendingInvitations(0); });
+    };
+    refreshSidebar();
+    window.addEventListener("fsp-invitations-updated", refreshSidebar);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("fsp-invitations-updated", refreshSidebar);
+    };
+  }, [authenticated, onboarding, role, active]);
+
   const filtered = useMemo(
     () => backendCandidates.filter((candidate) =>
       (!onlyFsp || candidate.fspVerified) &&
@@ -2623,6 +2658,12 @@ function App() {
   const selected =
     selectedCandidate ?? backendCandidates.find((candidate) => candidate.id === selectedId) ?? backendCandidates[0] ?? candidates[0];
   const activeNeed = employerNeeds.find((need) => need.id === activeNeedId);
+  const openInvite = () => {
+    setInviteSalaryMin(activeNeed ? String(activeNeed.salary_min) : "");
+    setInviteSalaryMax(activeNeed ? String(activeNeed.salary_max) : "");
+    setInviteSalaryType(activeNeed?.salary_tax_type ?? "gross");
+    setInviteOpen(true);
+  };
 
   const nav =
     role === "employer"
@@ -2757,6 +2798,7 @@ function App() {
         currency: "RUB",
       });
       setInviteOpen(false);
+      window.dispatchEvent(new Event("fsp-invitations-updated"));
       showNotice(`Приглашение для ${selected.name} отправлено`);
     } catch (requestError) {
       showNotice(requestError instanceof Error ? requestError.message : "Не удалось отправить приглашение", "error");
@@ -2800,17 +2842,17 @@ function App() {
               >
                 <Icon name={icon} />
                 <span>{item}</span>
-                {item === "Приглашения" && <b>3</b>}
+                {item === "Приглашения" && sidebarPendingInvitations > 0 && <b>{sidebarPendingInvitations}</b>}
               </button>
             </div>
           ))}
         </nav>
         <div className="sidebar__bottom">
           <div className="company">
-            <div className="company__avatar">{role === "employer" ? "NT" : "АМ"}</div>
+            <div className="company__avatar">{sidebarIdentity.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || (role === "employer" ? "К" : "С")}</div>
             <div>
-              <strong>{role === "employer" ? "NovaTech" : "Алексей Морозов"}</strong>
-              <span>{role === "employer" ? "tech@novatech.ru" : "alexey@example.ru"}</span>
+              <strong>{sidebarIdentity.name || (role === "employer" ? "Компания" : "Кандидат")}</strong>
+              <span>{sidebarIdentity.email}</span>
             </div>
             <Icon name="chevron" size={15} />
           </div>
@@ -3048,7 +3090,7 @@ function App() {
               <Button variant="outline" onClick={() => toggleCompare(selected.id)}>
                 <Icon name="compare" /> Сравнить
               </Button>
-              <Button onClick={() => setInviteOpen(true)}>
+              <Button onClick={openInvite}>
                 Пригласить <Icon name="send" />
               </Button>
             </div>
@@ -3169,7 +3211,7 @@ function App() {
             setSelectedId(resumeCandidate.id);
             setSelectedCandidate(resumeCandidate);
             setResumeCandidate(null);
-            setInviteOpen(true);
+            openInvite();
           }}
         />
       )}
