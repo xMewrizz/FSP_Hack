@@ -9061,9 +9061,20 @@ select,
 
 .app-shell .grade-radar .radar {
   width: min(100%, 21rem);
-  overflow: hidden;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--surface), color-mix(in srgb, var(--surface) 80%, var(--brand-cobalt)));
+  overflow: visible;
+  background: transparent;
+}
+
+.app-shell .grade-radar .radar__label,
+.app-shell .candidate-overview-radar__chart .radar__label {
+  fill: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 650;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-linejoin: round;
+  stroke-width: 2px;
 }
 
 .app-shell .grade-skill-legend {
@@ -11976,25 +11987,6 @@ select,
   justify-self: center;
 }
 
-.app-shell .candidate-overview-radar__axes {
-  display: grid;
-  width: min(100%, 21rem);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.35rem;
-  padding-inline: 0.4rem;
-}
-
-.app-shell .candidate-overview-radar__axes span {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 0.5rem;
-  padding: 0.35rem 0.45rem;
-  color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
 .app-shell .candidate-overview-radar__body > div:last-child {
   display: grid;
   justify-items: start;
@@ -12106,9 +12098,6 @@ select,
     width: min(100%, 19rem);
   }
 
-  .app-shell .candidate-overview-radar__axes {
-    width: min(100%, 19rem);
-  }
 }
 
 @media (max-width: 48rem) {
@@ -12152,5 +12141,151 @@ select,
 @media (min-width: 48.001rem) and (max-width: 70rem) {
   .app-shell .career-paths__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.app-shell .candidate-overview-radar {
+  margin-bottom: 1.5rem;
+}
+
+.app-shell .candidate-overview-radar__body {
+  grid-template-columns: minmax(19rem, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(1.25rem, 3vw, 3rem);
+}
+
+.app-shell .candidate-overview-radar__chart {
+  align-content: center;
+}
+
+.app-shell .candidate-overview-radar__chart > .radar {
+  width: min(100%, 24rem);
+}
+
+.app-shell .candidate-overview-radar__details {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 1.25rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(140deg, rgba(64, 47, 255, 0.09), rgba(64, 47, 255, 0.025) 65%, var(--surface));
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
+
+.app-shell .candidate-overview-radar__summary {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.app-shell .candidate-overview-radar__summary > span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.app-shell .candidate-overview-radar__average {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 0.85rem;
+  background: var(--surface);
+  padding: 0.8rem 1rem;
+}
+
+.app-shell .candidate-overview-radar__average > span,
+.app-shell .candidate-overview-radar__highlights > div > span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.app-shell .candidate-overview-radar__average > strong {
+  flex: 0 0 auto;
+  color: var(--brand-cobalt);
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+}
+
+.app-shell .candidate-overview-radar__average small,
+.app-shell .candidate-overview-radar__highlights small {
+  color: var(--muted-light);
+  font-size: 0.7em;
+}
+
+.app-shell .candidate-overview-radar__highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.app-shell .candidate-overview-radar__highlights > div {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: var(--surface);
+  padding: 0.85rem;
+}
+
+.app-shell .candidate-overview-radar__highlights > div > strong {
+  min-height: 2.6em;
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .candidate-overview-radar__highlights > div > b {
+  color: var(--brand-cobalt);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+}
+
+.app-shell .candidate-overview-radar__details > .button {
+  justify-self: start;
+}
+
+.app-shell .dashboard-grid--candidate {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.app-shell .dashboard-grid--candidate > .feature-card--wide {
+  grid-column: auto;
+}
+
+.app-shell .dashboard-grid--candidate > .feature-card--fsp {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 48rem) {
+  .app-shell .candidate-overview-radar {
+    margin-bottom: 1.15rem;
+  }
+
+  .app-shell .candidate-overview-radar__body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .app-shell .candidate-overview-radar__chart > .radar {
+    width: min(100%, 21rem);
+  }
+
+  .app-shell .candidate-overview-radar__details {
+    gap: 0.9rem;
+    padding: 1rem;
+  }
+
+  .app-shell .dashboard-grid--candidate {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.85rem;
+    margin-top: 1.15rem;
+  }
+
+  .app-shell .dashboard-grid--candidate > .feature-card--fsp {
+    grid-column: auto;
   }
 }

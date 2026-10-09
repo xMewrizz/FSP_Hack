@@ -1034,8 +1034,8 @@ function Radar({
   description?: string;
   className?: string;
 }) {
-  const center = 110;
-  const maxR = compact ? 72 : 76;
+  const center = compact ? 110 : 160;
+  const maxR = compact ? 72 : 92;
   const visibleLabels = axisLabels ?? labels;
   const targetValues = target.length === values.length ? target : values.map(() => 10);
   const point = (value: number, i: number) => {
@@ -1048,15 +1048,15 @@ function Radar({
   const labelPoint = (i: number) => {
     const angle = -Math.PI / 2 + (Math.PI * 2 * i) / values.length;
     return {
-      x: center + Math.cos(angle) * (maxR + 23),
-      y: center + Math.sin(angle) * (maxR + 23),
+      x: center + Math.cos(angle) * (maxR + 26),
+      y: center + Math.sin(angle) * (maxR + 26),
     };
   };
 
   return (
     <svg
       className={`radar ${compact ? "radar--compact" : ""} ${className}`}
-      viewBox="0 0 220 220"
+      viewBox={compact ? "0 0 220 220" : "0 0 320 320"}
       role="img"
       aria-label={description}
     >
@@ -1084,18 +1084,31 @@ function Radar({
       {!compact && showAxisLabels &&
         visibleLabels.map((label, i) => {
           const pos = labelPoint(i);
-          const shortLabel = label.length > 15 ? `${label.slice(0, 14).trimEnd()}…` : label;
+          const lines = label.split(/\s+/).reduce<string[]>((result, word) => {
+            const chunks = word.match(/.{1,12}/gu) ?? [word];
+            chunks.forEach((chunk, index) => {
+              const lastLine = result[result.length - 1];
+              if (index === 0 && lastLine && `${lastLine} ${chunk}`.length <= 12) {
+                result[result.length - 1] = `${lastLine} ${chunk}`;
+              } else {
+                result.push(chunk);
+              }
+            });
+            return result;
+          }, []);
           return (
             <text
               key={`${label}-${i}`}
               x={pos.x}
               y={pos.y}
-              textAnchor={pos.x < center - 5 ? "end" : pos.x > center + 5 ? "start" : "middle"}
+              textAnchor="middle"
               dominantBaseline="middle"
               className="radar__label"
             >
               <title>{label}</title>
-              {shortLabel}
+              {lines.map((line, lineIndex) => (
+                <tspan key={`${label}-${lineIndex}`} x={pos.x} dy={lineIndex === 0 ? `${(1 - lines.length) * 0.55}em` : "1.1em"}>{line}</tspan>
+              ))}
             </text>
           );
         })}
@@ -1136,7 +1149,7 @@ function SpecialtyRadarGallery({
                 <strong>{sample.specialization}</strong>
                 <span>{hasResults ? "ВАШИ РЕЗУЛЬТАТЫ" : isCurrent ? "ОЖИДАЮТ ТЕСТА" : "ДЕМО-ПРИМЕР"}</span>
               </div>
-              <Radar values={values} target={values.map(() => 10)} axisLabels={axisLabels} showAxisLabels={false} description={`Радар компетенций: ${sample.specialization}`} />
+              <Radar values={values} target={values.map(() => 10)} axisLabels={axisLabels} description={`Радар компетенций: ${sample.specialization}`} />
               <ul>
                 {axisLabels.map((label, index) => (
                   <li key={`${sample.specialization}-${label}`}><span>{label}</span><strong>{values[index].toFixed(1)}<small> / 10</small></strong></li>
@@ -3036,10 +3049,45 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           {(() => {
             const sample = SPECIALTY_RADAR_SAMPLES.find((item) => item.specialization === profile?.specialization) ?? SPECIALTY_RADAR_SAMPLES[0];
             const target = sample.values.map((value) => Math.min(10, Number((value + 1.2).toFixed(1))));
-            return <div className="candidate-overview-radar__body"><div className="candidate-overview-radar__chart"><Radar values={sample.values} target={target} axisLabels={sample.labels} showAxisLabels={false} description={`Демонстрационное наложение радара профиля по направлению ${sample.specialization}`} /><div className="candidate-overview-radar__axes">{sample.labels.map((label) => <span key={label}>{label}</span>)}</div></div><div><span>{sample.specialization} · пример, не результат теста</span><div className="result-radar__legend"><span><i className="result-radar__legend-before" />Навыки профиля</span><span><i className="result-radar__legend-after" />Ориентир уровня</span></div><Button variant="outline" onClick={() => onNavigate("Мой грейд")}>Все радары</Button></div></div>;
+            const strongestIndex = sample.values.indexOf(Math.max(...sample.values));
+            const growthIndex = sample.values.indexOf(Math.min(...sample.values));
+            const average = (sample.values.reduce((sum, value) => sum + value, 0) / sample.values.length).toFixed(1);
+            return (
+              <div className="candidate-overview-radar__body">
+                <div className="candidate-overview-radar__chart">
+                  <Radar values={sample.values} target={target} axisLabels={sample.labels} description={`Демонстрационное наложение радара профиля по направлению ${sample.specialization}`} />
+                </div>
+                <div className="candidate-overview-radar__details">
+                  <div className="candidate-overview-radar__summary">
+                    <span>{sample.specialization} · демонстрационная модель</span>
+                    <div className="result-radar__legend">
+                      <span><i className="result-radar__legend-before" />Навыки профиля</span>
+                      <span><i className="result-radar__legend-after" />Ориентир уровня</span>
+                    </div>
+                    <div className="candidate-overview-radar__average">
+                      <span>Средний показатель примера</span>
+                      <strong>{average}<small> / 10</small></strong>
+                    </div>
+                  </div>
+                  <div className="candidate-overview-radar__highlights">
+                    <div>
+                      <span>Сильная сторона</span>
+                      <strong>{sample.labels[strongestIndex]}</strong>
+                      <b>{sample.values[strongestIndex].toFixed(1)}<small> / 10</small></b>
+                    </div>
+                    <div>
+                      <span>Точка для роста</span>
+                      <strong>{sample.labels[growthIndex]}</strong>
+                      <b>{sample.values[growthIndex].toFixed(1)}<small> / 10</small></b>
+                    </div>
+                  </div>
+                  <Button variant="outline" onClick={() => onNavigate("Мой грейд")}>Все радары</Button>
+                </div>
+              </div>
+            );
           })()}
         </section>
-        <div className="dashboard-grid">
+        <div className="dashboard-grid dashboard-grid--candidate">
           <section className="feature-card">
             <div className="feature-head"><div><span>ТЕКУЩИЙ СТАТУС</span><strong>{profile?.verified_grade ? "Уровень подтверждён" : "Уровень ожидает подтверждения"}</strong></div></div>
             <p className="feature-description feature-description--left">{profile?.specialization ?? "Специализация не указана"} · заявлено {profile?.declared_grade ?? "—"}{profile?.verified_grade ? ` · подтверждено ${profile.verified_grade}` : ""}</p>
