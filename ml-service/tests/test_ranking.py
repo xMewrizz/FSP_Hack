@@ -95,15 +95,13 @@ class RankingTests(unittest.TestCase):
         high = score_candidate(NEED, candidate(test_percentage=90))
         self.assertGreater(high["parts"]["test"], low["parts"]["test"])
 
-    def test_report_uses_all_five_needs_without_quality_claim(self):
+    def test_report_compares_only_eligible_backend_needs_without_quality_claim(self):
         text = report.build_report()
         self.assertEqual(text.count("| Backend "), 3)
-        self.assertIn("| Frontend Middle |", text)
-        self.assertIn("| DevOps Junior |", text)
-        self.assertIn("Независимых оценок релевантности пока нет", text)
-        self.assertNotIn("Только заявили грейд", text)
-        self.assertIn("Заявленный грейд допуска не даёт", text)
-        self.assertIn("Пустая выдача: Frontend Middle, DevOps Junior", text)
+        self.assertNotIn("| Frontend Middle |", text)
+        self.assertNotIn("| DevOps Junior |", text)
+        self.assertIn("Лучший порядок на этом наборе дала B-14", text)
+        self.assertIn("не доказывает, что формула лучше на реальных кандидатах", text)
 
 
 if __name__ == "__main__":
