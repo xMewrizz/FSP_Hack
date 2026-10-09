@@ -31,11 +31,12 @@ class NeedLlmTests(unittest.IsolatedAsyncioTestCase):
                 ],
             })}})
 
-        text = "Создавать API для обработки заказов и работать с хранилищем данных. Зарплата 200–300 тыс. ₽ на руки."
+        text = "Создавать API для обработки заказов, работать с SQL. Docker будет плюсом. Зарплата 200–300 тыс. ₽ на руки."
         async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
             draft = await suggest_need(text, client)
         self.assertEqual(draft["source"], "llm")
         self.assertEqual(draft["specialization"], "Backend")
+        self.assertEqual([item["name"] for item in draft["required_skills"]], ["HTTP API", "SQL", "Docker"])
         self.assertEqual([item["weight"] for item in draft["required_skills"]], [5, 4, 2])
         self.assertEqual((draft["salary_min"], draft["salary_max"], draft["salary_tax_type"]), (200000, 300000, "net"))
         self.assertIsNone(draft["required_grade"])
@@ -49,6 +50,62 @@ class NeedLlmTests(unittest.IsolatedAsyncioTestCase):
         async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
             with self.assertRaises(ValueError):
                 await suggest_need("Ищем Backend-разработчика для создания API и интеграции сервисов.", client)
+
+    async def test_optional_skills_are_low_and_unmentioned_tools_are_removed(self):
+        def reply(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "specialization": "Backend", "skills": [
+                    {"name": "Python", "weight": 5},
+                    {"name": "FastAPI", "weight": 5},
+                    {"name": "PostgreSQL", "weight": 5},
+                    {"name": "Redis", "weight": 4},
+                    {"name": "Django ORM", "weight": 3},
+                    {"name": "CI/CD", "weight": 2},
+                    {"name": "Docker", "weight": 3},
+                ],
+            })}})
+
+        text = "Нужен Backend-разработчик для API на Python и FastAPI с PostgreSQL. Redis будет плюсом. Docker не нужен."
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            draft = await suggest_need(text, client)
+        self.assertEqual(draft["required_skills"], [
+            {"name": "Python", "weight": 5},
+            {"name": "FastAPI", "weight": 5},
+            {"name": "PostgreSQL", "weight": 5},
+            {"name": "Redis", "weight": 2},
+        ])
+
+    async def test_tasks_without_stack_keep_functional_skills(self):
+        def reply(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "specialization": "Backend", "skills": [
+                    {"name": "API Design", "weight": 5},
+                    {"name": "Database Design", "weight": 5},
+                    {"name": "Authentication & Authorization", "weight": 5},
+                    {"name": "Django ORM", "weight": 3},
+                    {"name": "Log Management", "weight": 3},
+                ],
+            })}})
+
+        text = "Нужен Backend-разработчик: проектировать API, хранить данные и настроить авторизацию. Технологии ещё не выбрали."
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            draft = await suggest_need(text, client)
+        self.assertEqual([item["name"] for item in draft["required_skills"]], ["HTTP API", "Проектирование БД", "Авторизация"])
+
+    async def test_task_phrase_uses_catalog_name(self):
+        def reply(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "specialization": "Mobile", "skills": [
+                    {"name": "Kotlin", "weight": 5},
+                    {"name": "Работа с API", "weight": 5},
+                    {"name": "Docker", "weight": 3},
+                ],
+            })}})
+
+        text = "Нужен Android-разработчик: Kotlin, работа с API и офлайн-хранение данных."
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            draft = await suggest_need(text, client)
+        self.assertEqual([item["name"] for item in draft["required_skills"]], ["Kotlin", "HTTP API"])
 
 
 if __name__ == "__main__":

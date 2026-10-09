@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from need_parser import parse_need
+from need_parser import parse_need, skill_mentions
 
 
 class NeedParserTests(unittest.TestCase):
@@ -44,6 +44,13 @@ class NeedParserTests(unittest.TestCase):
     def test_optional_skill_is_not_marked_required(self):
         draft = parse_need("Ищем Backend-разработчика. Нужны Python и SQL, желательно Docker, Kafka будет плюсом.")
         self.assertEqual([item["name"] for item in draft["required_skills"]], ["Python", "SQL"])
+
+    def test_optional_and_excluded_wording(self):
+        text = "Ищем QA: Python желательно, но не обязательно. Docker знать необязательно. Redis будет плюсом. Kafka не нужна."
+        self.assertEqual(skill_mentions(text), {
+            "Python": "optional", "Docker": "excluded", "Redis": "optional", "Kafka": "excluded",
+        })
+        self.assertEqual(parse_need(text)["required_skills"], [])
 
 
 if __name__ == "__main__":
