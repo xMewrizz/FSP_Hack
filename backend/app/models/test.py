@@ -111,3 +111,45 @@ class GradeAssessment(Base, TimestampMixin):
     passed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     suggested_grade: Mapped[str | None] = mapped_column(String(50), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class OpenQuestionSubmission(Base, TimestampMixin):
+    """Ответ кандидата на развернутое задание или код с оценкой LLM / fallback (B-27)."""
+
+    __tablename__ = "open_question_submissions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    candidate_profile_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    question_code: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    question_type: Mapped[str] = mapped_column(String(50), default="free_text", nullable=False)
+    answer_text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    passed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    feedback: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    criterion_scores: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    evaluator: Mapped[str] = mapped_column(String(50), default="fallback_heuristic", nullable=False)
+    needs_manual_review: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    manual_reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    user: Mapped["User"] = relationship("User")
+    candidate_profile: Mapped["CandidateProfile"] = relationship("CandidateProfile")
+

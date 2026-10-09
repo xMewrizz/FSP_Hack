@@ -4,7 +4,7 @@ from app.models.employer import EmployerProfile
 from app.models.fsp import FSPAchievement
 from app.models.invitation import Invitation
 from app.models.need import EmployerNeed
-from app.models.test import GradeAssessment, Question, TestSession
+from app.models.test import GradeAssessment, OpenQuestionSubmission, Question, TestSession
 from app.models.token import EmailVerification, RefreshToken
 from app.models.user import User
 from app.models.vacancy import Vacancy, VacancyApplication
@@ -21,6 +21,7 @@ __all__ = [
     "Question",
     "TestSession",
     "GradeAssessment",
+    "OpenQuestionSubmission",
     "EmployerNeed",
     "Invitation",
     "Vacancy",

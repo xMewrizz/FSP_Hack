@@ -96,3 +96,15 @@ def require_role(required_role: UserRole) -> Callable:
 
 get_current_candidate = require_role(UserRole.CANDIDATE)
 get_current_employer = require_role(UserRole.EMPLOYER)
+
+
+async def get_current_reviewer(
+    current_user: User = Depends(get_current_verified_user),
+) -> User:
+    if current_user.role not in (UserRole.EMPLOYER, UserRole.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав. Требуется роль работодателя или администратора",
+        )
+    return current_user
+
