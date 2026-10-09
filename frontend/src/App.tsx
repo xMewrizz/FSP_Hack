@@ -4249,6 +4249,9 @@ function App() {
   const [selectedId, setSelectedId] = useState(1);
   const [query, setQuery] = useState("");
   const [onlyFsp, setOnlyFsp] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterFormat, setFilterFormat] = useState("");
+  const [filterCity, setFilterCity] = useState("");
   const [compare, setCompare] = useState<number[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteDirty, setInviteDirty] = useState(false);
@@ -4334,7 +4337,7 @@ function App() {
         }
       });
     return () => { cancelled = true; };
-  }, [authenticated, authLoading, role, onlyFsp, offlineDemo]);
+  }, [authenticated, authLoading, role, offlineDemo]);
 
   useEffect(() => {
     if (!authenticated || authLoading || onboarding) return;
@@ -4368,15 +4371,24 @@ function App() {
     };
   }, [authenticated, authLoading, onboarding, role, active]);
 
+  const availableCities = useMemo(
+    () => [...new Set(backendCandidates.map((candidate) => candidate.location)
+      .filter((city) => city && city !== "Не указан"))].sort((left, right) => left.localeCompare(right, "ru")),
+    [backendCandidates],
+  );
+  const activeFilterCount = Number(Boolean(filterFormat)) + Number(Boolean(filterCity));
   const filtered = useMemo(
     () => backendCandidates.filter((candidate) =>
       (!onlyFsp || candidate.fspVerified) &&
+      (!filterFormat || candidate.format === filterFormat) &&
+      (!filterCity || candidate.location === filterCity) &&
       `${candidate.name} ${candidate.skills.join(" ")}`.toLowerCase().includes(query.toLowerCase()),
     ),
-    [backendCandidates, onlyFsp, query],
+    [backendCandidates, onlyFsp, filterFormat, filterCity, query],
   );
   const selected =
-    selectedCandidate ?? backendCandidates.find((candidate) => candidate.id === selectedId) ?? backendCandidates[0] ?? candidates[0];
+    filtered.find((candidate) => candidate.backendId === selectedCandidate?.backendId) ??
+    filtered.find((candidate) => candidate.id === selectedId) ?? filtered[0] ?? candidates[0];
   const activeNeed = employerNeeds.find((need) => need.id === activeNeedId);
   const openInvite = () => {
     setOfferDescription("Приглашаем в продуктовую команду. Будем рады обсудить задачи и ваш опыт.");
@@ -4712,8 +4724,8 @@ function App() {
           >
             <Icon name="filter" /> Достижения ФСП
           </Button>
-          <Button variant="outline">
-            Фильтры · <span className="filter-count">2</span>
+          <Button variant="outline" onClick={() => setFiltersOpen((value) => !value)}>
+            Фильтры{activeFilterCount > 0 && <> · <span className="filter-count">{activeFilterCount}</span></>}
           </Button>
           <div className="view-switch">
             <button type="button" className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")}><Icon name="grid" /> База</button>
@@ -4723,6 +4735,26 @@ function App() {
             Найдено <strong>{filtered.length}</strong>
           </div>
         </section>
+
+        {filtersOpen && <section className="matching-filter-panel" aria-label="Фильтры подборки">
+          <label>
+            <span>Формат работы</span>
+            <select className="bank-select" value={filterFormat} onChange={(event) => setFilterFormat(event.target.value)}>
+              <option value="">Любой формат</option>
+              <option value="Удалённо">Удалённо</option>
+              <option value="Гибрид">Гибрид</option>
+              <option value="Офис">Офис</option>
+            </select>
+          </label>
+          <label>
+            <span>Город</span>
+            <select className="bank-select" value={filterCity} onChange={(event) => setFilterCity(event.target.value)}>
+              <option value="">Любой город</option>
+              {availableCities.map((city) => <option key={city} value={city}>{city}</option>)}
+            </select>
+          </label>
+          {activeFilterCount > 0 && <Button variant="ghost" onClick={() => { setFilterFormat(""); setFilterCity(""); }}>Сбросить</Button>}
+        </section>}
 
         {viewMode === "swipe" && filtered.length > 0 ? (
           <SwipeDeck
@@ -4812,7 +4844,7 @@ function App() {
             )}
           </section>
 
-          {backendCandidates.length > 0 && <aside className="profile-panel" data-tour="candidate-profile">
+          {filtered.length > 0 && <aside className="profile-panel" data-tour="candidate-profile">
             <div className="profile-panel__head">
               <span>ПРОФИЛЬ КАНДИДАТА</span>
               <button type="button" aria-label="Закрыть профиль"><Icon name="close" /></button>
@@ -4890,6 +4922,10 @@ function App() {
               );
               setActiveNeedId(need.id);
               setSelectedCandidate(null);
+              setQuery("");
+              setOnlyFsp(false);
+              setFilterFormat("");
+              setFilterCity("");
               navigateTo("Подборка");
               apiGet<{ candidates: MatchingCandidate[] }>(`/matching/for-need/${need.id}`)
                 .then((response) => setBackendCandidates(response.candidates.map((item, index) => mapMatchToCandidate(item, index, offlineDemo))))
