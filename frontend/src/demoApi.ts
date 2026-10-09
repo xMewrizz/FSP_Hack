@@ -19,7 +19,7 @@ type DemoCandidate = {
   trust_score: number;
   trust_flags: Array<{ label: string; status: "verified" | "review" | "warning"; detail: string }>;
   resume_versions: Array<{ id: string; label: string; date: string; summary: string }>;
-  match_explanation: { summary: string; matched_skills: string[]; missing_skills: string[] };
+  match_explanation: { summary: string; matched_skills: string[]; missing_skills: string[]; salary_match?: boolean; salary_note?: string };
 };
 
 type DemoNeed = {
