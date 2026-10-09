@@ -5683,14 +5683,8 @@ button:disabled,
   background: rgba(8, 15, 29, 0.68);
 }
 
-.tour-spotlight {
-  position: fixed;
-  z-index: 401;
-  border: 0.125rem solid #38bdf8;
-  border-radius: 0.5rem;
-  box-shadow: 0 0 0 0.25rem rgba(56, 189, 248, 0.2), 0 0 2rem rgba(56, 189, 248, 0.25);
-  pointer-events: none;
-  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+.tour-shade--full {
+  inset: 0;
 }
 
 .demo-tour-card {
@@ -5755,9 +5749,6 @@ button:disabled,
     width: calc(100vw - 1.5rem);
   }
 
-  .tour-spotlight {
-    border-radius: 0.25rem;
-  }
 }
 
 .toast {

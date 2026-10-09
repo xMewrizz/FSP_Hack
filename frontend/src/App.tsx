@@ -2201,7 +2201,7 @@ function CompareModal({
   );
 }
 
-function DemoSpotlightTour({
+function DemoTour({
   role,
   onFinish,
 }: {
@@ -2209,7 +2209,7 @@ function DemoSpotlightTour({
   onFinish: () => void;
 }) {
   const [step, setStep] = useState(0);
-  const [spotlight, setSpotlight] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [targetTop, setTargetTop] = useState<number | null>(null);
   const steps = role === "employer" ? [
     { target: "demo-navigation", title: "Рабочие разделы", text: "Переключайтесь между подборкой, потребностями, банком профилей и приглашениями." },
     { target: "active-need", title: "Потребность команды", text: "Здесь видны критерии и бюджет текущей роли. Нажмите карточку, чтобы открыть подбор." },
@@ -2227,17 +2227,10 @@ function DemoSpotlightTour({
     const update = () => {
       const target = document.querySelector<HTMLElement>(`[data-tour="${item.target}"]`);
       if (!target) {
-        setSpotlight(null);
+        setTargetTop(null);
         return;
       }
-      const bounds = target.getBoundingClientRect();
-      const padding = 8;
-      setSpotlight({
-        top: Math.max(8, bounds.top - padding),
-        left: Math.max(8, bounds.left - padding),
-        width: Math.min(window.innerWidth - 16, bounds.width + padding * 2),
-        height: Math.min(window.innerHeight - 16, bounds.height + padding * 2),
-      });
+      setTargetTop(target.getBoundingClientRect().top);
     };
     document.querySelector(`[data-tour="${item.target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
     measureTimer = window.setTimeout(update, 180);
@@ -2251,16 +2244,10 @@ function DemoSpotlightTour({
   }, [item.target]);
 
   const isLastStep = step === steps.length - 1;
-  const cardAtBottom = spotlight ? spotlight.top < window.innerHeight * 0.48 : true;
+  const cardAtBottom = targetTop !== null ? targetTop < window.innerHeight * 0.48 : true;
   return (
     <>
-      {spotlight && <>
-        <div className="tour-shade" style={{ top: 0, left: 0, right: 0, height: spotlight.top }} />
-        <div className="tour-shade" style={{ top: spotlight.top + spotlight.height, left: 0, right: 0, bottom: 0 }} />
-        <div className="tour-shade" style={{ top: spotlight.top, left: 0, width: spotlight.left, height: spotlight.height }} />
-        <div className="tour-shade" style={{ top: spotlight.top, left: spotlight.left + spotlight.width, right: 0, height: spotlight.height }} />
-        <div className="tour-spotlight" style={spotlight} />
-      </>}
+      <div className="tour-shade tour-shade--full" />
       <section className={`demo-tour-card ${cardAtBottom ? "demo-tour-card--bottom" : "demo-tour-card--top"}`} role="dialog" aria-modal="true" aria-labelledby="demo-tour-title">
         <div className="guide-progress">{steps.map((_, index) => <i key={index} className={index <= step ? "active" : ""} />)}</div>
         <span>{role === "employer" ? "ДЕМО · КОМПАНИЯ" : "ДЕМО · КАНДИДАТ"} · {step + 1}/{steps.length}</span>
@@ -3237,7 +3224,7 @@ function App() {
           <button type="button" className="toast__close" aria-label="Закрыть уведомление" onClick={() => setNotice("")}><Icon name="close" size={15} /></button>
         </div>
       )}
-      {demoTourOpen && <DemoSpotlightTour role={role} onFinish={() => { setDemoTourOpen(false); window.localStorage.setItem("fsp-demo-tour-complete", "true"); }} />}
+      {demoTourOpen && <DemoTour role={role} onFinish={() => { setDemoTourOpen(false); window.localStorage.setItem("fsp-demo-tour-complete", "true"); }} />}
     </div>
   );
 }
