@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 import uuid
 
 from pydantic import BaseModel
@@ -136,3 +137,41 @@ class AdditionalSkillTestResponse(BaseModel):
     latest_percentage: float | None = None
     level_out_of_ten: float | None = None
     latest_session_id: uuid.UUID | None = None
+
+
+class OpenQuestionResponse(BaseModel):
+    code: str
+    title: str
+    specialization: str
+    grade: str
+    question_type: str
+    question_text: str
+    rubric_criteria: list[str]
+
+
+class OpenQuestionSubmitRequest(BaseModel):
+    answer_text: str
+
+
+class OpenQuestionSubmissionResponse(BaseModel):
+    id: uuid.UUID
+    question_code: str
+    question_type: str
+    answer_text: str
+    score: float
+    passed: bool
+    feedback: str
+    criterion_scores: dict[str, Any]
+    evaluator: str
+    needs_manual_review: bool
+    created_at: datetime
+    manual_reviewer_notes: str | None = None
+    reviewed_at: datetime | None = None
+    reviewed_by: uuid.UUID | None = None
+
+
+class OpenQuestionReviewRequest(BaseModel):
+    score: float
+    passed: bool
+    notes: str | None = None
+
