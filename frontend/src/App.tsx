@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { apiGet, apiPost, apiPut, apiRequest, clearSession, saveSession } from "./api";
 import {
   ALL_GRADES,
@@ -87,8 +87,8 @@ const candidates: Candidate[] = [
     updated: "5 дней назад",
     trust: 0.88,
     skills: ["Go", "gRPC", "PostgreSQL", "Kafka", "Kubernetes"],
-    radar: [8, 8, 7, 8, 7, 6],
-    jobRadar: [8, 8, 8, 7, 7, 7],
+    radar: [8, 8, 7, 8, 7],
+    jobRadar: [8, 8, 8, 7, 7],
     achievements: ["Топ-10 Codeforces ФСП"],
     summary:
       "Подтверждён Middle. Сильные алгоритмы и распределённые системы. Регулярная задача пройдена 5 дней назад.",
@@ -273,6 +273,91 @@ const candidates: Candidate[] = [
 ];
 
 const labels = ["Язык", "API", "БД", "Алгоритмы", "Тесты", "CI/CD"];
+
+const SPECIALTY_RADAR_SAMPLES = [
+  {
+    specialization: "Backend",
+    labels: ["Язык и runtime", "API и интеграции", "Базы данных", "Алгоритмы", "Тестирование", "Надёжность"],
+    values: [7.8, 7.2, 8.1, 6.9, 7.4, 6.8],
+  },
+  {
+    specialization: "Frontend",
+    labels: ["JavaScript", "UI и доступность", "Архитектура", "Тестирование", "Производительность"],
+    values: [8.2, 7.6, 6.8, 7.1, 7.3],
+  },
+  {
+    specialization: "Data Science / ML",
+    labels: ["Python и данные", "Статистика", "Модели ML", "Эксперименты", "Инженерия данных", "Продуктовая оценка"],
+    values: [7.4, 6.7, 7.9, 7.1, 6.8, 7.2],
+  },
+  {
+    specialization: "QA / Testing",
+    labels: ["Тест-дизайн", "Автоматизация", "API и данные", "Процессы QA", "Надёжность"],
+    values: [8.1, 7.3, 6.8, 7.7, 7.1],
+  },
+];
+
+const CAREER_PATHS: Record<string, Array<{ specialization: string; signals: string[]; description: string }>> = {
+  Backend: [
+    { specialization: "Fullstack", signals: ["frontend", "javascript", "typescript", "react", "ui"], description: "Соедините серверную разработку с интерфейсами продукта." },
+    { specialization: "DevOps / SRE", signals: ["docker", "ci/cd", "kubernetes", "linux", "облако"], description: "Попробуйте инфраструктуру, автоматизацию и надёжность сервисов." },
+    { specialization: "Data Science / ML", signals: ["python", "данные", "sql", "статистика", "ml"], description: "Исследуйте обработку данных и прикладные модели." },
+  ],
+  Frontend: [
+    { specialization: "Fullstack", signals: ["api", "backend", "node", "базы данных", "sql"], description: "Расширьте интерфейсный опыт серверной логикой и API." },
+    { specialization: "Mobile", signals: ["react", "typescript", "javascript", "ui", "доступность"], description: "Перенесите опыт интерфейсов на мобильные приложения." },
+    { specialization: "QA / Testing", signals: ["тесты", "тестирование", "автоматизация", "доступность", "ui"], description: "Используйте знание интерфейсов для качества и автоматизации тестов." },
+  ],
+  Fullstack: [
+    { specialization: "Backend", signals: ["api", "базы данных", "sql", "надёжность"], description: "Углубитесь в серверную архитектуру и хранение данных." },
+    { specialization: "Frontend", signals: ["javascript", "typescript", "react", "ui"], description: "Сфокусируйтесь на пользовательских интерфейсах и доступности." },
+    { specialization: "DevOps / SRE", signals: ["docker", "ci/cd", "linux", "надёжность"], description: "Попробуйте эксплуатацию и автоматизацию полного цикла." },
+  ],
+  Mobile: [
+    { specialization: "Frontend", signals: ["ui", "react", "typescript", "доступность"], description: "Исследуйте веб-интерфейсы и общие подходы к UI." },
+    { specialization: "Fullstack", signals: ["api", "backend", "sql", "интеграции"], description: "Добавьте серверную часть к мобильным продуктам." },
+    { specialization: "QA / Testing", signals: ["тесты", "тестирование", "автоматизация", "ui"], description: "Попробуйте тестирование приложений и автоматизацию проверок." },
+  ],
+  "DevOps / SRE": [
+    { specialization: "Backend", signals: ["api", "python", "go", "надёжность", "базы данных"], description: "Углубитесь в сервисы, для которых вы строите инфраструктуру." },
+    { specialization: "System Programming / C++", signals: ["linux", "сети", "производительность", "c++"], description: "Исследуйте системное ПО, сети и производительность." },
+    { specialization: "Data Science / ML", signals: ["данные", "python", "ml", "облако"], description: "Попробуйте платформы и инфраструктуру для данных и ML." },
+  ],
+  "Data Science / ML": [
+    { specialization: "Backend", signals: ["python", "api", "sql", "надёжность"], description: "Превратите модели и данные в надёжные сервисы." },
+    { specialization: "DevOps / SRE", signals: ["docker", "облако", "ci/cd", "автоматизация"], description: "Попробуйте инфраструктуру и доставку ML-систем." },
+    { specialization: "QA / Testing", signals: ["тесты", "эксперименты", "данные", "автоматизация"], description: "Исследуйте качество данных, экспериментов и моделей." },
+  ],
+  "QA / Testing": [
+    { specialization: "Backend", signals: ["api", "sql", "базы данных", "автоматизация"], description: "Используйте опыт проверок, чтобы глубже изучить API и сервисы." },
+    { specialization: "Frontend", signals: ["ui", "доступность", "javascript", "typescript"], description: "Перейдите от проверки интерфейсов к их созданию." },
+    { specialization: "Mobile", signals: ["ui", "тестирование", "автоматизация"], description: "Попробуйте качество мобильных приложений." },
+  ],
+  "System Programming / C++": [
+    { specialization: "Backend", signals: ["сети", "api", "производительность", "надёжность"], description: "Примените системное мышление к серверным платформам." },
+    { specialization: "GameDev", signals: ["c++", "производительность", "графика"], description: "Исследуйте движки, графику и разработку игр." },
+    { specialization: "DevOps / SRE", signals: ["linux", "сети", "автоматизация", "надёжность"], description: "Попробуйте эксплуатацию систем и инженерную надёжность." },
+  ],
+  GameDev: [
+    { specialization: "System Programming / C++", signals: ["c++", "производительность", "графика"], description: "Углубитесь в движки и системную оптимизацию." },
+    { specialization: "Frontend", signals: ["ui", "javascript", "typescript", "доступность"], description: "Перенесите игровой UI-опыт в веб-продукты." },
+    { specialization: "Mobile", signals: ["ui", "c++", "тестирование"], description: "Попробуйте мобильные приложения и игры." },
+  ],
+};
+
+function getCareerPathSuggestions(specialization: string | null | undefined, skills: string[]) {
+  const paths = CAREER_PATHS[specialization ?? ""] ?? CAREER_PATHS.Backend;
+  const evidence = skills.map((skill) =>
+    ` ${skill.toLowerCase().replace(/[^a-zа-я0-9+#]+/gi, " ").trim()} `,
+  );
+  return paths.map((path) => {
+    const matchedSignals = path.signals.filter((signal) => {
+      const normalizedSignal = ` ${signal.toLowerCase().replace(/[^a-zа-я0-9+#]+/gi, " ").trim()} `;
+      return evidence.some((skill) => skill.includes(normalizedSignal));
+    });
+    return { ...path, matchedSignals };
+  }).sort((left, right) => right.matchedSignals.length - left.matchedSignals.length);
+}
 
 type AuthResponse = {
   access_token: string;
@@ -510,6 +595,16 @@ type NetworkMessage = {
   is_mine: boolean;
 };
 
+type ApplicationDialogue = {
+  id: string;
+  vacancy_id: string;
+  vacancy_title: string;
+  company_name: string;
+  candidate_name: string;
+  status: string;
+  last_message: string;
+};
+
 type TestQuestionData = {
   id: string;
   topic: string;
@@ -598,7 +693,18 @@ type TestHistoryData = {
   assessment_id?: string | null;
 };
 
-function mapMatchToCandidate(item: MatchingCandidate, index: number): Candidate {
+type RadarComparison = {
+  labels: string[];
+  before: number[];
+  after: number[];
+  hasPriorResults: boolean;
+  hasUnevaluatedBefore: boolean;
+};
+
+function mapMatchToCandidate(item: MatchingCandidate, index: number, demoMode = false): Candidate {
+  const demoRadar = demoMode
+    ? candidates.find((candidate) => candidate.name === `${item.first_name} ${item.last_name}`)
+    : undefined;
   return {
     id: index + 1,
     backendId: item.candidate_id,
@@ -625,8 +731,8 @@ function mapMatchToCandidate(item: MatchingCandidate, index: number): Candidate 
     updated: "Не указано",
     trust: 0,
     skills: item.skills,
-    radar: [],
-    jobRadar: [],
+    radar: demoRadar?.radar ?? [],
+    jobRadar: demoRadar?.jobRadar ?? [],
     achievements: [],
     summary: item.match_explanation.summary,
     gap: item.match_explanation.missing_skills.length
@@ -675,6 +781,17 @@ function Icon({
         <path d="M22 2 11 13" />
       </>
     ),
+    chat: (
+      <>
+        <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
+      </>
+    ),
+    mail: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="m3 7 9 6 9-6" />
+      </>
+    ),
     chart: (
       <>
         <path d="M3 3v18h18" />
@@ -705,10 +822,15 @@ function Icon({
     building: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M9 21v-4h6v4M8 7h.01M12 7h.01M16 7h.01M8 11h.01M12 11h.01M16 11h.01" /></>,
     pin: <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></>,
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" /></>,
+    target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
+    layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5" /></>,
     shield: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
     money: <><rect x="2" y="5" width="20" height="14" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M6 9h.01M18 15h.01" /></>,
     medal: <><circle cx="12" cy="8" r="6" /><path d="m8.2 13-1.2 9 5-3 5 3-1.2-9" /></>,
     sparkle: <><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3ZM19 14l1 2.5 2.5 1-2.5 1L19 21l-1-2.5-2.5-1 2.5-1L19 14Z" /></>,
+    info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>,
+    upload: <><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v4h16v-4" /></>,
     school: <><path d="m2 10 10-6 10 6-10 6-10-6Z" /><path d="M6 12v5c3.5 3 8.5 3 12 0v-5M22 10v6" /></>,
     arrowUpRight: <><path d="M7 17 17 7M7 7h10v10" /></>,
     compare: (
@@ -902,6 +1024,7 @@ function Radar({
   axisLabels,
   showAxisLabels = true,
   description = "Сравнение компетенций кандидата и вакансии",
+  className = "",
 }: {
   values: number[];
   target: number[];
@@ -909,10 +1032,12 @@ function Radar({
   axisLabels?: string[];
   showAxisLabels?: boolean;
   description?: string;
+  className?: string;
 }) {
   const center = 110;
   const maxR = compact ? 72 : 76;
   const visibleLabels = axisLabels ?? labels;
+  const targetValues = target.length === values.length ? target : values.map(() => 10);
   const point = (value: number, i: number) => {
     const angle = -Math.PI / 2 + (Math.PI * 2 * i) / values.length;
     const radius = (value / 10) * maxR;
@@ -930,7 +1055,7 @@ function Radar({
 
   return (
     <svg
-      className={`radar ${compact ? "radar--compact" : ""}`}
+      className={`radar ${compact ? "radar--compact" : ""} ${className}`}
       viewBox="0 0 220 220"
       role="img"
       aria-label={description}
@@ -949,7 +1074,7 @@ function Radar({
         />
       ))}
       <polygon
-        points={target.map((v, i) => point(v, i)).join(" ")}
+        points={targetValues.map((v, i) => point(v, i)).join(" ")}
         className="radar__target"
       />
       <polygon
@@ -975,6 +1100,53 @@ function Radar({
           );
         })}
     </svg>
+  );
+}
+
+function SpecialtyRadarGallery({
+  currentSpecialization,
+  currentSkills,
+}: {
+  currentSpecialization?: string | null;
+  currentSkills: GradeRoadmapData["skills"];
+}) {
+  const samples = [...SPECIALTY_RADAR_SAMPLES].sort((left, right) =>
+    left.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase() ? -1 : right.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase() ? 1 : 0,
+  );
+
+  return (
+    <section className="specialty-radar-gallery" aria-labelledby="specialty-radar-title">
+      <div className="specialty-radar-gallery__head">
+        <div><span>КАРТЫ КОМПЕТЕНЦИЙ</span><h2 id="specialty-radar-title">Радар по направлениям</h2></div>
+        <p>Синяя заливка — уровень навыка, пунктир — максимум 10. Демо-карты — примеры, а не ваша оценка.</p>
+      </div>
+      <div className="specialty-radar-gallery__grid">
+        {samples.map((sample) => {
+          const isCurrent = sample.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase();
+          const hasResults = isCurrent && currentSkills.some((skill) => skill.level_out_of_ten !== null);
+          const values = isCurrent && currentSkills.length > 0
+            ? currentSkills.map((skill) => skill.level_out_of_ten ?? 0)
+            : sample.values;
+          const axisLabels = isCurrent && currentSkills.length > 0
+            ? currentSkills.map((skill) => skill.label)
+            : sample.labels;
+          return (
+            <article className={`specialty-radar-card${hasResults ? " specialty-radar-card--current" : ""}`} key={sample.specialization}>
+              <div className="specialty-radar-card__head">
+                <strong>{sample.specialization}</strong>
+                <span>{hasResults ? "ВАШИ РЕЗУЛЬТАТЫ" : isCurrent ? "ОЖИДАЮТ ТЕСТА" : "ДЕМО-ПРИМЕР"}</span>
+              </div>
+              <Radar values={values} target={values.map(() => 10)} axisLabels={axisLabels} showAxisLabels={false} description={`Радар компетенций: ${sample.specialization}`} />
+              <ul>
+                {axisLabels.map((label, index) => (
+                  <li key={`${sample.specialization}-${label}`}><span>{label}</span><strong>{values[index].toFixed(1)}<small> / 10</small></strong></li>
+                ))}
+              </ul>
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -1016,19 +1188,21 @@ function MetricCard({
   value,
   detail,
   accent,
+  icon,
 }: {
   label: string;
   value: string;
   detail: string;
   accent?: boolean;
+  icon?: string;
 }) {
-  const icon = label.includes("ПРИГЛАШ") ? "send"
+  const resolvedIcon = icon ?? (label.includes("ПРИГЛАШ") ? "send"
     : label.includes("УРОВЕН") ? "compare"
       : label.includes("ФСП") ? "shield"
-        : "sparkle";
+        : "sparkle");
   return (
     <div className={`metric-card ${accent ? "metric-card--accent" : ""}`}>
-      <span className="metric-card__icon"><Icon name={icon} size={17} /></span>
+      <span className="metric-card__icon"><Icon name={resolvedIcon} size={17} /></span>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{detail}</small>
@@ -1277,10 +1451,10 @@ function EmployerScreen({
     if (bankCity.trim()) params.set("city", bankCity.trim());
     setBankLoading(true);
     apiGet<MatchingCandidate[]>(`/matching/search?${params}`)
-      .then((items) => setBankItems(items.map(mapMatchToCandidate)))
+      .then((items) => setBankItems(items.map((item, index) => mapMatchToCandidate(item, index, demoMode))))
       .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось выполнить поиск", "error"))
       .finally(() => setBankLoading(false));
-  }, [active, bankSpecialization, bankGrade, bankSkill, bankFormat, bankCity, bankFspOnly]);
+  }, [active, bankSpecialization, bankGrade, bankSkill, bankFormat, bankCity, bankFspOnly, demoMode]);
 
   const visibleBankItems = bankItems.filter((candidate) =>
     (!bankQuery || candidate.name.toLowerCase().includes(bankQuery.trim().toLowerCase())) &&
@@ -1509,9 +1683,9 @@ function EmployerScreen({
     return (
       <div className="page-content page-content--overview">
         <div className="metrics-grid">
-          <MetricCard label="АКТИВНЫЕ ПОТРЕБНОСТИ" value={String(needs.filter((need) => need.is_active).length)} detail="По данным компании" accent />
-          <MetricCard label="ОТПРАВЛЕНО ПРИГЛАШЕНИЙ" value={String(sentInvitations.length)} detail="По данным API" />
-          <MetricCard label="ОЖИДАЮТ ОТВЕТА" value={String(waitingInvitations)} detail={`${acceptedInvitations} принято`} />
+          <MetricCard label="АКТИВНЫЕ ПОТРЕБНОСТИ" value={String(needs.filter((need) => need.is_active).length)} detail="По данным компании" accent icon="briefcase" />
+          <MetricCard label="ОТПРАВЛЕНО ПРИГЛАШЕНИЙ" value={String(sentInvitations.length)} detail="По данным API" icon="mail" />
+          <MetricCard label="ОЖИДАЮТ ОТВЕТА" value={String(waitingInvitations)} detail={`${acceptedInvitations} принято`} icon="clock" />
         </div>
         <div className="dashboard-grid">
           <section className="feature-card feature-card--wide">
@@ -1565,6 +1739,7 @@ function EmployerScreen({
                   {candidate.fspVerified && <span className="candidate-directory-card__badge"><Icon name="check" size={13} /> ФСП</span>}
                 </div>
                 <div className="candidate-directory-card__grade"><strong>{candidate.role}</strong><span>{candidate.level} · {candidate.verifiedGrade ? "подтверждён" : "заявлен"}</span></div>
+                {demoMode && candidate.radar.length > 0 && <div className="candidate-directory-card__radar"><Radar values={candidate.radar} target={candidate.jobRadar} compact description={`Демонстрационное сравнение карты навыков ${candidate.name}`} /><span>ДЕМО · ПРОФИЛЬ / ВАКАНСИЯ</span></div>}
                 <div className="mini-tags">{candidate.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}{candidate.skills.length > 4 && <span>+{candidate.skills.length - 4}</span>}</div>
                 <div className="candidate-directory-card__footer">
                   <Button variant="outline" onClick={() => onOpenResume(candidate)}><Icon name="users" size={15} /> Резюме</Button>
@@ -1727,7 +1902,7 @@ function EmployerScreen({
     return (
       <div className="page-content">
         <div className="demo-banner">Сроки выхода и совпадения рассчитаны на локальных demo-профилях. У production API нет поля available_from.</div>
-        <div className="metrics-grid"><MetricCard label="КАНДИДАТОВ В БАНКЕ" value={String(bankItems.length)} detail="По текущим фильтрам" accent /><MetricCard label="СРЕДНИЙ БАЛЛ ПОДБОРА" value={averageScore} detail="Считается для конкретной потребности" /><MetricCard label="ДАТА ВЫХОДА УКАЗАНА" value={`${confirmedDates} / ${bankItems.length}`} detail="Если кандидат указал дату" /></div>
+        <div className="metrics-grid">        <MetricCard label="КАНДИДАТОВ В БАНКЕ" value={String(bankItems.length)} detail="По текущим фильтрам" accent icon="users" /><MetricCard label="СРЕДНИЙ БАЛЛ ПОДБОРА" value={averageScore} detail="Считается для конкретной потребности" icon="target" /><MetricCard label="ДАТА ВЫХОДА УКАЗАНА" value={`${confirmedDates} / ${bankItems.length}`} detail="Если кандидат указал дату" icon="calendar" /></div>
         <section className="feature-card feature-card--wide">
           <div className="feature-head"><div><span>ДОСТУПНОСТЬ КАНДИДАТОВ</span><strong>Планируемые даты выхода</strong></div><Button variant="outline" onClick={() => onNavigate("Подборка")}>Открыть подборку</Button></div>
           <div className="start-dates">{scheduled.map((candidate, index) => <div key={candidate.backendId}><b>{new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</b><i className={index === 0 ? "active" : ""} /><div><strong>{candidate.name}</strong><span>{candidate.role} · {candidate.level} · {candidate.score} баллов</span></div><em>{candidate.availableFrom ? "Готов к выходу" : "Дата не указана"}</em></div>)}</div>
@@ -1798,6 +1973,7 @@ function EmployerScreen({
               <div className="avatar">{`${application.candidate.first_name[0] ?? ""}${application.candidate.last_name[0] ?? ""}`}</div>
               <div className="vacancy-application__person"><strong>{application.candidate.first_name} {application.candidate.last_name}</strong><span>{application.candidate.specialization ?? "Специализация не указана"} · {application.candidate.verified_grade ?? "Грейд не подтверждён"} · {application.candidate.city ?? "Город не указан"}</span><span>{application.candidate.email}{application.candidate.phone ? ` · ${application.candidate.phone}` : ""}{application.candidate.telegram ? ` · ${application.candidate.telegram}` : ""}</span>{application.cover_letter && <p>{application.cover_letter}</p>}</div>
               <span className="vacancy-application__status">{application.status === "accepted" ? "Принят" : application.status === "rejected" ? "Отклонён" : application.status === "reviewed" ? "Просмотрен" : "Новый"}</span>
+              {demoMode && <Button variant="outline" onClick={() => onNavigate("Диалоги", `application:${application.id}`)}>Открыть диалог</Button>}
               {application.status !== "accepted" && application.status !== "rejected" && <div className="vacancy-application__actions"><Button variant="outline" onClick={() => void updateVacancyApplication(application.id, "reviewed")}>Просмотрен</Button><Button onClick={() => void updateVacancyApplication(application.id, "accepted")}>Принять</Button><Button variant="ghost" onClick={() => void updateVacancyApplication(application.id, "rejected")}>Отклонить</Button></div>}
             </article>
           ))}
@@ -1810,10 +1986,10 @@ function EmployerScreen({
     return (
       <div className="page-content">
         <div className="metrics-grid">
-          <MetricCard label="ТОЧНОСТЬ TOP-3" value="87%" detail="Цель ≥ 80%" accent />
-          <MetricCard label="СРЕДНЕЕ СОВПАДЕНИЕ" value="82%" detail="+6% за месяц" />
-          <MetricCard label="ДО ОТВЕТА КАНДИДАТА" value="18 ч" detail="-4 часа за месяц" />
-          <MetricCard label="ПРИНЯТЫЕ ПРИГЛАШЕНИЯ" value="50%" detail="8 из 16" />
+          <MetricCard label="ТОЧНОСТЬ TOP-3" value="87%" detail="Цель ≥ 80%" accent icon="target" />
+          <MetricCard label="СРЕДНЕЕ СОВПАДЕНИЕ" value="82%" detail="+6% за месяц" icon="chart" />
+          <MetricCard label="ДО ОТВЕТА КАНДИДАТА" value="18 ч" detail="-4 часа за месяц" icon="clock" />
+          <MetricCard label="ПРИНЯТЫЕ ПРИГЛАШЕНИЯ" value="50%" detail="8 из 16" icon="check" />
         </div>
         <div className="dashboard-grid">
           <section className="feature-card feature-card--wide">
@@ -1980,17 +2156,20 @@ function Invitations({ employer = false, onNotify, onNavigate }: { employer?: bo
 
 function DialogsScreen({
   employer,
+  demoMode,
   initialTarget,
   onClearInitialTarget,
   onNotify,
 }: {
   employer: boolean;
+  demoMode: boolean;
   initialTarget: string | null;
   onClearInitialTarget: () => void;
   onNotify: (message: string, type?: "success" | "error") => void;
 }) {
   const [invitations, setInvitations] = useState<DialogueInvitation[]>([]);
   const [networkConversations, setNetworkConversations] = useState<NetworkConversation[]>([]);
+  const [applicationChats, setApplicationChats] = useState<ApplicationDialogue[]>([]);
   const [mentors, setMentors] = useState<MentorProfile[]>([]);
   const [selectedTarget, setSelectedTarget] = useState<string | null>(initialTarget);
   const [skillQuery, setSkillQuery] = useState("");
@@ -2012,10 +2191,14 @@ function DialogsScreen({
       const profileRequest = employer
         ? Promise.resolve(null)
         : apiGet<CandidateProfileData>("/candidate/profile");
-      const [invitationItems, networkItems, candidateProfile] = await Promise.all([invitationRequest, networkRequest, profileRequest]);
+      const applicationRequest = demoMode
+        ? apiGet<ApplicationDialogue[]>("/vacancies/applications/conversations")
+        : Promise.resolve([] as ApplicationDialogue[]);
+      const [invitationItems, networkItems, candidateProfile, applicationItems] = await Promise.all([invitationRequest, networkRequest, profileRequest, applicationRequest]);
       setInvitations(invitationItems.filter((item) => item.status === "accepted"));
       setNetworkConversations(networkItems);
       setVerifiedGrade(candidateProfile?.verified_grade ?? null);
+      setApplicationChats(applicationItems);
       setError("");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Не удалось загрузить диалоги");
@@ -2024,7 +2207,7 @@ function DialogsScreen({
     }
   };
 
-  useEffect(() => { void refresh(); }, [employer]);
+  useEffect(() => { void refresh(); }, [employer, demoMode]);
 
   useEffect(() => {
     if (!initialTarget) return;
@@ -2078,6 +2261,10 @@ function DialogsScreen({
     : null;
   const selectedInvitation = invitations.find((item) => item.id === invitationTarget);
   const selectedNetworkConversation = networkConversations.find((item) => item.id === networkTarget);
+  const applicationTarget = selectedTarget?.startsWith("application:")
+    ? selectedTarget.slice("application:".length)
+    : null;
+  const selectedApplicationChat = applicationChats.find((item) => item.id === applicationTarget);
 
   return (
     <div className="page-content dialogues-page">
@@ -2091,6 +2278,13 @@ function DialogsScreen({
         <aside className="dialogues-list">
           {directoryMode === "chats" && <><div className="dialogues-list__heading"><strong>Ваши диалоги</strong><Button variant="ghost" onClick={() => void refresh()} aria-label="Обновить диалоги"><Icon name="refresh" size={15} /></Button></div>
           {loading && <div className="empty-state">Обновляем список…</div>}
+          {applicationChats.map((item) => {
+            const target = `application:${item.id}`;
+            const otherName = employer ? item.candidate_name : item.company_name;
+            return <button type="button" className={`dialogue-list-item dialogue-list-item--application ${selectedTarget === target ? "dialogue-list-item--active" : ""}`} key={target} onClick={() => setSelectedTarget(target)}>
+              <span className="dialogue-list-item__avatar dialogue-list-item__avatar--application">{otherName.slice(0, 2).toUpperCase()}</span><span className="dialogue-list-item__body"><strong>{otherName}</strong><small>{item.vacancy_title}</small><span>{item.last_message || "Отклик · ждёт ответа"}</span></span><Icon name="briefcase" size={15} />
+            </button>;
+          })}
           {invitations.map((item) => {
             const target = `invitation:${item.id}`;
             const otherName = employer ? item.candidate_name : item.company_name;
@@ -2104,7 +2298,7 @@ function DialogsScreen({
               <span className="dialogue-list-item__avatar dialogue-list-item__avatar--mentor">{item.other_name.slice(0, 2).toUpperCase()}</span><span className="dialogue-list-item__body"><strong>{item.other_name}</strong><small>Наставник · {item.skill_focus}</small><span>{item.status === "pending" ? item.can_accept ? "Новый запрос" : "Ожидает ответа" : item.last_message || "Диалог наставничества"}</span></span><Icon name={item.can_accept ? "sparkle" : "chevron"} size={15} />
             </button>;
           })}
-          {!loading && invitations.length === 0 && (employer || networkConversations.length === 0) && <div className="dialogues-empty">Пока нет диалогов. Принятые приглашения появятся здесь.</div>}
+          {!loading && invitations.length === 0 && applicationChats.length === 0 && (employer || networkConversations.length === 0) && <div className="dialogues-empty">Пока нет диалогов. Принятые приглашения и отклики на вакансии появятся здесь.</div>}
           </>}
           {!employer && directoryMode === "mentors" && <section className="mentor-finder">
             <div><span>ПРОФЕССИОНАЛЬНЫЙ РОСТ</span><strong>Найти ментора</strong><p>{verifiedGrade ? "Показываем только тех, кто включил наставничество и подтвердил грейд выше вашего." : "Сначала подтвердите свой грейд — так мы найдём специалистов, которые действительно выше по уровню."}</p></div>
@@ -2120,6 +2314,11 @@ function DialogsScreen({
             title={employer ? selectedInvitation.candidate_name : selectedInvitation.company_name}
             onClose={() => { setSelectedTarget(null); window.dispatchEvent(new Event("fsp-invitations-updated")); }}
           />}
+          {selectedApplicationChat && <VacancyApplicationChat
+            application={selectedApplicationChat}
+            employer={employer}
+            onRefresh={refresh}
+          />}
           {selectedNetworkConversation && <NetworkChatPanel conversation={selectedNetworkConversation} onRefresh={refresh} onNotify={onNotify} />}
           {mentorTarget && <form className="mentor-request-card" onSubmit={(event) => void sendMentorshipRequest(event)}><div><span>ЗАПРОС НА НАСТАВНИЧЕСТВО</span><strong>{mentorTarget.name}</strong><small>{mentorTarget.verified_grade} · фокус: {skillQuery.trim() || mentorTarget.skills[0]}</small></div><label htmlFor="mentor-request-message">Коротко расскажите, с чем нужна помощь</label><textarea id="mentor-request-message" value={requestMessage} maxLength={4000} onChange={(event) => setRequestMessage(event.target.value)} rows={5} /><div><Button type="button" variant="ghost" onClick={() => setMentorTarget(null)}>Отмена</Button><Button type="submit" disabled={!requestMessage.trim() || requestSending}>{requestSending ? "Отправляем…" : "Отправить запрос"} <Icon name="send" /></Button></div></form>}
           {!selectedInvitation && !selectedNetworkConversation && !mentorTarget && <div className="dialogues-placeholder"><div><Icon name="send" size={24} /><strong>Выберите диалог</strong><span>История, контекст приглашения и отправка сообщений будут здесь.</span></div></div>}
@@ -2127,6 +2326,71 @@ function DialogsScreen({
       </div>
     </div>
   );
+}
+
+function VacancyApplicationChat({
+  application,
+  employer,
+  onRefresh,
+}: {
+  application: ApplicationDialogue;
+  employer: boolean;
+  onRefresh: () => Promise<void>;
+}) {
+  const [messages, setMessages] = useState<InvitationChatMessage[]>([]);
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const result = await apiGet<{ messages: InvitationChatMessage[] }>(`/vacancies/applications/${application.id}/messages`);
+        if (!cancelled) { setMessages(result.messages); setError(""); }
+      } catch (requestError) {
+        if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Не удалось загрузить сообщения");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [application.id]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages]);
+
+  const send = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!draft.trim()) return;
+    setSending(true);
+    try {
+      const message = await apiPost<InvitationChatMessage>(`/vacancies/applications/${application.id}/messages`, { body: draft.trim() });
+      setMessages((current) => [...current, message]);
+      setDraft("");
+      await onRefresh();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Не удалось отправить сообщение");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return <div className="conversation-panel application-conversation">
+    <header className="conversation-panel__header"><div><span>ОТКЛИК НА ВАКАНСИЮ · {application.status === "pending" ? "НА РАССМОТРЕНИИ" : application.status.toUpperCase()}</span><strong>{employer ? application.candidate_name : application.company_name}</strong><small>{application.vacancy_title}</small></div><span className="dialogue-list-item__avatar dialogue-list-item__avatar--application">{(employer ? application.candidate_name : application.company_name).slice(0, 2).toUpperCase()}</span></header>
+    <div className="application-conversation__note"><Icon name="info" size={15} /> Демо-чат отклика. История сохраняется в этой демонстрационной сессии.</div>
+    {error && <div className="conversation-error" role="alert">{error}</div>}
+    <div className="conversation-messages" aria-label="Переписка по отклику">
+      {loading ? <div className="empty-state">Загружаем историю…</div> : messages.length === 0 ? <div className="empty-state">Начните общение по отклику.</div> : messages.map((message) => <article className={`conversation-message ${message.is_mine ? "conversation-message--mine" : ""}`} key={message.id}><p>{message.body}</p><time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</time></article>)}
+      <div ref={bottomRef} />
+    </div>
+    <form className="conversation-composer" onSubmit={(event) => void send(event)}>
+      <label htmlFor={`application-draft-${application.id}`}>Сообщение</label><textarea id={`application-draft-${application.id}`} value={draft} maxLength={4000} onChange={(event) => setDraft(event.target.value)} placeholder="Напишите по поводу вакансии…" rows={3} />
+      <div><small>{draft.length}/4000</small><Button type="submit" disabled={!draft.trim() || sending}>{sending ? "Отправляем…" : "Отправить"} <Icon name="send" /></Button></div>
+    </form>
+  </div>;
 }
 
 function NetworkChatPanel({
@@ -2342,6 +2606,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [submittedAnswers, setSubmittedAnswers] = useState<Array<{ question_id: string; selected_answers: string[] }>>([]);
   const [testSession, setTestSession] = useState<TestStartData | null>(null);
   const [testResult, setTestResult] = useState<TestResultData | null>(null);
+  const [radarComparison, setRadarComparison] = useState<RadarComparison | null>(null);
   const [testHistory, setTestHistory] = useState<TestHistoryData[]>([]);
   const [roadmap, setRoadmap] = useState<GradeRoadmapData | null>(null);
   const [additionalTests, setAdditionalTests] = useState<AdditionalSkillTestData[]>([]);
@@ -2349,6 +2614,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [testSubmitting, setTestSubmitting] = useState(false);
   const [testDone, setTestDone] = useState(false);
   const [taskDone, setTaskDone] = useState(false);
+  const [taskDemoShown, setTaskDemoShown] = useState(false);
+  const [demoTaskRadar, setDemoTaskRadar] = useState([6.2, 7.1, 6.8, 7.4]);
   const [saved, setSaved] = useState(false);
   const [jobVacancies, setJobVacancies] = useState<VacancyRecord[]>([]);
   const [jobApplications, setJobApplications] = useState<CandidateVacancyApplication[]>([]);
@@ -2361,6 +2628,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeDragging, setResumeDragging] = useState(false);
+  const [resumeFileName, setResumeFileName] = useState("");
   const [parsedResume, setParsedResume] = useState<ParsedResume | null>(null);
   const [fspInput, setFspInput] = useState("");
   const [diplomaStatus, setDiplomaStatus] = useState("");
@@ -2429,7 +2698,12 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     try {
       const application = await apiPost<CandidateVacancyApplication>(`/vacancies/${vacancy.id}/apply`, { cover_letter: "" });
       setJobApplications((current) => [application, ...current.filter((item) => item.id !== application.id)]);
-      onNotify(`Отклик на вакансию «${vacancy.title}» отправлен`);
+      if (demoMode) {
+        onNavigate("Диалоги", `application:${application.id}`);
+        onNotify(`Отклик на вакансию «${vacancy.title}» отправлен — диалог с компанией открыт`);
+      } else {
+        onNotify(`Отклик на вакансию «${vacancy.title}» отправлен`);
+      }
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось отправить отклик", "error");
     } finally {
@@ -2486,8 +2760,9 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
 
   const uploadResume = async (file?: File) => {
     if (!file) return;
+    setResumeFileName(file.name);
     if (!file.name.toLowerCase().endsWith(".pdf") || file.size > 10 * 1024 * 1024) {
-      onNotify("Выберите PDF-файл размером не больше 10 МБ");
+      onNotify("Выберите PDF-файл размером не больше 10 МБ.", "error");
       return;
     }
     const body = new FormData();
@@ -2502,6 +2777,12 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     } finally {
       setResumeUploading(false);
     }
+  };
+
+  const handleResumeDrop = (event: ReactDragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setResumeDragging(false);
+    void uploadResume(event.dataTransfer.files[0]);
   };
 
   const applyParsedResume = () => {
@@ -2528,7 +2809,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       link.href = url;
       link.download = "fsp_candidate_profile.pdf";
       link.click();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось скачать PDF-профиль", "error");
     }
@@ -2547,6 +2828,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
 
   const startAdaptiveTest = async () => {
     setTestStarting(true);
+    setRadarComparison(null);
     try {
       const session = await apiPost<TestStartData>("/fsp/olympiad/start", {});
       setTestSession(session);
@@ -2571,6 +2853,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       setRoadmap(next);
       setTestDone(false);
       setTestResult(null);
+      setRadarComparison(null);
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось открыть набор тестов", "error");
     } finally {
@@ -2608,6 +2891,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       setSelectedAnswers([]);
       setSubmittedAnswers([]);
       setTestResult(null);
+      setRadarComparison(null);
       setTestStarted(true);
       setTestDone(false);
     } catch (error) {
@@ -2628,6 +2912,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       setSelectedAnswers([]);
       setSubmittedAnswers([]);
       setTestResult(null);
+      setRadarComparison(null);
       setTestStarted(true);
       setTestDone(false);
     } catch (error) {
@@ -2648,6 +2933,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     if (!answerEntry.selected_answers.length) return;
     const answers = [...submittedAnswers, answerEntry];
     if (question + 1 === testSession.total_questions) {
+      const previousSkills = roadmap?.skills ?? [];
       setTestSubmitting(true);
       try {
         const submitPath = testPurpose === "fsp-olympiad"
@@ -2659,9 +2945,41 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         setTestStarted(false);
         if (testPurpose === "grade") {
           apiGet<TestHistoryData[]>("/testing/history").then(setTestHistory).catch(() => undefined);
-          if (result.assessment_id) apiGet<GradeRoadmapData>(`/testing/roadmap/${result.assessment_id}`).then(setRoadmap).catch(() => undefined);
+          if (result.assessment_id) {
+            try {
+              const updatedRoadmap = await apiGet<GradeRoadmapData>(`/testing/roadmap/${result.assessment_id}`);
+              setRoadmap(updatedRoadmap);
+              const previousByCode = new Map(previousSkills.map((skill) => [skill.code, skill.level_out_of_ten]));
+              setRadarComparison({
+                labels: updatedRoadmap.skills.map((skill) => skill.label),
+                before: updatedRoadmap.skills.map((skill) => previousByCode.get(skill.code) ?? 0),
+                after: updatedRoadmap.skills.map((skill) => skill.level_out_of_ten ?? 0),
+                hasPriorResults: previousSkills.some((skill) => skill.level_out_of_ten !== null),
+                hasUnevaluatedBefore: updatedRoadmap.skills.some((skill) => previousByCode.get(skill.code) === null || previousByCode.get(skill.code) === undefined),
+              });
+            } catch (error) {
+              onNotify(error instanceof Error ? `Тест сохранён, но радар не обновлён: ${error.message}` : "Тест сохранён, но не удалось обновить радар", "error");
+            }
+          }
+          if (!result.assessment_id && result.skill_breakdown.length) {
+            setRadarComparison({
+              labels: result.skill_breakdown.map((skill) => skill.topic),
+              before: result.skill_breakdown.map(() => 0),
+              after: result.skill_breakdown.map((skill) => skill.percentage / 10),
+              hasPriorResults: false,
+              hasUnevaluatedBefore: true,
+            });
+          }
           if (result.skill_code && !result.assessment_id) apiGet<AdditionalSkillTestData[]>("/testing/additional").then(setAdditionalTests).catch(() => undefined);
           if (result.grade_confirmed) apiGet<CandidateProfileData>("/candidate/profile").then(setProfile).catch(() => undefined);
+        } else if (result.skill_breakdown.length) {
+          setRadarComparison({
+            labels: result.skill_breakdown.map((skill) => skill.topic),
+            before: result.skill_breakdown.map(() => 0),
+            after: result.skill_breakdown.map((skill) => skill.percentage / 10),
+            hasPriorResults: false,
+            hasUnevaluatedBefore: true,
+          });
         }
       } catch (error) {
         onNotify(error instanceof Error ? error.message : "Не удалось отправить ответы", "error");
@@ -2708,11 +3026,19 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <div><span>ЛИЧНЫЙ КАБИНЕТ</span><strong>{profile ? `${profile.first_name} ${profile.last_name}` : "Профиль кандидата"}</strong><p>{profile?.specialization ?? "Специализация не указана"} · заявленный уровень {profile?.declared_grade ?? "не указан"}</p></div>
         </div>
         <div className="metrics-grid">
-          <MetricCard label="ПРИГЛАШЕНИЯ" value={String(candidateInvitations.length)} detail={`${pendingInvitations} ждут ответа`} accent />
-          <MetricCard label="ЗАЯВЛЕННЫЙ УРОВЕНЬ" value={profile?.declared_grade ?? "—"} detail="Из профиля" />
-          <MetricCard label="ПОДТВЕРЖДЁННЫЙ УРОВЕНЬ" value={profile?.verified_grade ?? "—"} detail={profile?.verified_grade ? "Тест пройден" : "Можно пройти тест"} />
-          <MetricCard label="ФСП ID" value={profile?.fsp_verified ? "Демо-запись" : "Не привязан"} detail={profile?.fsp_id ?? ""} />
+          <MetricCard label="ПРИГЛАШЕНИЯ" value={String(candidateInvitations.length)} detail={`${pendingInvitations} ждут ответа`} accent icon="mail" />
+          <MetricCard label="ЗАЯВЛЕННЫЙ УРОВЕНЬ" value={profile?.declared_grade ?? "—"} detail="Из профиля" icon="layers" />
+          <MetricCard label="ПОДТВЕРЖДЁННЫЙ УРОВЕНЬ" value={profile?.verified_grade ?? "—"} detail={profile?.verified_grade ? "Тест пройден" : "Можно пройти тест"} icon="medal" />
+          <MetricCard label="ФСП ID" value={profile?.fsp_verified ? "Демо-запись" : "Не привязан"} detail={profile?.fsp_id ?? ""} icon="shield" />
         </div>
+        <section className="feature-card candidate-overview-radar">
+          <div className="feature-head"><div><span>КАРТА НАВЫКОВ</span><strong>Профиль и ориентир уровня</strong></div><span className="task-radar-card__badge">ДЕМО-ПРИМЕР</span></div>
+          {(() => {
+            const sample = SPECIALTY_RADAR_SAMPLES.find((item) => item.specialization === profile?.specialization) ?? SPECIALTY_RADAR_SAMPLES[0];
+            const target = sample.values.map((value) => Math.min(10, Number((value + 1.2).toFixed(1))));
+            return <div className="candidate-overview-radar__body"><div className="candidate-overview-radar__chart"><Radar values={sample.values} target={target} axisLabels={sample.labels} showAxisLabels={false} description={`Демонстрационное наложение радара профиля по направлению ${sample.specialization}`} /><div className="candidate-overview-radar__axes">{sample.labels.map((label) => <span key={label}>{label}</span>)}</div></div><div><span>{sample.specialization} · пример, не результат теста</span><div className="result-radar__legend"><span><i className="result-radar__legend-before" />Навыки профиля</span><span><i className="result-radar__legend-after" />Ориентир уровня</span></div><Button variant="outline" onClick={() => onNavigate("Мой грейд")}>Все радары</Button></div></div>;
+          })()}
+        </section>
         <div className="dashboard-grid">
           <section className="feature-card">
             <div className="feature-head"><div><span>ТЕКУЩИЙ СТАТУС</span><strong>{profile?.verified_grade ? "Уровень подтверждён" : "Уровень ожидает подтверждения"}</strong></div></div>
@@ -2807,7 +3133,29 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           </section>
           <section className="feature-card">
             <div className="feature-head"><div><span>РЕЗЮМЕ</span><strong>Опыт и документы</strong></div></div>
-            <div className="upload-box"><Icon name="briefcase" size={26} /><strong>{resumeUploading ? "Распознаём PDF…" : "Загрузить PDF-резюме"}</strong><span>До 10 МБ. Распознанные данные сначала появятся в черновике и не сохраняются без подтверждения.</span><input className="resume-file-input" type="file" accept="application/pdf,.pdf" disabled={resumeUploading} onChange={(event) => { void uploadResume(event.target.files?.[0]); event.currentTarget.value = ""; }} /></div>
+            <div
+              className={`upload-box upload-box--resume${resumeDragging ? " is-dragging" : ""}${resumeUploading ? " is-uploading" : ""}`}
+              onDragOver={(event) => { event.preventDefault(); setResumeDragging(true); }}
+              onDragLeave={() => setResumeDragging(false)}
+              onDrop={handleResumeDrop}
+            >
+              <div className="upload-box__icon"><Icon name="briefcase" size={24} /></div>
+              <strong>{resumeUploading ? "Распознаём резюме…" : resumeFileName || "Загрузите PDF-резюме"}</strong>
+              <span>{resumeUploading ? "Извлекаем навыки и данные профиля" : "Перетащите файл сюда или выберите его на устройстве. До 10 МБ."}</span>
+              <label className="button button--outline upload-box__browse" htmlFor="candidate-resume-upload">
+                <Icon name="upload" size={16} />{resumeUploading ? "Обрабатываем…" : "Выбрать PDF"}
+              </label>
+              <input
+                id="candidate-resume-upload"
+                className="resume-file-input"
+                type="file"
+                accept="application/pdf,.pdf"
+                disabled={resumeUploading}
+                aria-label="Загрузить PDF-резюме"
+                onChange={(event) => { void uploadResume(event.target.files?.[0]); event.currentTarget.value = ""; }}
+              />
+              <small>Данные сначала откроются в черновике — в профиль попадут только после вашего подтверждения.</small>
+            </div>
             {parsedResume && <div className="resume-entry" role="status" aria-live="polite">
               <span>ПРЕДПРОСМОТР · ДАННЫЕ ЕЩЁ НЕ СОХРАНЕНЫ</span>
               <div className="resume-review-grid">
@@ -2848,6 +3196,17 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               {testPurpose === "grade" && testResult?.assessment_id && <span>Для грейда нужны все обязательные навыки: от 75% суммарно и от 50% по каждому.</span>}
               {testPurpose === "grade" && testResult?.skill_code && !testResult.assessment_id && <span>Это дополнительный навык; его баллы не входят в расчёт грейда.</span>}
             </div>
+            {radarComparison && <section className="result-radar" aria-label="Изменение карты навыков после теста">
+              <div className="result-radar__copy">
+                <span>ОБНОВЛЕНИЕ КАРТЫ</span>
+                <h2>Радар после теста</h2>
+                <p>{!radarComparison.hasPriorResults ? "Показан фактический результат теста; ранее навыки не оценивались." : radarComparison.hasUnevaluatedBefore ? "Сравнение с прежними результатами. Не пройденные ранее навыки показаны от нуля." : "Сравнение результатов до и после этого этапа."}</p>
+                <div className="result-radar__legend"><span><i className="result-radar__legend-before" />{radarComparison.hasPriorResults ? "До теста" : "До оценки"}</span><span><i className="result-radar__legend-after" />После теста</span></div>
+              </div>
+              <div className="result-radar__chart">
+                <Radar key={testResult?.session_id} values={radarComparison.after} target={radarComparison.before} axisLabels={radarComparison.labels} showAxisLabels={false} className="radar--animate" description="Сравнение карты навыков до и после теста" />
+              </div>
+            </section>}
             {testResult?.question_review?.length ? (
               <>
                 <div className="topic-summary">
@@ -2993,6 +3352,10 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   if (active === "Мой грейд") {
     const gradeSkills = roadmap?.skills ?? [];
     const gradeSkillValues = gradeSkills.map((skill) => skill.level_out_of_ten ?? 0);
+    const careerPaths = getCareerPathSuggestions(
+      profile?.specialization,
+      [...(profile?.skills ?? []), ...gradeSkills.map((skill) => skill.label)],
+    );
     return (
       <div className="page-content">
         <section className="grade-hero">
@@ -3032,6 +3395,28 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             <Button variant="outline" onClick={() => onNavigate("Тестирование")}>Перейти к тестам</Button>
           </section>
         </div>
+        <SpecialtyRadarGallery currentSpecialization={profile?.specialization} currentSkills={gradeSkills} />
+        <section className="career-paths">
+          <div className="career-paths__head">
+            <div><span>РАЗВИТИЕ КАРЬЕРЫ</span><h2>Смежные направления для исследования</h2></div>
+            <p>Это идеи для изучения на основе текущей специализации и навыков, а не оценка готовности или обещание новой роли.</p>
+          </div>
+          {!profile?.skills?.length && !gradeSkills.length && <div className="career-paths__note"><Icon name="sparkle" size={16} />Добавьте навыки в профиль или пройдите тест — тогда подсказки смогут учитывать больше ваших данных.</div>}
+          <div className="career-paths__grid">
+            {careerPaths.map((path) => (
+              <article className="career-path-card" key={path.specialization}>
+                <div className="career-path-card__top"><span><Icon name="arrowUpRight" size={16} /> МОЖНО ИССЛЕДОВАТЬ</span><strong>{path.specialization}</strong></div>
+                <p>{path.description}</p>
+                <div className="career-path-card__evidence">
+                  <span>{path.matchedSignals.length ? "Пересекается с вашими навыками" : "Что можно попробовать изучить"}</span>
+                  <div>{(path.matchedSignals.length ? path.matchedSignals : path.signals.slice(0, 3)).map((signal) => <i key={signal}>{signal}</i>)}</div>
+                </div>
+                <Button variant="outline" onClick={() => { onNavigate("Профиль"); onNotify(`Чтобы рассмотреть «${path.specialization}», выберите специализацию в профиле и сохраните изменения. Текущий грейд не меняется автоматически.`); }}>Рассмотреть направление</Button>
+              </article>
+            ))}
+          </div>
+          <div className="career-paths__foot"><Icon name="info" size={16} /><span>Тестирование грейда пока доступно только для Backend. Для других специализаций здесь показаны направления для самостоятельного исследования, а не результаты теста.</span></div>
+        </section>
         <section className="feature-card grade-history-card">
           <div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Результаты проверок</strong></div><Button onClick={() => onNavigate("Тестирование")}>Пройти тест</Button></div>
           {testHistory.length ? <div className="history-table history-table--tests">{testHistory.map((item) => <div key={item.id}><span>{new Date(item.created_at).toLocaleDateString("ru-RU")}</span><strong>{item.skill_code ? `${roadmap?.skills.find((skill) => skill.code === item.skill_code)?.label ?? additionalTests.find((skill) => skill.code === item.skill_code)?.label ?? item.skill_code} · ${item.target_grade}` : `${item.specialization} · ${item.target_grade}`}</strong><b>{item.status === "completed" ? item.assessment_id ? "Обязательный навык" : item.skill_code ? "Дополнительный навык" : "Общий тест прежнего формата" : item.status === "expired" ? "Срок истёк" : item.status === "cancelled" ? "Прерван" : "В процессе"}</b><em>{item.status === "completed" ? `${item.percentage}%` : "—"}</em></div>)}</div> : <div className="empty-state">Истории тестирования пока нет</div>}
@@ -3042,24 +3427,28 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     );
   }
 
-  if (!demoMode && active === "Задания") {
+  if (active === "Задания") {
     return (
       <div className="page-content">
         <div className="task-hero"><div><span>АКТУАЛЬНОСТЬ ПРОФИЛЯ</span><strong>Профиль активен</strong><p>Последняя активность 2 дня назад. Баллы радара не затухают.</p></div><div className="recency-scale"><span className="active">Активен</span><span>Недавно активен</span><span>Устаревает</span><span>Неактивен</span></div></div>
+        <div className="task-demo-note"><Icon name="sparkle" size={18} /><span>Примеры заданий и обновления радара ниже — демонстрация интерфейса, не реальные результаты.</span></div>
         <div className="task-list">
-          <article className="task-card"><div className="task-card__type">&lt;/&gt;</div><div><span>ПЛАТФОРМЕННАЯ · 10–15 МИН</span><strong>Оптимизация SQL-запроса</strong><p>Найдите причину медленного выполнения запроса и предложите индексы.</p><div className="tags"><span>Базы данных</span><span>+0,4 к карте навыков</span></div></div><div className="task-card__action"><span>до 24 мая</span><Button onClick={() => { setTaskDone(true); onNotify("Задание открыто — таймер начнётся после подтверждения"); }}>{taskDone ? "Выполнено" : "Начать"}</Button></div></article>
+          <article className="task-card"><div className="task-card__type">&lt;/&gt;</div><div><span>ПЛАТФОРМЕННАЯ · 10–15 МИН</span><strong>Оптимизация SQL-запроса</strong><p>Найдите причину медленного выполнения запроса и предложите индексы.</p><div className="tags"><span>Базы данных</span><span>Пример обновления +0,4</span></div></div><div className="task-card__action"><span>до 24 мая</span><Button onClick={() => { setTaskDone(true); onNotify("Демо-задание открыто. Его результат не изменяет реальные данные."); }}>{taskDone ? "В работе" : "Начать"}</Button></div></article>
           <article className="task-card"><div className="task-card__type task-card__type--red"><Icon name="briefcase" /></div><div><span>ОТ NOVATECH · 10 МИН</span><strong>Code review обработчика API</strong><p>Найдите проблемы безопасности и производительности в сниппете.</p><div className="tags"><span>API</span><span>Code Quality</span></div></div><div className="task-card__action"><span>до 27 мая</span><Button variant="outline">Открыть</Button></div></article>
         </div>
+        <section className="feature-card task-radar-card">
+          <div className="feature-head"><div><span>ИНТЕРАКТИВНЫЙ ПРИМЕР</span><strong>Как задание может изменить карту</strong></div><span className="task-radar-card__badge">ДЕМО-ПРОФИЛЬ</span></div>
+          <div className="task-radar-card__body">
+            <div className="task-radar-card__chart"><Radar key={taskDemoShown ? "task-after" : "task-before"} values={demoTaskRadar} target={taskDemoShown ? [6.2, 7.1, 6.8, 7.4] : demoTaskRadar} axisLabels={["Язык и runtime", "API", "Базы данных", "Надёжность"]} showAxisLabels={false} className={taskDemoShown ? "radar--animate" : ""} description="Демонстрационная карта компетенций до и после задания" /></div>
+            <div className="task-radar-card__copy"><p>После завершения задания приложение сможет показать измеренную динамику по связанному навыку. Здесь — только пример анимации.</p><div className="result-radar__legend"><span><i className="result-radar__legend-before" />До задания</span><span><i className="result-radar__legend-after" />После · пример</span></div><Button variant="outline" disabled={taskDemoShown} onClick={() => { setDemoTaskRadar((values) => values.map((value, index) => index === 2 ? Math.min(10, Number((value + 0.4).toFixed(1))) : value)); setTaskDemoShown(true); }}>{taskDemoShown ? "Демо обновление показано" : "Показать пример обновления"}</Button></div>
+          </div>
+        </section>
         <section className="feature-card"><div className="feature-head"><div><span>ИСТОРИЯ</span><strong>Решённые задания</strong></div></div><div className="history-table"><div><span>12 мая</span><strong>Debug-кейс: очередь сообщений</strong><b>+0.3 API</b><em>9/10</em></div><div><span>28 апреля</span><strong>Архитектурное эссе</strong><b>+0.4 Architecture</b><em>8/10</em></div></div></section>
       </div>
     );
   }
 
   if (active === "Приглашения") return <Invitations onNotify={onNotify} onNavigate={onNavigate} />;
-
-  if (active === "Задания") {
-    return <div className="page-content"><section className="feature-card"><div className="feature-head"><div><span>ЗАДАНИЯ</span><strong>Короткие кейсы ещё не подключены</strong></div></div><p className="feature-description feature-description--left">Backend пока не предоставляет выдачу или сдачу регулярных заданий. Подтвердить категорию можно через тестирование.</p><Button onClick={() => onNavigate("Тестирование")}>Перейти к тестированию</Button></section></div>;
-  }
 
   if (active === "Вакансии") {
     const appliedVacancyIds = new Set(jobApplications.map((application) => application.vacancy_id));
@@ -3226,8 +3615,8 @@ function ResumeModal({
           </div>
           <aside className="resume-side">
             <section className="resume-section">
-              <span>КАРТА НАВЫКОВ</span>
-              <Radar values={candidate.radar} target={candidate.jobRadar} />
+              <span>{candidate.backendId ? "ДЕМО · КАРТА НАВЫКОВ" : "КАРТА НАВЫКОВ"}</span>
+              {candidate.radar.length ? <Radar values={candidate.radar} target={candidate.jobRadar} /> : <div className="swipe-skill-match"><strong>Профиль навыков</strong><p>Радар появится, когда будут доступны подтверждённые данные по компетенциям.</p></div>}
             </section>
             <section className="resume-section">
               <span>УСЛОВИЯ</span>
@@ -3823,7 +4212,7 @@ function App() {
       })
       .then((items) => {
         if (!cancelled && items) {
-          setBackendCandidates(items.map(mapMatchToCandidate));
+          setBackendCandidates(items.map((item, index) => mapMatchToCandidate(item, index, offlineDemo)));
           setSelectedCandidate(null);
         }
       })
@@ -3908,8 +4297,8 @@ function App() {
           ["users", "Подборка"],
           ["search", "Банк кандидатов"],
           ["briefcase", "Потребности"],
-          ["send", "Диалоги"],
-          ["send", "Приглашения"],
+          ["chat", "Диалоги"],
+          ["mail", "Приглашения"],
           ["briefcase", "Вакансии компании"],
           ["chart", "Аналитика"],
           ["settings", "Настройки"],
@@ -3920,8 +4309,8 @@ function App() {
           ["chart", "Тестирование"],
           ["compare", "Мой грейд"],
           ["briefcase", "Задания"],
-          ["send", "Диалоги"],
-          ["send", "Приглашения"],
+          ["chat", "Диалоги"],
+          ["mail", "Приглашения"],
           ["search", "Вакансии"],
           ["settings", "Настройки"],
         ];
@@ -4101,7 +4490,7 @@ function App() {
         </nav>
         <div className="mobile-nav-shortcuts" aria-label="Быстрая навигация">
           {["Обзор", "Диалоги", "Настройки"].map((item) => {
-            const itemIcon = item === "Обзор" ? "grid" : item === "Диалоги" ? "send" : "settings";
+            const itemIcon = item === "Обзор" ? "grid" : item === "Диалоги" ? "chat" : "settings";
             return <button key={item} type="button" className={active === item ? "active" : ""} onClick={() => navigateTo(item)}><Icon name={itemIcon} size={17} /><span>{item}</span></button>;
           })}
           <button type="button" className={mobileNavOpen ? "active" : ""} aria-expanded={mobileNavOpen} aria-controls="mobile-section-menu" onClick={() => setMobileNavOpen((value) => !value)}><Icon name={mobileNavOpen ? "close" : "menu"} size={17} /><span>{mobileNavOpen ? "Закрыть" : "Разделы"}</span></button>
@@ -4127,8 +4516,12 @@ function App() {
           </div>
           <div className="topbar__actions">
             {offlineDemo && <span className="demo-mode-badge">ДЕМО · ЛОКАЛЬНЫЕ ДАННЫЕ</span>}
-            <div className="role-switch role-switch--static" aria-label="Тип аккаунта">
-              {offlineDemo ? <><button type="button" className={role === "candidate" ? "active" : ""} onClick={() => { setRole("candidate"); setActive("Обзор"); window.localStorage.setItem("fsp-role", "candidate"); }}>Кандидат</button><button type="button" className={role === "employer" ? "active" : ""} onClick={() => { setRole("employer"); setActive("Обзор"); window.localStorage.setItem("fsp-role", "employer"); }}>Компания</button></> : <span>{role === "employer" ? "Компания" : "Кандидат"}</span>}
+            <div className={`role-switch role-switch--static${offlineDemo ? " role-switch--interactive" : ""}`} data-role={role} role="group" aria-label="Тип аккаунта">
+              {offlineDemo ? <>
+                <span className="role-switch__thumb" aria-hidden="true" />
+                <button type="button" aria-pressed={role === "candidate"} className={role === "candidate" ? "active" : ""} onClick={() => { setRole("candidate"); setActive("Обзор"); window.localStorage.setItem("fsp-role", "candidate"); }}><Icon name="users" size={16} /><span>Кандидат</span></button>
+                <button type="button" aria-pressed={role === "employer"} className={role === "employer" ? "active" : ""} onClick={() => { setRole("employer"); setActive("Обзор"); window.localStorage.setItem("fsp-role", "employer"); }}><Icon name="briefcase" size={16} /><span>Компания</span></button>
+              </> : <span className="role-switch__identity"><Icon name={role === "employer" ? "briefcase" : "users"} size={16} />{role === "employer" ? "Компания" : "Кандидат"}</span>}
             </div>
             <button
               type="button"
@@ -4141,9 +4534,6 @@ function App() {
             </button>
             <button type="button" className="icon-button" aria-label="Открыть диалоги" onClick={() => navigateTo("Диалоги")}>
               <Icon name="bell" />
-            </button>
-            <button type="button" className="logout-mobile" onClick={logout} aria-label="Выйти из аккаунта">
-              <Icon name="logout" />
             </button>
             {role === "employer" ? (
               <Button variant="outline" onClick={() => setActive("Потребности")}>
@@ -4158,6 +4548,7 @@ function App() {
         {active === "Диалоги" ? (
           <DialogsScreen
             employer={role === "employer"}
+            demoMode={offlineDemo}
             initialTarget={selectedDialogueTarget}
             onClearInitialTarget={() => setSelectedDialogueTarget(null)}
             onNotify={showNotice}
@@ -4266,7 +4657,11 @@ function App() {
                   </div>
                 </div>
                 <div className="candidate-card__middle">
-                  {candidate.backendId ? <div className="match-explanation">{candidate.summary}</div> : <Radar values={candidate.radar} target={candidate.jobRadar} compact />}
+                  {candidate.backendId && !(offlineDemo && candidate.radar.length)
+                    ? <div className="match-explanation">{candidate.summary}</div>
+                    : candidate.radar.length > 0
+                      ? <div className="candidate-card__radar-preview"><Radar values={candidate.radar} target={candidate.jobRadar} compact description={`Демонстрационное сравнение навыков ${candidate.name} с профилем вакансии`} />{candidate.backendId && <small>ДЕМО-КАРТА · НЕ РЕЗУЛЬТАТ ТЕСТА</small>}</div>
+                      : <div className="match-explanation">{candidate.summary}</div>}
                   <div className="candidate-card__facts">
                     <div><span>Опыт</span><strong>{candidate.experience}</strong></div>
                     <div><span>Ожидания</span><strong>{candidate.salary}</strong></div>
@@ -4388,7 +4783,7 @@ function App() {
               setSelectedCandidate(null);
               navigateTo("Подборка");
               apiGet<{ candidates: MatchingCandidate[] }>(`/matching/for-need/${need.id}`)
-                .then((response) => setBackendCandidates(response.candidates.map(mapMatchToCandidate)))
+                .then((response) => setBackendCandidates(response.candidates.map((item, index) => mapMatchToCandidate(item, index, offlineDemo))))
                 .catch((error: unknown) => showNotice(error instanceof Error ? error.message : "Не удалось сформировать подборку", "error"));
             }}
           />

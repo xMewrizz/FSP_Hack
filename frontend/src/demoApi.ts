@@ -404,7 +404,51 @@ const vacancies: DemoVacancy[] = [
   },
 ];
 
-const vacancyApplications: DemoVacancyApplication[] = [];
+const vacancyApplications: DemoVacancyApplication[] = [{
+  id: "demo-application-seed-1",
+  vacancy_id: "demo-vacancy-1",
+  status: "reviewed",
+  cover_letter: "Развиваю backend-сервисы на Python и FastAPI, работаю с PostgreSQL и очередями.",
+  created_at: "2026-10-05T10:00:00Z",
+  status_updated_at: "2026-10-05T13:00:00Z",
+  candidate_id: "demo-candidate-alex",
+  candidate: {
+    first_name: candidateProfile.first_name,
+    last_name: candidateProfile.last_name,
+    email: candidateProfile.email,
+    phone: candidateProfile.phone,
+    telegram: candidateProfile.telegram,
+    city: candidateProfile.city,
+    specialization: candidateProfile.specialization,
+    verified_grade: candidateProfile.verified_grade,
+    skills: ["Python", "FastAPI", "PostgreSQL", "Docker", "Redis"],
+  },
+  vacancy_title: vacancies[0].title,
+  company_name: vacancies[0].company.company_name,
+  salary_min: vacancies[0].salary_min,
+  salary_max: vacancies[0].salary_max,
+  salary_tax_type: vacancies[0].salary_tax_type,
+}];
+const vacancyApplicationMessages: Record<string, DemoInvitationMessage[]> = {
+  "demo-application-seed-1": [
+    {
+      id: "demo-application-seed-message-1",
+      invitation_id: "demo-application-seed-1",
+      sender_role: "candidate",
+      body: "Здравствуйте! Откликнулся на вакансию. Буду рад обсудить задачи платформенной команды.",
+      created_at: "2026-10-05T10:00:00Z",
+      read: true,
+    },
+    {
+      id: "demo-application-seed-message-2",
+      invitation_id: "demo-application-seed-1",
+      sender_role: "employer",
+      body: "Добрый день, Алексей! Спасибо за отклик. Посмотрим профиль и вернёмся с удобным временем для знакомства.",
+      created_at: "2026-10-05T13:00:00Z",
+      read: false,
+    },
+  ],
+};
 
 const questions = [
   {
@@ -559,6 +603,25 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       .filter((application) => application.candidate_id === "demo-candidate-alex")
       .map(({ candidate: _candidate, candidate_id: _candidateId, ...application }) => application) as T;
   }
+  if (route === "/vacancies/applications/conversations" && method === "GET") {
+    const role = currentRole();
+    return vacancyApplications
+      .filter((application) => role === "candidate"
+        ? application.candidate_id === "demo-candidate-alex"
+        : application.vacancy_id.startsWith("demo-vacancy-"))
+      .map((application) => {
+        const messages = vacancyApplicationMessages[application.id] ?? [];
+        return {
+          id: application.id,
+          vacancy_id: application.vacancy_id,
+          vacancy_title: application.vacancy_title,
+          company_name: application.company_name,
+          candidate_name: `${application.candidate.first_name} ${application.candidate.last_name}`,
+          status: application.status,
+          last_message: messages[messages.length - 1]?.body ?? "Отклик отправлен",
+        };
+      }) as T;
+  }
   if (route === "/vacancies" && method === "GET") {
     return vacancies.filter((vacancy) => vacancy.is_published) as T;
   }
@@ -625,7 +688,49 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       salary_tax_type: vacancy.salary_tax_type,
     };
     vacancyApplications.unshift(application);
+    vacancyApplicationMessages[application.id] = [{
+      id: `demo-application-message-${Date.now()}`,
+      invitation_id: application.id,
+      sender_role: "candidate",
+      body: `Здравствуйте! Откликнулся на вакансию «${vacancy.title}». Буду рад обсудить задачи команды и свой опыт.`,
+      created_at: now,
+      read: false,
+    }];
     return (({ candidate: _candidate, candidate_id: _candidateId, ...result }) => result)(application) as T;
+  }
+  const vacancyApplicationMessagesRoute = route.match(/^\/vacancies\/applications\/([^/]+)\/messages$/);
+  if (vacancyApplicationMessagesRoute) {
+    const application = vacancyApplications.find((item) => item.id === vacancyApplicationMessagesRoute[1]);
+    if (!application) throw new Error("Демо-отклик не найден");
+    const role = currentRole();
+    if (role === "candidate" && application.candidate_id !== "demo-candidate-alex") throw new Error("Демо-чат не найден");
+    if (role === "employer" && !application.vacancy_id.startsWith("demo-vacancy-")) throw new Error("Демо-чат не найден");
+    if (method === "GET") {
+      const messages = vacancyApplicationMessages[application.id] ?? [];
+      for (const message of messages) if (message.sender_role !== role) message.read = true;
+      return {
+        messages: messages.map(({ id, body, created_at, sender_role }) => ({
+          id,
+          body,
+          created_at,
+          is_mine: sender_role === role,
+        })),
+      } as T;
+    }
+    if (method === "POST") {
+      const text = String(body.body ?? "").trim();
+      if (!text || text.length > 4000) throw new Error("Сообщение должно содержать от 1 до 4000 символов");
+      const message: DemoInvitationMessage = {
+        id: `demo-application-message-${Date.now()}`,
+        invitation_id: application.id,
+        sender_role: role,
+        body: text,
+        created_at: new Date().toISOString(),
+        read: false,
+      };
+      (vacancyApplicationMessages[application.id] ??= []).push(message);
+      return { id: message.id, body: message.body, created_at: message.created_at, is_mine: true } as T;
+    }
   }
   const vacancyApplicationStatus = route.match(/^\/vacancies\/applications\/([^/]+)\/status$/);
   if (vacancyApplicationStatus && method === "PATCH") {
