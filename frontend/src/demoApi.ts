@@ -577,6 +577,7 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       suggested_grade: currentCandidateProfile.declared_grade,
       extracted_skills: candidates[0].skills,
       text_preview: "Опыт разработки API на Python, FastAPI и PostgreSQL. Работа с контейнерами Docker, очередями и тестированием сервисов.",
+      warnings: [],
     } as T;
   }
   if (route === "/candidate/profile/pdf" && method === "GET") return createDemoProfilePdf() as T;

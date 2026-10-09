@@ -9523,6 +9523,34 @@ select,
   color: var(--muted);
 }
 
+.app-shell .resume-review-grid .field {
+  margin: 0;
+}
+
+.app-shell .resume-review-grid .field input,
+.app-shell .resume-review-grid .field select {
+  width: 100%;
+}
+
+.app-shell .resume-skills-field {
+  grid-column: 1 / -1;
+}
+
+.app-shell .resume-warnings {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid #e7c4c4;
+  border-radius: var(--control-radius);
+  background: #fff6f6;
+  padding: 0.7rem 0.8rem;
+}
+
+.app-shell .resume-warnings p {
+  margin: 0;
+  color: #8a2b2b;
+  font-size: 0.8125rem;
+}
+
 .app-shell .invitation-chat-action {
   display: flex;
   justify-content: flex-end;

@@ -12,3 +12,4 @@ class ResumeParsedData(BaseModel):
     suggested_grade: str | None = None
     extracted_skills: list[str] = []
     text_preview: str = ""
+    warnings: list[str] = []

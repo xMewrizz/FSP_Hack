@@ -556,7 +556,32 @@ type ParsedResume = {
   suggested_grade: string | null;
   extracted_skills: string[];
   text_preview: string;
+  warnings?: string[];
 };
+
+type ResumeDraft = {
+  first_name: string;
+  last_name: string;
+  phone: string;
+  telegram: string;
+  city: string;
+  specialization: string;
+  suggested_grade: string;
+  skillsText: string;
+};
+
+function resumeDraftFromParsed(parsed: ParsedResume): ResumeDraft {
+  return {
+    first_name: parsed.first_name ?? "",
+    last_name: parsed.last_name ?? "",
+    phone: parsed.phone ?? "",
+    telegram: parsed.telegram ?? "",
+    city: parsed.city ?? "",
+    specialization: parsed.specialization ?? "",
+    suggested_grade: parsed.suggested_grade?.toLowerCase() ?? "",
+    skillsText: parsed.extracted_skills.join(", "),
+  };
+}
 
 type InvitationChatMessage = {
   id: string;
@@ -1457,7 +1482,7 @@ function EmployerScreen({
   const [bankItems, setBankItems] = useState<Candidate[]>([]);
   const [bankFilters, setBankFilters] = useState<BankFilters>(() => {
     const defaults = { query: "", skill: "", specialization: "", grade: "", format: "", city: "", fspOnly: false };
-    const savedFilters = window.localStorage.getItem("fsp-bank-filters");
+      const savedFilters = window.localStorage.getItem("fsp-bank-filters");
     if (!savedFilters) return defaults;
     let parsed: unknown;
     try {
@@ -1803,7 +1828,7 @@ function EmployerScreen({
         <div className="bank-results-heading">
           <div><strong>{bankLoading ? "Загрузка кандидатов…" : `${visibleBankItems.length} профилей`}</strong><span>Резюме и сравнение доступны в каждой карточке — не нужно искать кнопки в конце строки.</span></div>
           <span>Контакты открываются после принятия приглашения</span>
-        </div>
+              </div>
         <div className="candidate-directory-grid">
           {visibleBankItems.map((candidate) => {
             const selectedForCompare = bankCompare.some((item) => item.id === candidate.id);
@@ -1813,7 +1838,7 @@ function EmployerScreen({
                   <div className="avatar">{candidate.initials}</div>
                   <div><strong>{candidate.name}</strong><span>{candidate.location} · {candidate.format}</span></div>
                   {candidate.fspVerified && <span className="candidate-directory-card__badge"><Icon name="check" size={13} /> ФСП</span>}
-                </div>
+          </div>
                 <div className="candidate-directory-card__grade"><strong>{candidate.role}</strong><span>{candidate.level} · {candidate.verifiedGrade ? "подтверждён" : "заявлен"}</span></div>
                 {demoMode && candidate.radar.length > 0 && <div className="candidate-directory-card__radar"><Radar values={candidate.radar} target={candidate.jobRadar} compact description={`Демонстрационное сравнение карты навыков ${candidate.name}`} /><span>ДЕМО · ПРОФИЛЬ / ВАКАНСИЯ</span></div>}
                 <div className="mini-tags">{candidate.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}{candidate.skills.length > 4 && <span>+{candidate.skills.length - 4}</span>}</div>
@@ -1826,7 +1851,7 @@ function EmployerScreen({
                       ? current.filter((item) => item.id !== candidate.id)
                       : [...current, candidate])}
                   ><Icon name="compare" size={15} />{selectedForCompare ? "Убрать" : "Сравнить"}</Button>
-                </div>
+        </div>
               </article>
             );
           })}
@@ -1902,7 +1927,7 @@ function EmployerScreen({
             </div>
             {needEntryMode === "manual" ? <>
               <p className="feature-description feature-description--left">Укажите навыки и их важность для подбора: от 1 — базовый приоритет до 5 — критически важный.</p>
-              <div className="skill-weights">
+                <div className="skill-weights">
                 {skillItems.map((item, index) => (
                   <div key={`${item.name}-${index}`}>
                     <span>{item.name}</span>
@@ -1926,8 +1951,8 @@ function EmployerScreen({
                       <Icon name="close" size={14} />
                     </button>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
               <div className="skill-add-row">
                 <div className="skill-add-autocomplete" onBlur={(event) => {
                   if (!event.currentTarget.contains(event.relatedTarget)) setSkillSuggestionsOpen(false);
@@ -1966,8 +1991,8 @@ function EmployerScreen({
                 <Button variant="outline" onClick={applyNeedDraft}>Подставить навыки и поля</Button>
               </div>}
             </>}
-            <p className="feature-description feature-description--left">Требования и веса будут сохранены в потребности; подбор покажет кандидатов с объяснением совпадений.</p>
-            <Button disabled={needSaving} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
+                <p className="feature-description feature-description--left">Требования и веса будут сохранены в потребности; подбор покажет кандидатов с объяснением совпадений.</p>
+                <Button disabled={needSaving} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
           </section>
         </div>
       </div>
@@ -2050,7 +2075,7 @@ function EmployerScreen({
                 <Button variant="outline" onClick={() => editVacancy(vacancy)}>Редактировать</Button>
                 <Button variant={vacancy.is_published ? "ghost" : "primary"} onClick={() => void toggleVacancyPublication(vacancy)}>{vacancy.is_published ? "Снять" : "Опубликовать"}</Button>
                 <Button variant="ghost" onClick={() => { setVacancyEditor(false); void loadVacancyApplications(vacancy); }}>Отклики</Button>
-              </div>
+        </div>
             </article>
           ))}
           {!vacanciesLoading && shownVacancies.length === 0 && <div className="empty-state">{vacancyListFilter === "published" ? "Опубликованных вакансий пока нет." : vacancyListFilter === "drafts" ? "Неопубликованных вакансий пока нет." : "Вакансий пока нет. Создайте первую вакансию."}</div>}
@@ -2720,6 +2745,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [resumeDragging, setResumeDragging] = useState(false);
   const [resumeFileName, setResumeFileName] = useState("");
   const [parsedResume, setParsedResume] = useState<ParsedResume | null>(null);
+  const [resumeDraft, setResumeDraft] = useState<ResumeDraft | null>(null);
   const [fspInput, setFspInput] = useState("");
   const [diplomaStatus, setDiplomaStatus] = useState("");
   const [diplomaUploading, setDiplomaUploading] = useState(false);
@@ -2860,8 +2886,11 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     try {
       const parsed = await apiRequest<ParsedResume>("/candidate/resume/upload", { method: "POST", body });
       setParsedResume(parsed);
+      setResumeDraft(resumeDraftFromParsed(parsed));
       onNotify("Резюме распознано. Проверьте найденные поля, затем решите, какие использовать.");
     } catch (error) {
+      setParsedResume(null);
+      setResumeDraft(null);
       onNotify(error instanceof Error ? error.message : "Не удалось распознать резюме", "error");
     } finally {
       setResumeUploading(false);
@@ -2875,17 +2904,19 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   };
 
   const applyParsedResume = () => {
-    if (!parsedResume) return;
+    if (!parsedResume || !resumeDraft) return;
+    const reviewedSkills = resumeDraft.skillsText.split(",").map((skill) => skill.trim()).filter(Boolean);
+    const replaceSkills = parsedResume.extracted_skills.length > 0 || resumeDraft.skillsText.trim().length > 0;
     setProfile((current) => current ? {
       ...current,
-      first_name: parsedResume.first_name ?? current.first_name,
-      last_name: parsedResume.last_name ?? current.last_name,
-      phone: parsedResume.phone ?? current.phone,
-      telegram: parsedResume.telegram ?? current.telegram,
-      city: parsedResume.city ?? current.city,
-      specialization: parsedResume.specialization ?? current.specialization,
-      declared_grade: parsedResume.suggested_grade?.toLowerCase() ?? current.declared_grade,
-      skills: Array.from(new Set([...(current.skills ?? []), ...parsedResume.extracted_skills])),
+      first_name: resumeDraft.first_name.trim() || current.first_name,
+      last_name: resumeDraft.last_name.trim() || current.last_name,
+      phone: resumeDraft.phone.trim() || current.phone,
+      telegram: resumeDraft.telegram.trim() || current.telegram,
+      city: resumeDraft.city.trim() || current.city,
+      specialization: resumeDraft.specialization || current.specialization,
+      declared_grade: resumeDraft.suggested_grade || current.declared_grade,
+      skills: replaceSkills ? reviewedSkills : (current.skills ?? []),
     } : current);
     onNotify("Данные перенесены в черновик профиля. Проверьте их и нажмите «Сохранить профиль».");
   };
@@ -3278,22 +3309,57 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 aria-label="Загрузить PDF-резюме"
                 onChange={(event) => { void uploadResume(event.target.files?.[0]); event.currentTarget.value = ""; }}
               />
-              <small>Данные сначала откроются в черновике — в профиль попадут только после вашего подтверждения.</small>
+              <small>Файл сам ничего не записывает в профиль. Поправьте найденные поля и перенесите их отдельной кнопкой.</small>
             </div>
-            {parsedResume && <div className="resume-entry" role="status" aria-live="polite">
+            {parsedResume && resumeDraft && <div className="resume-entry" role="status" aria-live="polite">
               <span>ПРЕДПРОСМОТР · ДАННЫЕ ЕЩЁ НЕ СОХРАНЕНЫ</span>
+              {(parsedResume.warnings ?? []).length > 0 && <div className="resume-warnings" role="alert">
+                {(parsedResume.warnings ?? []).map((warning) => <p key={warning}>{warning}</p>)}
+              </div>}
               <div className="resume-review-grid">
-                {[
-                  ["Имя", [parsedResume.first_name, parsedResume.last_name].filter(Boolean).join(" ")],
-                  ["Email из файла · аккаунт не изменяется", parsedResume.email],
-                  ["Телефон", parsedResume.phone],
-                  ["Telegram", parsedResume.telegram],
-                  ["Город", parsedResume.city],
-                  ["Специализация", parsedResume.specialization],
-                  ["Предложенный уровень", parsedResume.suggested_grade],
-                ].map(([label, value]) => <div key={label}><small>{label}</small><strong>{value || "Не распознано"}</strong></div>)}
+                <label className="field">
+                  <small>Имя</small>
+                  <input aria-label="Имя из резюме" value={resumeDraft.first_name} onChange={(event) => setResumeDraft((current) => current ? { ...current, first_name: event.target.value } : current)} />
+                </label>
+                <label className="field">
+                  <small>Фамилия</small>
+                  <input aria-label="Фамилия из резюме" value={resumeDraft.last_name} onChange={(event) => setResumeDraft((current) => current ? { ...current, last_name: event.target.value } : current)} />
+                </label>
+                <div>
+                  <small>Email из файла · аккаунт не изменяется</small>
+                  <strong>{parsedResume.email || "Не распознано"}</strong>
+                </div>
+                <label className="field">
+                  <small>Телефон</small>
+                  <input aria-label="Телефон из резюме" value={resumeDraft.phone} onChange={(event) => setResumeDraft((current) => current ? { ...current, phone: event.target.value } : current)} />
+                </label>
+                <label className="field">
+                  <small>Telegram</small>
+                  <input aria-label="Telegram из резюме" value={resumeDraft.telegram} onChange={(event) => setResumeDraft((current) => current ? { ...current, telegram: event.target.value } : current)} />
+                </label>
+                <label className="field">
+                  <small>Город</small>
+                  <input aria-label="Город из резюме" value={resumeDraft.city} onChange={(event) => setResumeDraft((current) => current ? { ...current, city: event.target.value } : current)} />
+                </label>
+                <label className="field">
+                  <small>Специализация</small>
+                  <select aria-label="Специализация из резюме" value={resumeDraft.specialization} onChange={(event) => setResumeDraft((current) => current ? { ...current, specialization: event.target.value } : current)}>
+                    <option value="">Не распознано</option>
+                    {ALL_SPECIALIZATIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </label>
+                <label className="field">
+                  <small>Предложенный уровень</small>
+                  <select aria-label="Уровень из резюме" value={resumeDraft.suggested_grade} onChange={(event) => setResumeDraft((current) => current ? { ...current, suggested_grade: event.target.value } : current)}>
+                    <option value="">Не распознано</option>
+                    {ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                </label>
+                <label className="field resume-skills-field">
+                  <small>Навыки · через запятую</small>
+                  <input aria-label="Навыки из резюме" value={resumeDraft.skillsText} onChange={(event) => setResumeDraft((current) => current ? { ...current, skillsText: event.target.value } : current)} placeholder="Навыки не распознаны" />
+                </label>
               </div>
-              <strong>{parsedResume.extracted_skills.length ? parsedResume.extracted_skills.join(" · ") : "Навыки не распознаны"}</strong>
               <p>{parsedResume.text_preview.slice(0, 320) || "Текстовое превью недоступно."}</p>
               <Button variant="outline" onClick={applyParsedResume}>Перенести данные в профиль</Button>
             </div>}
@@ -3400,7 +3466,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               <div className="assessment-roadmap__title">
                 <div className="assessment-roadmap__icon"><Icon name="chart" size={22} /></div>
                 <div><span>ПУТЬ К ГРЕЙДУ</span><h2>{roadmap ? `${roadmap.specialization} · ${roadmap.target_grade}` : "Подтверждение навыков"}</h2></div>
-              </div>
+        </div>
               {roadmap && <div className={`assessment-roadmap__status assessment-roadmap__status--${roadmap.status}`}>
                 <i />{roadmap.status === "completed" ? roadmap.passed ? "Грейд подтверждён" : "Набор завершён" : roadmap.status === "expired" ? "Срок истёк" : roadmap.status === "cancelled" ? "Набор прерван" : "Набор открыт"}
               </div>}
@@ -3488,7 +3554,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             <div className="grade-hero__facts">
               <div><span>СПЕЦИАЛИЗАЦИЯ</span><strong>{profile?.specialization ?? "Не указана"}</strong></div>
               <div><span>ПОДТВЕРЖДЁННЫЙ ГРЕЙД</span><strong>{profile?.verified_grade ?? "Пока не подтверждён"}</strong></div>
-            </div>
+        </div>
             <p>{profile?.verified_grade ? "Уровень подтверждён по результатам тестирования." : `Заявленный уровень: ${profile?.declared_grade ?? "не указан"}. Подтвердите навыки тестированием.`}</p>
           </div>
           <div className="grade-stamp"><Icon name={profile?.verified_grade ? "check" : "chart"} /><span>{profile?.verified_grade ? "ГРЕЙД ПОДТВЕРЖДЁН" : "НУЖНО ПРОЙТИ ТЕСТ"}</span>{profile?.fsp_verified && <strong>ФСП ID привязан</strong>}</div>
@@ -4113,8 +4179,8 @@ function SwipeDeck({
   };
 
   if (!candidate) {
-    return (
-      <div className="swipe-workspace">
+  return (
+    <div className="swipe-workspace">
         <div className="swipe-complete">
           <div className="swipe-complete__icon"><Icon name="check" size={28} /></div>
           <span>ПРОСМОТР ЗАВЕРШЁН</span>
@@ -4388,9 +4454,9 @@ function App() {
         }
       })
       .catch((error: unknown) => {
-        if (!cancelled) {
-          setBackendCandidates([]);
-          showNotice(error instanceof Error ? error.message : "Не удалось загрузить подбор", "error");
+          if (!cancelled) {
+            setBackendCandidates([]);
+            showNotice(error instanceof Error ? error.message : "Не удалось загрузить подбор", "error");
         }
       });
     return () => { cancelled = true; };
@@ -4926,7 +4992,7 @@ function App() {
             <div className="panel-section">
               <div className="section-title">
                 <span>ТЕСТЫ ПО НАВЫКАМ ПОТРЕБНОСТИ</span>
-              </div>
+                </div>
               {selected.requestedSkillTests?.length ? <RequestedSkillRadar skills={selected.requestedSkillTests} /> : <p className="feature-description feature-description--left">В потребности не указаны навыки для сравнения.</p>}
             </div>
             <div className="explain-card">
