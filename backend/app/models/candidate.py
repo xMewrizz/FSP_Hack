@@ -64,6 +64,7 @@ class CandidateProfile(Base, TimestampMixin):
     agreed_osint_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     visibility_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    mentor_available: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="candidate_profile")

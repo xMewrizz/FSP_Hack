@@ -20,6 +20,21 @@ SKILL_LABELS = {
     "git": "Git и контроль версий",
 }
 
+# Только точные названия тем тестов. FastAPI, PostgreSQL и другие технологии
+# нельзя приравнивать к более широким тестам по API или SQL.
+BACKEND_MATCHING_SKILL_CODES = {
+    "python": "backend_python",
+    "python для backend": "backend_python",
+    "sql": "sql",
+    "sql и работа с данными": "sql",
+    "http api": "api",
+    "http api и интеграция": "api",
+    "надёжность сервиса": "reliability",
+    "надежность сервиса": "reliability",
+    "git": "git",
+    "git и контроль версий": "git",
+}
+
 BACKEND_QUESTION_CODES: dict[str, dict[str, tuple[str, ...]]] = {
     "junior": {
         "backend_python": ("BE-JR-02", "BE-JR-07", "BE-JR-08", *(f"BE-JR-{n}" for n in range(16, 23))),

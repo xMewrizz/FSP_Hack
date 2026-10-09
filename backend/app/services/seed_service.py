@@ -117,6 +117,58 @@ class SeedService:
             },
         ]
 
+        # Вымышленные профили для демонстрации разных направлений в Data Science.
+        # Навыки в анкете указаны кандидатом; отдельные тесты по ним не выдумываем.
+        ds_profiles = [
+            ("ds-junior-anna@example.com", "Анна", "Морозова", "junior", "Казань", "remote", 130000,
+             ["Python", "Pandas", "NumPy", "SQL", "Статистика", "Jupyter", "Matplotlib", "Git"],
+             "Аналитика продукта и подготовка данных. Дополнительно: Jupyter и Matplotlib."),
+            ("ds-junior-ilya@example.com", "Илья", "Егоров", "junior", "Москва", "hybrid", 150000,
+             ["Python", "Pandas", "SQL", "A/B-тесты", "Seaborn", "PostgreSQL"],
+             "Первые проекты в продуктовой аналитике. Дополнительно: Seaborn и PostgreSQL."),
+            ("ds-junior-polina@example.com", "Полина", "Федорова", "junior", "Новосибирск", "remote", 120000,
+             ["Python", "NumPy", "Pandas", "Scikit-learn", "SQL", "Plotly", "Git"],
+             "Обработка табличных данных и базовые модели. Дополнительно: Plotly и Git."),
+            ("ds-middle-marina@example.com", "Марина", "Соколова", "middle", "Санкт-Петербург", "remote", 250000,
+             ["Python", "Pandas", "SQL", "A/B-тесты", "Scikit-learn", "Airflow", "ClickHouse", "Docker"],
+             "Продуктовые эксперименты и пайплайны данных. Дополнительно: Airflow, ClickHouse и Docker."),
+            ("ds-middle-daniil@example.com", "Даниил", "Орлов", "middle", "Москва", "hybrid", 270000,
+             ["Python", "NumPy", "SQL", "Scikit-learn", "PyTorch", "OpenCV", "MLflow", "Docker"],
+             "Компьютерное зрение и воспроизводимые эксперименты. Дополнительно: OpenCV и MLflow."),
+            ("ds-middle-alina@example.com", "Алина", "Беляева", "middle", "Екатеринбург", "remote", 240000,
+             ["Python", "Pandas", "SQL", "Статистика", "XGBoost", "PySpark", "FastAPI"],
+             "Модели для табличных данных. Дополнительно: PySpark и FastAPI."),
+            ("ds-senior-viktor@example.com", "Виктор", "Крылов", "senior", "Москва", "remote", 390000,
+             ["Python", "SQL", "Статистика", "A/B-тесты", "Scikit-learn", "Causal inference", "Spark", "Airflow"],
+             "Дизайн экспериментов и оценка причинного эффекта. Дополнительно: Spark и Airflow."),
+            ("ds-senior-elizaveta@example.com", "Елизавета", "Романова", "senior", "Санкт-Петербург", "hybrid", 410000,
+             ["Python", "SQL", "PyTorch", "Transformers", "NLP", "MLflow", "Kubernetes", "FastAPI"],
+             "Модели обработки текста и вывод моделей в сервис. Дополнительно: MLflow и Kubernetes."),
+            ("ds-senior-artem@example.com", "Артём", "Лебедев", "senior", "Нижний Новгород", "remote", 380000,
+             ["Python", "SQL", "Scikit-learn", "PyTorch", "MLOps", "Kubeflow", "Docker", "CI/CD"],
+             "Жизненный цикл ML-моделей и мониторинг качества. Дополнительно: Kubeflow и CI/CD."),
+        ]
+        for index, (email, first_name, last_name, grade, city, work_format, salary, skills, bio) in enumerate(ds_profiles):
+            candidates_data.append({
+                "email": email,
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone": None,
+                "telegram": None,
+                "city": city,
+                "specialization": "Data Science / ML",
+                "declared_grade": grade,
+                "verified_grade": grade,
+                "demo_test_percentage": (78, 82, 76, 84, 88, 80, 91, 94, 86)[index],
+                "work_format": work_format,
+                "salary_expectation": float(salary),
+                "salary_tax_type": "gross",
+                "fsp_id": None,
+                "fsp_verified": False,
+                "skills": skills,
+                "bio": f"Вымышленный профиль для демо; результат теста сгенерирован. {bio}",
+            })
+
         candidate_profiles = []
         for c in candidates_data:
             stmt = select(User).where(User.email == c["email"])
@@ -181,15 +233,16 @@ class SeedService:
                         db.add(achievement)
 
                 if c["verified_grade"]:
+                    percentage = float(c.get("demo_test_percentage", 95.0))
                     session = TestSession(
                         user_id=user.id,
                         candidate_profile_id=profile.id,
                         specialization=c["specialization"],
                         target_grade=c["verified_grade"],
                         status="completed",
-                        score=95.0,
+                        score=percentage,
                         max_score=100.0,
-                        percentage=95.0,
+                        percentage=percentage,
                         passed=True,
                         feedback="Демонстрационный результат теста.",
                         completed_at=now,

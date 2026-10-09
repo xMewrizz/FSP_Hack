@@ -33,6 +33,7 @@ async def match_candidates(
 async def search_candidates(
     specialization: str | None = Query(None, description="Специализация"),
     grade: str | None = Query(None, description="Грейд (junior, middle, senior, lead)"),
+    skill: str | None = Query(None, max_length=100, description="Навык или технология из стека"),
     work_format: str | None = Query(None, description="Формат работы"),
     city: str | None = Query(None, description="Город"),
     fsp_only: bool = Query(False, description="Только спортсмены реестра ФСП"),
@@ -43,6 +44,7 @@ async def search_candidates(
         db=db,
         specialization=specialization,
         grade=grade,
+        skill=skill,
         work_format=work_format,
         city=city,
         fsp_only=fsp_only,

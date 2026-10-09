@@ -187,3 +187,6 @@ async def test_b22_resume_upload_and_parse(client: AsyncClient):
     assert "text_preview" in data
     assert len(data["text_preview"]) > 0
     assert data["specialization"] == "Backend"
+    unchanged = await client.get("/api/v1/candidate/profile", headers=cand_headers)
+    assert unchanged.status_code == 200
+    assert unchanged.json()["skills"] == []

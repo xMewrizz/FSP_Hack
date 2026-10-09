@@ -1,11 +1,13 @@
 from fastapi import APIRouter
 from app.api.v1.auth import router as auth_router
 from app.api.v1.candidate import router as candidate_router
+from app.api.v1.conversations import router as conversations_router
 from app.api.v1.employer import router as employer_router
 from app.api.v1.fsp_mock import router as fsp_router
 from app.api.v1.invitations import router as invitations_router
 from app.api.v1.matching import router as matching_router
 from app.api.v1.needs import router as needs_router
+from app.api.v1.network import router as network_router
 from app.api.v1.resume import router as resume_router
 from app.api.v1.system import router as system_router
 from app.api.v1.testing import router as testing_router
@@ -34,3 +36,5 @@ api_v1_router.include_router(needs_router)
 api_v1_router.include_router(matching_router)
 api_v1_router.include_router(invitations_router)
 api_v1_router.include_router(vacancies_router)
+api_v1_router.include_router(conversations_router)
+api_v1_router.include_router(network_router)

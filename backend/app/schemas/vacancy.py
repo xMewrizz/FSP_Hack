@@ -22,6 +22,8 @@ class VacancyBase(BaseModel):
 
 
 class VacancyCreate(VacancyBase):
+    is_published: bool = True
+
     @field_validator("salary_max")
     @classmethod
     def validate_salary_range(cls, v: float, info) -> float:

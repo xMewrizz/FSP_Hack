@@ -38,7 +38,7 @@ class VacancyService:
             work_format=data.work_format,
             city=data.city,
             description=data.description,
-            is_published=True,
+            is_published=data.is_published,
         )
         db.add(vacancy)
         await db.commit()

@@ -22,7 +22,6 @@ router = APIRouter(tags=["Candidate PDF & Resume Tools"])
 async def upload_resume(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_candidate),
-    db: AsyncSession = Depends(get_db),
 ):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Поддерживается только формат PDF")
@@ -32,18 +31,6 @@ async def upload_resume(
         raise HTTPException(status_code=400, detail="Размер файла не должен превышать 10 МБ")
 
     parsed_data = pdf_service.parse_resume_pdf(content)
-
-    # Save raw text preview to candidate profile
-    stmt = select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
-    res = await db.execute(stmt)
-    profile = res.scalar_one_or_none()
-    if profile:
-        profile.resume_text = parsed_data.text_preview
-        if parsed_data.extracted_skills:
-            current_skills = set(profile.skills or [])
-            current_skills.update(parsed_data.extracted_skills)
-            profile.skills = list(current_skills)
-        await db.commit()
 
     return parsed_data
 

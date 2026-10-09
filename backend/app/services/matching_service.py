@@ -3,19 +3,20 @@
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.ranking import rank_candidates
+from app.core.assessment_catalog import BACKEND_MATCHING_SKILL_CODES
 from app.models.candidate import CandidateProfile
 from app.models.need import EmployerNeed
-from app.models.test import GradeAssessment
+from app.models.test import GradeAssessment, TestSession
 from app.models.user import User
-from app.schemas.matching import CandidateMatchItem, MatchExplanation, MatchingCandidatesResponse
+from app.schemas.matching import CandidateMatchItem, MatchExplanation, MatchingCandidatesResponse, RequestedSkillTestResult
 
 
-def _candidate_data(candidate: CandidateProfile, percentage: float | None) -> dict:
+def _candidate_data(candidate: CandidateProfile, percentage: float | None, requested_skill_tests: list[RequestedSkillTestResult]) -> dict:
     return {
         "id": candidate.id,
         "specialization": candidate.verified_specialization or candidate.specialization,
@@ -23,6 +24,7 @@ def _candidate_data(candidate: CandidateProfile, percentage: float | None) -> di
         "declared_grade": candidate.declared_grade,
         "skills": candidate.skills or [],
         "test_percentage": percentage,
+        "requested_skill_tests": [item.model_dump() for item in requested_skill_tests],
         "work_format": candidate.work_format,
         "city": candidate.city,
         "salary_expectation": candidate.salary_expectation,
@@ -48,7 +50,49 @@ def _need_data(need: EmployerNeed) -> dict:
     }
 
 
-def _match_item(candidate: CandidateProfile, score: dict, percentage: float | None, need: EmployerNeed) -> CandidateMatchItem:
+def _requested_skill_tests(
+    need: EmployerNeed,
+    base_sessions: dict[str, TestSession],
+    additional_sessions: dict[str, TestSession],
+) -> list[RequestedSkillTestResult]:
+    requirements: dict[str, tuple[str, float]] = {}
+    for item in need.required_skills or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        try:
+            weight = float(item.get("weight", 1))
+        except (TypeError, ValueError):
+            continue
+        if name and weight > 0:
+            key = name.casefold()
+            previous = requirements.get(key)
+            requirements[key] = (previous[0] if previous else name, max(weight, previous[1] if previous else 0))
+
+    aliases = BACKEND_MATCHING_SKILL_CODES if need.specialization.casefold() == "backend" else {}
+    results = []
+    for key, (name, weight) in requirements.items():
+        code = aliases.get(key)
+        base_session = base_sessions.get(code) if code else None
+        session = base_session or (additional_sessions.get(code) if code else None)
+        results.append(RequestedSkillTestResult(
+            name=name,
+            weight=weight,
+            percentage=session.percentage if session else None,
+            test_grade=session.target_grade if session else None,
+            test_kind=("base" if base_session else "additional") if session else None,
+            completed_at=session.completed_at if session else None,
+        ))
+    return results
+
+
+def _match_item(
+    candidate: CandidateProfile,
+    score: dict,
+    percentage: float | None,
+    need: EmployerNeed,
+    requested_skill_tests: list[RequestedSkillTestResult],
+) -> CandidateMatchItem:
     tax_labels = {"gross": "до вычета НДФЛ", "net": "на руки"}
     candidate_tax = tax_labels.get(candidate.salary_tax_type, candidate.salary_tax_type)
     need_tax = tax_labels.get(need.salary_tax_type, need.salary_tax_type)
@@ -68,6 +112,11 @@ def _match_item(candidate: CandidateProfile, score: dict, percentage: float | No
         summary.append(f"Совпали навыки: {', '.join(matched)}.")
     if missing:
         summary.append(f"Не указаны навыки: {', '.join(missing)}.")
+    summary.append(
+        f"Отдельные результаты тестов есть по {score['tested_skill_count']} из "
+        f"{score['requested_skill_count']} запрошенных навыков. "
+        "Балл учитывает подтверждённые результаты и навыки из анкеты; отсутствие результата не означает отсутствие навыка."
+    )
     if score["salary_match"]:
         summary.append("Зарплатные ожидания соответствуют бюджету.")
     elif candidate.salary_expectation is not None and candidate.salary_tax_type != need.salary_tax_type:
@@ -106,6 +155,7 @@ def _match_item(candidate: CandidateProfile, score: dict, percentage: float | No
             salary_note=salary_note,
             summary=" ".join(summary),
         ),
+        requested_skill_tests=requested_skill_tests,
     )
 
 
@@ -131,7 +181,14 @@ class MatchingService:
                 CandidateProfile.onboarding_completed.is_(True),
                 CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
-                CandidateProfile.verified_grade.is_not(None),
+                func.lower(CandidateProfile.verified_grade) == need.required_grade.casefold(),
+                or_(
+                    func.lower(CandidateProfile.verified_specialization) == need.specialization.casefold(),
+                    and_(
+                        CandidateProfile.verified_specialization.is_(None),
+                        func.lower(CandidateProfile.specialization) == need.specialization.casefold(),
+                    ),
+                ),
             )
         )).all()
         if not candidates:
@@ -148,6 +205,7 @@ class MatchingService:
             .order_by(GradeAssessment.completed_at.desc())
         )).all()
         confirmed_results: dict[uuid.UUID, float] = {}
+        confirmed_assessments: dict[uuid.UUID, uuid.UUID] = {}
         for assessment in assessments:
             candidate = by_id.get(assessment.candidate_profile_id)
             if (
@@ -157,6 +215,7 @@ class MatchingService:
                 and assessment.specialization.casefold() == (candidate.verified_specialization or candidate.specialization or "").casefold()
             ):
                 confirmed_results[candidate.id] = assessment.percentage
+                confirmed_assessments[candidate.id] = assessment.id
 
         for candidate in candidates:
             if candidate.id in confirmed_results:
@@ -171,12 +230,54 @@ class MatchingService:
             if legacy_result is not None:
                 confirmed_results[candidate.id] = legacy_result.percentage
 
+        aliases = BACKEND_MATCHING_SKILL_CODES if need.specialization.casefold() == "backend" else {}
+        requested_codes = {
+            aliases.get(str(item.get("name") or "").strip().casefold())
+            for item in (need.required_skills or []) if isinstance(item, dict)
+        } - {None}
+        sessions = (await db.scalars(
+            select(TestSession)
+            .where(
+                TestSession.candidate_profile_id.in_([item.id for item in candidates]),
+                TestSession.status == "completed",
+                TestSession.skill_code.in_(requested_codes),
+                or_(
+                    TestSession.assessment_id.in_(list(confirmed_assessments.values())),
+                    TestSession.assessment_id.is_(None),
+                ),
+            )
+            .order_by(TestSession.completed_at.desc(), TestSession.created_at.desc())
+        )).all() if requested_codes else []
+        base_by_candidate: dict[uuid.UUID, dict[str, TestSession]] = {}
+        additional_by_candidate: dict[uuid.UUID, dict[str, TestSession]] = {}
+        for session in sessions:
+            candidate = by_id[session.candidate_profile_id]
+            if (
+                session.target_grade.casefold() != (candidate.verified_grade or "").casefold()
+                or session.specialization.casefold() != (candidate.verified_specialization or candidate.specialization or "").casefold()
+            ):
+                continue
+            if session.assessment_id is not None and session.assessment_id == confirmed_assessments.get(candidate.id):
+                base_by_candidate.setdefault(candidate.id, {}).setdefault(session.skill_code, session)
+            elif session.assessment_id is None:
+                additional_by_candidate.setdefault(candidate.id, {}).setdefault(session.skill_code, session)
+        skill_tests_by_candidate = {
+            candidate.id: _requested_skill_tests(
+                need,
+                base_by_candidate.get(candidate.id, {}),
+                additional_by_candidate.get(candidate.id, {}),
+            )
+            for candidate in candidates
+        }
         ranked = rank_candidates(
             _need_data(need),
-            [_candidate_data(item, confirmed_results.get(item.id)) for item in candidates],
+            [_candidate_data(item, confirmed_results.get(item.id), skill_tests_by_candidate[item.id]) for item in candidates],
         )
         items = [
-            _match_item(by_id[result["candidate_id"]], result, confirmed_results.get(result["candidate_id"]), need)
+            _match_item(
+                by_id[result["candidate_id"]], result, confirmed_results.get(result["candidate_id"]), need,
+                skill_tests_by_candidate[result["candidate_id"]],
+            )
             for result in ranked
         ]
         return MatchingCandidatesResponse(need_id=need.id, need_title=need.title, total=len(items), candidates=items)
@@ -186,6 +287,7 @@ class MatchingService:
         db: AsyncSession,
         specialization: str | None = None,
         grade: str | None = None,
+        skill: str | None = None,
         work_format: str | None = None,
         city: str | None = None,
         fsp_only: bool = False,
@@ -212,6 +314,12 @@ class MatchingService:
             stmt = stmt.where(CandidateProfile.fsp_verified.is_(True))
 
         candidates = (await db.scalars(stmt)).all()
+        if skill and skill.strip():
+            skill_query = skill.strip().casefold()
+            candidates = [
+                candidate for candidate in candidates
+                if any(skill_query in candidate_skill.casefold() for candidate_skill in (candidate.skills or []))
+            ]
         return [
             CandidateMatchItem(
                 candidate_id=candidate.id,
