@@ -331,6 +331,7 @@ type EmployerNeedRecord = {
 };
 
 type NeedDraft = {
+  source: "llm";
   specialization: string | null;
   required_grade: string | null;
   required_skills: Array<{ name: string; weight: number }>;
@@ -903,6 +904,7 @@ function EmployerScreen({
     { name: "CI/CD", weight: 3 },
   ]);
   const [newSkillName, setNewSkillName] = useState("");
+  const [needEntryMode, setNeedEntryMode] = useState<"manual" | "llm">("manual");
   const [needDraft, setNeedDraft] = useState<NeedDraft | null>(null);
   const [needParsing, setNeedParsing] = useState(false);
 
@@ -1069,13 +1071,14 @@ function EmployerScreen({
     setNeedWorkFormat(needDraft.work_format ?? "");
     setNeedCity("");
     setNeedDraft(null);
+    setNeedEntryMode("manual");
     onNotify("Найденные поля перенесены в форму. Проверьте их и заполните остальные.");
   };
 
   const needDraftSummary = needDraft ? [
     needDraft.specialization && `Специализация: ${needDraft.specialization}`,
     needDraft.required_grade && `Грейд: ${needDraft.required_grade}`,
-    needDraft.required_skills.length > 0 && `Навыки: ${needDraft.required_skills.map((skill) => skill.name).join(", ")}`,
+    needDraft.required_skills.length > 0 && `Навыки: ${needDraft.required_skills.map((skill) => `${skill.name} ${skill.weight}/5`).join(", ")}`,
     needDraft.salary_min !== null && needDraft.salary_max !== null && `Зарплата: ${needDraft.salary_min}–${needDraft.salary_max} ₽`,
     needDraft.salary_tax_type && `Зарплата: ${needDraft.salary_tax_type === "net" ? "на руки" : "до вычета"}`,
     needDraft.work_format && `Формат: ${needDraft.work_format}`,
@@ -1196,16 +1199,21 @@ function EmployerScreen({
           <div><b>2</b><span>Оценка важности</span></div>
           <div><b>3</b><span>Публикация</span></div>
         </div>
-        <div className="split-layout">
+        <div className="field-row field-row--flush" aria-label="Способ заполнения потребности">
+          <Button variant={needEntryMode === "manual" ? "primary" : "outline"} onClick={() => { setNeedEntryMode("manual"); setNeedDraft(null); }}>Задать фильтр вручную</Button>
+          <Button variant={needEntryMode === "llm" ? "primary" : "outline"} onClick={() => setNeedEntryMode("llm")}>Описать задачу для LLM</Button>
+        </div>
+        <div className="split-layout" style={needEntryMode === "llm" ? { gridTemplateColumns: "1fr" } : undefined}>
           <section className="feature-card">
-            <div className="feature-head"><div><span>ШАГ 1 ИЗ 3</span><strong>Опишите специалиста</strong></div></div>
+            <div className="feature-head"><div><span>ШАГ 1 ИЗ 3</span><strong>{needEntryMode === "llm" ? "Опишите задачи" : "Опишите специалиста"}</strong></div></div>
             <label className="field field--flush"><span>ОПИСАНИЕ ПОТРЕБНОСТИ</span><textarea value={needDescription} onChange={(event) => { setNeedDescription(event.target.value); setNeedDraft(null); }} placeholder="Опишите задачи команды, стек и приоритеты роли." /></label>
-            <Button variant="outline" disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing ? "Разбираем…" : "Предложить поля из описания"}</Button>
+            {needEntryMode === "llm" && <><p className="feature-description feature-description--left">Опишите задачи обычными словами. Модель предложит навыки и выставит их важность; перед сохранением всё можно изменить.</p><Button variant="outline" disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing ? "Подбираем…" : "Предложить навыки с LLM"}</Button></>}
             {needDraft && <div className="need-draft" aria-label="Предложенные поля">
-              <p className="feature-description feature-description--left">{needDraftSummary.length ? needDraftSummary.join(" · ") : "Не удалось уверенно определить поля. Заполните форму вручную."}</p>
-              {needDraftSummary.length > 0 && <><p className="feature-description feature-description--left">Важность найденных навыков пока 3 из 5. Проверьте её вместе с остальными полями.</p><Button variant="outline" onClick={applyNeedDraft}>Подставить в форму</Button></>}
+              <p className="feature-description feature-description--left">{needDraftSummary.join(" · ")}</p>
+              <p className="feature-description feature-description--left">Проверьте предложенные навыки и значения ползунков. Пустые поля заполните сами.</p>
+              <Button variant="outline" onClick={applyNeedDraft}>Подставить в форму</Button>
             </div>}
-            <div className="field-row field-row--flush">
+            {needEntryMode === "manual" && <><div className="field-row field-row--flush">
               <label className="field"><span>НАЗВАНИЕ РОЛИ</span><input value={needTitle} onChange={(event) => setNeedTitle(event.target.value)} /></label>
               <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => handleSpecializationChange(event.target.value)}><option value="">Выберите специализацию</option>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
@@ -1226,9 +1234,9 @@ function EmployerScreen({
                 <option value="net">На руки (net)</option>
               </select>
             </label>
-            <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="">Выберите формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
+            <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="">Выберите формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div></>}
           </section>
-          <section className="feature-card">
+          {needEntryMode === "manual" && <section className="feature-card">
             <div className="feature-head"><div><span>ТРЕБОВАНИЯ ДЛЯ ПОДБОРА</span><strong>Важность навыков — от 1 до 5</strong></div></div>
             <p className="feature-description feature-description--left">Чем выше значение, тем сильнее этот навык влияет на позицию кандидата в подборке.</p>
             <div className="skill-weights">
@@ -1275,7 +1283,7 @@ function EmployerScreen({
             </div>
             <p className="feature-description feature-description--left">Требования и веса будут сохранены в потребности; подбор покажет кандидатов с объяснением совпадений.</p>
             <Button disabled={needSaving} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
-          </section>
+          </section>}
         </div>
       </div>
     );

@@ -24,6 +24,7 @@ class NeedTextRequest(BaseModel):
 
 
 class NeedDraftResponse(BaseModel):
+    source: Literal["llm"]
     specialization: str | None = None
     required_grade: Grade | None = None
     required_skills: list[SkillRequirement] = Field(default_factory=list)

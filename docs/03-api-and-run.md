@@ -33,6 +33,8 @@ docker compose up --build -d
 
 Адрес `VITE_API_URL` встраивается при сборке frontend. После его изменения нужна повторная сборка. Для проверки сценария на работающем backend запустите из `backend/` команду `uv run python smoke_compose.py` (при другом порте сначала задайте `$env:FSP_API_BASE_URL = "http://localhost:18000/api/v1"`). Скрипт создаёт две тестовые учётные записи.
 
+Режим «Описать задачу для LLM» использует Ollama. ML-сервис обращается к адресу `OLLAMA_HOST` (по умолчанию `http://host.docker.internal:11434`) и модели `OLLAMA_MODEL` (по умолчанию `qwen2.5:14b`). Эти значения задаются перед запуском Compose. Ответ запрашивается в JSON по схеме и затем проверяется сервисом; [формат запроса описан в документации Ollama](https://docs.ollama.com/capabilities/structured-outputs). Если Ollama не запущена или модель не установлена, этот режим выдаст ошибку, а ручное заполнение потребности останется доступным.
+
 Если обычные порты заняты, можно запустить отдельный Compose-проект с пустой базой:
 
 ```powershell
@@ -136,7 +138,7 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/needs/parse` | Предложить поля формы по тексту; ничего не сохраняет | `Bearer JWT` (Employer) | `{ "text": "Ищем Middle Backend-разработчика..." }` (20–5000 символов) | `200 OK`: найденные специализация, грейд, навыки, зарплата, тип зарплаты и формат; неизвестные поля — `null`. При недоступности сервиса разбора — `503`, ручная форма работает |
+| `POST` | `/needs/parse` | Через Ollama предложить навыки и их веса по описанию; ничего не сохраняет | `Bearer JWT` (Employer) | `{ "text": "Нужен специалист для API и работы с данными..." }` (20–5000 символов) | `200 OK`: предложения модели и явно найденные грейд, зарплата, тип зарплаты, формат. Если модель недоступна или ответ некорректен — `503`; ручная форма работает |
 | `POST` | `/needs` | Создать потребность в кандидате (с проверкой `salary_min <= salary_max`) | `Bearer JWT` (Employer) | `{ "title": "Senior Python Backend", "specialization": "Backend", "required_grade": "senior", "required_skills": [{"name": "PostgreSQL", "weight": 3}], "salary_min": 250000, "salary_max": 350000, "salary_tax_type": "gross", "currency": "RUB", "work_format": "remote", "city": "Москва", "description": "..." }` | `201 Created`: `EmployerNeedResponse` |
 | `GET` | `/needs` | Список потребностей текущей компании | `Bearer JWT` (Employer) | — | `200 OK`: Массив `EmployerNeedResponse` |
 | `GET` | `/needs/{id}` | Детали потребности своей компании | `Bearer JWT` (Employer) | — | `200 OK`: `EmployerNeedResponse` |

@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from need_parser import parse_need
+from need_llm import suggest_need
 
 app = FastAPI(title="FSP ML-service", version="0.1.0")
 
@@ -15,8 +16,12 @@ def health():
 
 
 @app.post("/parse-need")
-def parse_need_text(data: NeedText):
-    return parse_need(data.text)
+async def parse_need_text(data: NeedText):
+    try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            return await suggest_need(data.text, client)
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(status_code=503, detail="Не удалось получить предложения от модели") from None
 
 
 @app.post("/parse-resume")
