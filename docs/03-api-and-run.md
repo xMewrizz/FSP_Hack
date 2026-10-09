@@ -162,7 +162,7 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | Метод | URL | Описание | Авторизация | Параметры | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/matching/for-need/{need_id}` | Обратный подбор кандидатов под конкретную потребность (ранжирование, % соответствия, объяснение) | `Bearer JWT` (Employer) | `need_id` | `200 OK`: `MatchingCandidatesResponse` (ранжированные кандидаты, match_score, match_explanation, ФСП бонус) |
-| `GET` | `/matching/search` | Поиск по банку кандидатов с подтвержденными категориями | `Bearer JWT` (Employer) | Query: `specialization`, `grade` (только подтверждённый), `stack` (стек/навыки), `work_format`, `city`, `fsp_only`, `verified_only` | `200 OK`: Массив `CandidateMatchItem` |
+| `GET` | `/matching/search` | Поиск по банку опубликованных профилей с подтверждённым грейдом | `Bearer JWT` (Employer) | Query: `specialization`, `grade` (подтверждённый), `stack` или `skill` (навыки), `work_format`, `city`, `fsp_only`. Параметр `verified_only` оставлен для совместимости: без него выдача также ограничена подтверждёнными профилями. | `200 OK`: Массив `CandidateMatchItem` |
 
 ---
 

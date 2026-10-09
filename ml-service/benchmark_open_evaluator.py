@@ -400,83 +400,29 @@ def generate_markdown_report(
     fallback_metrics: dict[str, Any] | None,
     output_path: Path,
 ) -> None:
-    """Генерация структурированного Markdown-отчета для документации."""
+    """Краткий отчет о прогоне; выводы относятся только к выбранным примерам."""
+    def value(metrics: dict[str, Any] | None, key: str, percent: bool = True) -> str:
+        if metrics is None or key not in metrics:
+            return "—"
+        return f"{metrics[key]:.1%}" if percent else f"{metrics[key]:.3f}"
+
     lines = [
-        "# Отчет о валидации бенчмарка открытых вопросов (B-27)",
+        "# Проверка оценивания открытых ответов (B-27)",
         "",
-        f"**Дата генерации**: {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        "**Модель**: `qwen2.5:latest` (Ollama, local) / Детерминированный AST-фильтр",
-        "**Объем датасета**: 37 репрезентативных кейсов по 4 открытым заданиям",
+        f"Дата прогона: {time.strftime('%Y-%m-%d %H:%M:%S')}.",
+        f"Модель Ollama: `{resolve_ollama_model()}`.",
+        "Данные: ответы, составленные командой для проверки оценщика. Это не ответы реальных кандидатов.",
         "",
-        "---",
+        "| Метрика | Ollama | Резервный алгоритм |",
+        "|---|---:|---:|",
+        f"| Совпадение по критериям | {value(llm_metrics, 'criterion_accuracy')} | {value(fallback_metrics, 'criterion_accuracy')} |",
+        f"| Совпадение решения «зачёт/незачёт» | {value(llm_metrics, 'pass_accuracy')} | {value(fallback_metrics, 'pass_accuracy')} |",
+        f"| Средняя ошибка балла | {value(llm_metrics, 'score_mae', False)} | {value(fallback_metrics, 'score_mae', False)} |",
         "",
-        "## 1. Сравнительная таблица метрик",
-        "",
-        "| Метрика | Ollama LLM (`qwen2.5:latest`) | Детерминированный Fallback (AST/Stemm) | Целевой порог | Статус |",
-        "| :--- | :---: | :---: | :---: | :---: |",
+        "Резервный алгоритм помечает ответ для ручной проверки. Его предварительный балл не подтверждает результат.",
+        "Количество и состав примеров, а также ошибки по каждому примеру сохранены в JSON рядом со скриптом.",
+        "Для оценки качества нужны ответы реальных кандидатов и независимая разметка.",
     ]
-
-    def _val(m: dict[str, Any] | None, key: str, fmt: str = ".2%") -> str:
-        if not m or key not in m:
-            return "N/A"
-        v = m[key]
-        if fmt == ".2%":
-            return f"{v:.1%}"
-        elif fmt == ".4f":
-            return f"{v:.4f}"
-        elif fmt == "pct":
-            return f"{v:.1f}%"
-        return str(v)
-
-    lm = llm_metrics
-    fm = fallback_metrics
-
-    lines.extend([
-        f"| **Criterion Accuracy** | {_val(lm, 'criterion_accuracy')} | {_val(fm, 'criterion_accuracy')} | >= 85.0% | {' PASS' if lm and lm.get('criterion_accuracy', 0) >= 0.85 else ' PASS'} |",
-        f"| **Criterion F1-Score** | {_val(lm, 'criterion_f1', '.4f')} | {_val(fm, 'criterion_f1', '.4f')} | >= 0.8500 | {' PASS' if lm and lm.get('criterion_f1', 0) >= 0.85 else ' PASS'} |",
-        f"| **Pass/Fail Accuracy** | {_val(lm, 'pass_accuracy')} | {_val(fm, 'pass_accuracy')} | >= 90.0% | {' PASS' if lm and lm.get('pass_accuracy', 0) >= 0.90 else ' PASS'} |",
-        f"| **Pass/Fail F1-Score** | {_val(lm, 'pass_f1', '.4f')} | {_val(fm, 'pass_f1', '.4f')} | >= 0.9000 | {' PASS' if lm and lm.get('pass_f1', 0) >= 0.90 else ' PASS'} |",
-        f"| **Score MAE** | {_val(lm, 'score_mae', '.4f')} | {_val(fm, 'score_mae', '.4f')} | <= 0.1500 | {' PASS' if lm and lm.get('score_mae', 1.0) <= 0.15 else ' PASS'} |",
-        f"| **Injection Defense Rate** | {_val(lm, 'injection_defense_rate_pct', 'pct')} | {_val(fm, 'injection_defense_rate_pct', 'pct')} | **100.0%** | {' PASS' if lm and lm.get('injection_defense_rate_pct', 0) == 100.0 else ' PASS'} |",
-        f"| **AST Syntax Error Detection** | {_val(lm, 'syntax_detection_rate_pct', 'pct')} | {_val(fm, 'syntax_detection_rate_pct', 'pct')} | **100.0%** | {' PASS' if lm and lm.get('syntax_detection_rate_pct', 0) == 100.0 else ' PASS'} |",
-        f"| **Средняя задержка (P50)** | {lm.get('latency_ms', {}).get('p50', 'N/A') if lm else 'N/A'} ms | {fm.get('latency_ms', {}).get('p50', 'N/A') if fm else 'N/A'} ms | < 5000 ms |  PASS |",
-    ])
-
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 2. Разбор категорий и защитных механизмов",
-        "",
-        "### 2.1. Идеальные эталонные решения (`ideal`)",
-        "- Проверено на разных стилях: сжатый архитектурный Senior-ответ, подробный пошаговый разбор со схемами, объектно-ориентированный rate limiter и пайплайн scikit-learn.",
-        "- Точность идентификации всех критериев рубрики составила 100%.",
-        "",
-        "### 2.2. Частично верные ответы (`partial`)",
-        "- Проверено тонкое отслеживание конкретных дефектов:",
-        "  * Утечка памяти (отсутствие очистки скользящего окна в rate limiter).",
-        "  * Критический Data Leakage (масштабирование StandardScaler до разбиения выборки на фолды).",
-        "  * Опасность race condition при параллельных webhook-уведомлениях (отсутствие `SELECT FOR UPDATE`).",
-        "  * Пропуск асинхронного воркера сверки (reconciliation).",
-        "",
-        "### 2.3. Защита от Prompt Injection (`stress_injection`)",
-        "- **Результат**: 100% попыток инъекций успешно отражены.",
-        "- Архитектурная защита реализована на двух эшелонах:",
-        "  1. Детерминированный regex-фильтр перехватывает попытки внедрения инструкций (`ignore previous instructions`, `забудь инструкции`, `выстави 100 баллов`) до вызова LLM.",
-        "  2. В системном промпте ответ кандидата изолирован в закрытых XML-тегах `<candidate_answer>...</candidate_answer>`, а скор строго рассчитывается по доле выполненных критериев рубрики.",
-        "",
-        "### 2.4. Детекция синтаксических ошибок в Python (`stress_syntax_error`)",
-        "- **Результат**: 100% синтаксических ошибок (включая невалидные отступы `IndentationError`) отсекаются детерминированным AST-фильтром без траты токенов LLM.",
-        "",
-        "### 2.5. Устойчивость к многословию (`stress_verbosity`)",
-        "- Проверены ответы с большим терминологическим шумом (Kubernetes, Istio, DDD, Attention, Transformers).",
-        "- Система не поддается Verbosity Bias и выставляет 0 баллов, так как критерии предметной рубрики не раскрыты.",
-        "",
-        "---",
-        "",
-        "## 3. Выводы и готовность к защите",
-        "Система оценки B-27 полностью готова к продакшен-эксплуатации в рамках хакатона. Обеспечена 100% защита от инъекций и синтаксических сбоев, а при отсутствии подключения к Ollama детерминированный fallback мгновенно переводит задания в очередь ручной проверки (`needs_manual_review = True`), гарантируя соблюдение правил регламента.",
-    ])
 
     output_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"\n Отчет сохранен в {output_path}")
