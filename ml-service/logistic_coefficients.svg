@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="858" height="336" viewBox="0 0 858 336">
+<rect width="100%" height="100%" fill="#fbfbfb"/>
+<text x="24" y="34" font-family="sans-serif" font-size="18">Коэффициенты логистической регрессии</text>
+<text x="225.0" y="84" text-anchor="middle" font-family="sans-serif" font-size="12">доля навыков</text>
+<text x="335.0" y="84" text-anchor="middle" font-family="sans-serif" font-size="12">тест</text>
+<text x="445.0" y="84" text-anchor="middle" font-family="sans-serif" font-size="12">формат</text>
+<text x="555.0" y="84" text-anchor="middle" font-family="sans-serif" font-size="12">город</text>
+<text x="665.0" y="84" text-anchor="middle" font-family="sans-serif" font-size="12">зарплата</text>
+<text x="775.0" y="84" text-anchor="middle" font-family="sans-serif" font-size="12">ФСП</text>
+<text x="156" y="128.0" text-anchor="end" font-family="sans-serif" font-size="13">не подходит</text>
+<rect x="170" y="96" width="102" height="56" fill="#3e3eff" stroke="#ffffff"/>
+<text x="221.0" y="129.0" text-anchor="middle" font-family="sans-serif" font-size="14">-2.96</text>
+<rect x="280" y="96" width="102" height="56" fill="#fefeff" stroke="#ffffff"/>
+<text x="331.0" y="129.0" text-anchor="middle" font-family="sans-serif" font-size="14">-0.01</text>
+<rect x="390" y="96" width="102" height="56" fill="#b2b2ff" stroke="#ffffff"/>
+<text x="441.0" y="129.0" text-anchor="middle" font-family="sans-serif" font-size="14">-1.18</text>
+<rect x="500" y="96" width="102" height="56" fill="#ebebff" stroke="#ffffff"/>
+<text x="551.0" y="129.0" text-anchor="middle" font-family="sans-serif" font-size="14">-0.30</text>
+<rect x="610" y="96" width="102" height="56" fill="#a3a3ff" stroke="#ffffff"/>
+<text x="661.0" y="129.0" text-anchor="middle" font-family="sans-serif" font-size="14">-1.40</text>
+<rect x="720" y="96" width="102" height="56" fill="#fefeff" stroke="#ffffff"/>
+<text x="771.0" y="129.0" text-anchor="middle" font-family="sans-serif" font-size="14">-0.01</text>
+<text x="156" y="192.0" text-anchor="end" font-family="sans-serif" font-size="13">можно рассмотреть</text>
+<rect x="170" y="160" width="102" height="56" fill="#c0c0ff" stroke="#ffffff"/>
+<text x="221.0" y="193.0" text-anchor="middle" font-family="sans-serif" font-size="14">-0.96</text>
+<rect x="280" y="160" width="102" height="56" fill="#fffafa" stroke="#ffffff"/>
+<text x="331.0" y="193.0" text-anchor="middle" font-family="sans-serif" font-size="14">0.08</text>
+<rect x="390" y="160" width="102" height="56" fill="#cfcfff" stroke="#ffffff"/>
+<text x="441.0" y="193.0" text-anchor="middle" font-family="sans-serif" font-size="14">-0.73</text>
+<rect x="500" y="160" width="102" height="56" fill="#f9f9ff" stroke="#ffffff"/>
+<text x="551.0" y="193.0" text-anchor="middle" font-family="sans-serif" font-size="14">-0.09</text>
+<rect x="610" y="160" width="102" height="56" fill="#fff8f8" stroke="#ffffff"/>
+<text x="661.0" y="193.0" text-anchor="middle" font-family="sans-serif" font-size="14">0.10</text>
+<rect x="720" y="160" width="102" height="56" fill="#f9f9ff" stroke="#ffffff"/>
+<text x="771.0" y="193.0" text-anchor="middle" font-family="sans-serif" font-size="14">-0.08</text>
+<text x="156" y="256.0" text-anchor="end" font-family="sans-serif" font-size="13">подходит</text>
+<rect x="170" y="224" width="102" height="56" fill="#ff0000" stroke="#ffffff"/>
+<text x="221.0" y="257.0" text-anchor="middle" font-family="sans-serif" font-size="14">3.92</text>
+<rect x="280" y="224" width="102" height="56" fill="#fbfbff" stroke="#ffffff"/>
+<text x="331.0" y="257.0" text-anchor="middle" font-family="sans-serif" font-size="14">-0.06</text>
+<rect x="390" y="224" width="102" height="56" fill="#ff8282" stroke="#ffffff"/>
+<text x="441.0" y="257.0" text-anchor="middle" font-family="sans-serif" font-size="14">1.92</text>
+<rect x="500" y="224" width="102" height="56" fill="#ffe5e5" stroke="#ffffff"/>
+<text x="551.0" y="257.0" text-anchor="middle" font-family="sans-serif" font-size="14">0.39</text>
+<rect x="610" y="224" width="102" height="56" fill="#ffaaaa" stroke="#ffffff"/>
+<text x="661.0" y="257.0" text-anchor="middle" font-family="sans-serif" font-size="14">1.29</text>
+<rect x="720" y="224" width="102" height="56" fill="#fff8f8" stroke="#ffffff"/>
+<text x="771.0" y="257.0" text-anchor="middle" font-family="sans-serif" font-size="14">0.09</text>
+</svg>
