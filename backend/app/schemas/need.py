@@ -19,6 +19,20 @@ class SkillRequirement(BaseModel):
         return clean
 
 
+class NeedTextRequest(BaseModel):
+    text: str = Field(..., min_length=20, max_length=5000)
+
+
+class NeedDraftResponse(BaseModel):
+    specialization: str | None = None
+    required_grade: Grade | None = None
+    required_skills: list[SkillRequirement] = Field(default_factory=list)
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_tax_type: Literal["gross", "net"] | None = None
+    work_format: WorkFormat | None = None
+
+
 class EmployerNeedCreate(BaseModel):
     title: str = Field(..., min_length=2, max_length=255)
     specialization: str = Field(..., min_length=2, max_length=100)

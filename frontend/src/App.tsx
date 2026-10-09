@@ -330,6 +330,16 @@ type EmployerNeedRecord = {
   is_active: boolean;
 };
 
+type NeedDraft = {
+  specialization: string | null;
+  required_grade: string | null;
+  required_skills: Array<{ name: string; weight: number }>;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_tax_type: "gross" | "net" | null;
+  work_format: string | null;
+};
+
 type BankFilters = {
   query: string;
   specialization: string;
@@ -882,7 +892,7 @@ function EmployerScreen({
   const [needDescription, setNeedDescription] = useState("");
   const [needSalaryMin, setNeedSalaryMin] = useState("220000");
   const [needSalaryMax, setNeedSalaryMax] = useState("280000");
-  const [needSalaryTaxType, setNeedSalaryTaxType] = useState<"gross" | "net">("gross");
+  const [needSalaryTaxType, setNeedSalaryTaxType] = useState<"gross" | "net" | "">("gross");
   const [needCity, setNeedCity] = useState("");
   const [needWorkFormat, setNeedWorkFormat] = useState("remote");
   const [skillItems, setSkillItems] = useState<Array<{ name: string; weight: number }>>([
@@ -893,6 +903,8 @@ function EmployerScreen({
     { name: "CI/CD", weight: 3 },
   ]);
   const [newSkillName, setNewSkillName] = useState("");
+  const [needDraft, setNeedDraft] = useState<NeedDraft | null>(null);
+  const [needParsing, setNeedParsing] = useState(false);
 
   const handleAddSkill = () => {
     const trimmed = newSkillName.trim();
@@ -985,6 +997,10 @@ function EmployerScreen({
   );
 
   const createNeed = async () => {
+    if (needTitle.trim().length < 2 || !needSpecialization || !needGrade || !needSalaryTaxType || !needWorkFormat) {
+      onNotify("Заполните название, специализацию, грейд, тип зарплаты и формат работы", "error");
+      return;
+    }
     const salaryMin = Number(needSalaryMin.replace(/\D/g, ""));
     const salaryMax = Number(needSalaryMax.replace(/\D/g, ""));
     if (salaryMin <= 0 || salaryMax < salaryMin) {
@@ -1023,6 +1039,47 @@ function EmployerScreen({
       setNeedSaving(false);
     }
   };
+
+  const parseNeedDescription = async () => {
+    if (needDescription.trim().length < 20) {
+      onNotify("Для разбора нужно описание хотя бы из 20 символов", "error");
+      return;
+    }
+    setNeedParsing(true);
+    setNeedDraft(null);
+    try {
+      const draft = await apiPost<NeedDraft>("/needs/parse", { text: needDescription.trim() });
+      setNeedDraft(draft);
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось разобрать описание", "error");
+    } finally {
+      setNeedParsing(false);
+    }
+  };
+
+  const applyNeedDraft = () => {
+    if (!needDraft) return;
+    setNeedTitle("");
+    setNeedSpecialization(needDraft.specialization ?? "");
+    setNeedGrade(needDraft.required_grade ?? "");
+    setSkillItems(needDraft.required_skills);
+    setNeedSalaryMin(needDraft.salary_min?.toString() ?? "");
+    setNeedSalaryMax(needDraft.salary_max?.toString() ?? "");
+    setNeedSalaryTaxType(needDraft.salary_tax_type ?? "");
+    setNeedWorkFormat(needDraft.work_format ?? "");
+    setNeedCity("");
+    setNeedDraft(null);
+    onNotify("Найденные поля перенесены в форму. Проверьте их и заполните остальные.");
+  };
+
+  const needDraftSummary = needDraft ? [
+    needDraft.specialization && `Специализация: ${needDraft.specialization}`,
+    needDraft.required_grade && `Грейд: ${needDraft.required_grade}`,
+    needDraft.required_skills.length > 0 && `Навыки: ${needDraft.required_skills.map((skill) => skill.name).join(", ")}`,
+    needDraft.salary_min !== null && needDraft.salary_max !== null && `Зарплата: ${needDraft.salary_min}–${needDraft.salary_max} ₽`,
+    needDraft.salary_tax_type && `Зарплата: ${needDraft.salary_tax_type === "net" ? "на руки" : "до вычета"}`,
+    needDraft.work_format && `Формат: ${needDraft.work_format}`,
+  ].filter(Boolean) : [];
 
   const saveCompanyProfile = async () => {
     if (!companyProfile) return;
@@ -1142,12 +1199,17 @@ function EmployerScreen({
         <div className="split-layout">
           <section className="feature-card">
             <div className="feature-head"><div><span>ШАГ 1 ИЗ 3</span><strong>Опишите специалиста</strong></div></div>
-            <label className="field field--flush"><span>ОПИСАНИЕ ПОТРЕБНОСТИ</span><textarea value={needDescription} onChange={(event) => setNeedDescription(event.target.value)} placeholder="Опишите задачи команды, стек и приоритеты роли." /></label>
+            <label className="field field--flush"><span>ОПИСАНИЕ ПОТРЕБНОСТИ</span><textarea value={needDescription} onChange={(event) => { setNeedDescription(event.target.value); setNeedDraft(null); }} placeholder="Опишите задачи команды, стек и приоритеты роли." /></label>
+            <Button variant="outline" disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing ? "Разбираем…" : "Предложить поля из описания"}</Button>
+            {needDraft && <div className="need-draft" aria-label="Предложенные поля">
+              <p className="feature-description feature-description--left">{needDraftSummary.length ? needDraftSummary.join(" · ") : "Не удалось уверенно определить поля. Заполните форму вручную."}</p>
+              {needDraftSummary.length > 0 && <><p className="feature-description feature-description--left">Важность найденных навыков пока 3 из 5. Проверьте её вместе с остальными полями.</p><Button variant="outline" onClick={applyNeedDraft}>Подставить в форму</Button></>}
+            </div>}
             <div className="field-row field-row--flush">
               <label className="field"><span>НАЗВАНИЕ РОЛИ</span><input value={needTitle} onChange={(event) => setNeedTitle(event.target.value)} /></label>
-              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => handleSpecializationChange(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => handleSpecializationChange(event.target.value)}><option value="">Выберите специализацию</option>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
-            <label className="field field--flush"><span>ТРЕБУЕМЫЙ УРОВЕНЬ</span><select value={needGrade} onChange={(event) => setNeedGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+            <label className="field field--flush"><span>ТРЕБУЕМЫЙ УРОВЕНЬ</span><select value={needGrade} onChange={(event) => setNeedGrade(event.target.value)}><option value="">Выберите грейд</option>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
             <div className="field-row field-row--flush">
               <label className="field"><span>ЗАРПЛАТА ОТ, ₽</span><input inputMode="numeric" value={needSalaryMin} onChange={(event) => setNeedSalaryMin(event.target.value)} /></label>
               <label className="field"><span>ЗАРПЛАТА ДО, ₽</span><input inputMode="numeric" value={needSalaryMax} onChange={(event) => setNeedSalaryMax(event.target.value)} /></label>
@@ -1157,13 +1219,14 @@ function EmployerScreen({
               <select
                 aria-label="Тип зарплаты"
                 value={needSalaryTaxType}
-                onChange={(event) => setNeedSalaryTaxType(event.target.value as "gross" | "net")}
+                onChange={(event) => setNeedSalaryTaxType(event.target.value as "gross" | "net" | "")}
               >
+                <option value="">Укажите тип зарплаты</option>
                 <option value="gross">До вычета НДФЛ (gross)</option>
                 <option value="net">На руки (net)</option>
               </select>
             </label>
-            <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
+            <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="">Выберите формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
           </section>
           <section className="feature-card">
             <div className="feature-head"><div><span>ТРЕБОВАНИЯ ДЛЯ ПОДБОРА</span><strong>Важность навыков — от 1 до 5</strong></div></div>

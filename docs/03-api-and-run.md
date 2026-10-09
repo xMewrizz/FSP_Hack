@@ -136,9 +136,10 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/needs` | Создать потребность в кандидате (с валидацией `min_salary <= max_salary`) | `Bearer JWT` (Employer) | `{ "title": "Senior Python Backend", "specialization": "Backend", "required_grade": "senior", "required_skills": [{"name": "PostgreSQL", "weight": 1.0}], "salary_min": 250000, "salary_max": 350000, "currency": "RUB", "work_format": "remote", "city": "Москва", "description": "..." }` | `201 Created`: `EmployerNeedResponse` |
+| `POST` | `/needs/parse` | Предложить поля формы по тексту; ничего не сохраняет | `Bearer JWT` (Employer) | `{ "text": "Ищем Middle Backend-разработчика..." }` (20–5000 символов) | `200 OK`: найденные специализация, грейд, навыки, зарплата, тип зарплаты и формат; неизвестные поля — `null`. При недоступности сервиса разбора — `503`, ручная форма работает |
+| `POST` | `/needs` | Создать потребность в кандидате (с проверкой `salary_min <= salary_max`) | `Bearer JWT` (Employer) | `{ "title": "Senior Python Backend", "specialization": "Backend", "required_grade": "senior", "required_skills": [{"name": "PostgreSQL", "weight": 3}], "salary_min": 250000, "salary_max": 350000, "salary_tax_type": "gross", "currency": "RUB", "work_format": "remote", "city": "Москва", "description": "..." }` | `201 Created`: `EmployerNeedResponse` |
 | `GET` | `/needs` | Список потребностей текущей компании | `Bearer JWT` (Employer) | — | `200 OK`: Массив `EmployerNeedResponse` |
-| `GET` | `/needs/{id}` | Детали потребности | Любая авторизация | — | `200 OK`: `EmployerNeedResponse` |
+| `GET` | `/needs/{id}` | Детали потребности своей компании | `Bearer JWT` (Employer) | — | `200 OK`: `EmployerNeedResponse` |
 | `PUT` | `/needs/{id}` | Обновить параметры потребности | `Bearer JWT` (Employer) | Поля для обновления | `200 OK`: `EmployerNeedResponse` |
 | `DELETE` | `/needs/{id}` | Удалить потребность | `Bearer JWT` (Employer) | — | `200 OK`: `{ "message": "Потребность успешно удалена" }` |
 
