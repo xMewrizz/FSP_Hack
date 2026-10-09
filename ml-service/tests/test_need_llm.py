@@ -15,8 +15,11 @@ class NeedLlmTests(unittest.IsolatedAsyncioTestCase):
         def reply(request: httpx.Request) -> httpx.Response:
             payload = json.loads(request.content)
             self.assertEqual(request.url.path, "/api/chat")
+            self.assertEqual(payload["model"], "qwen3:8b")
             self.assertEqual(payload["stream"], False)
+            self.assertEqual(payload["think"], False)
             self.assertEqual(payload["options"]["temperature"], 0)
+            self.assertEqual(payload["options"]["num_ctx"], 4096)
             self.assertEqual(payload["format"]["type"], "object")
             self.assertIn("Создавать API", payload["messages"][1]["content"])
             return httpx.Response(200, json={"message": {"content": json.dumps({

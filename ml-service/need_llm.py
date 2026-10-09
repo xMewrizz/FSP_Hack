@@ -31,8 +31,8 @@ SYSTEM_PROMPT = """Ты помогаешь работодателю состав
 
 
 async def suggest_need(text: str, client: httpx.AsyncClient) -> dict:
-    host = os.getenv("OLLAMA_HOST", "http://host.docker.internal:11434").rstrip("/")
-    model = os.getenv("OLLAMA_MODEL", "qwen2.5:14b")
+    host = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
+    model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
     schema = SuggestedNeed.model_json_schema()
     response = await client.post(
         f"{host}/api/chat",
@@ -44,7 +44,8 @@ async def suggest_need(text: str, client: httpx.AsyncClient) -> dict:
             ],
             "format": schema,
             "stream": False,
-            "options": {"temperature": 0},
+            "think": False,
+            "options": {"temperature": 0, "num_ctx": 4096},
         },
     )
     response.raise_for_status()
