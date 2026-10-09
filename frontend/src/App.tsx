@@ -1525,6 +1525,7 @@ function EmployerScreen({
         required_skills: vacancyForm.required_skills.split(",").map((skill) => skill.trim()).filter(Boolean),
         city: vacancyForm.city.trim() || null,
         description: vacancyForm.description.trim(),
+        ...(!vacancyEditingId ? { is_published: false } : {}),
       };
       const updated = vacancyEditingId
         ? await apiRequest<VacancyRecord>(`/vacancies/${vacancyEditingId}`, { method: "PATCH", body: JSON.stringify(payload) })
@@ -1960,7 +1961,7 @@ function EmployerScreen({
         )}
         <div className="vacancy-tabs" role="tablist" aria-label="Фильтр вакансий">
           <button type="button" className={vacancyListFilter === "published" ? "active" : ""} onClick={() => { setVacancyListFilter("published"); setApplicationsVacancy(null); }}>Опубликованы · {vacancies.filter((item) => item.is_published).length}</button>
-          <button type="button" className={vacancyListFilter === "drafts" ? "active" : ""} onClick={() => { setVacancyListFilter("drafts"); setApplicationsVacancy(null); }}>Черновики · {vacancies.filter((item) => !item.is_published).length}</button>
+          <button type="button" className={vacancyListFilter === "drafts" ? "active" : ""} onClick={() => { setVacancyListFilter("drafts"); setApplicationsVacancy(null); }}>Не опубликованы · {vacancies.filter((item) => !item.is_published).length}</button>
           <button type="button" className={vacancyListFilter === "all" ? "active" : ""} onClick={() => { setVacancyListFilter("all"); setApplicationsVacancy(null); }}>Все вакансии · {vacancies.length}</button>
         </div>
         {vacanciesLoading ? <div className="empty-state">Загружаем вакансии…</div> : null}
@@ -1969,7 +1970,7 @@ function EmployerScreen({
             <article key={vacancy.id}>
               <div className="need-row__icon"><Icon name="briefcase" /></div>
               <div className="vacancy-management__main"><strong>{vacancy.title}</strong><span>{vacancy.specialization} · {vacancy.required_grade} · {formatSalary(vacancy)}</span>{vacancy.required_skills.length > 0 && <div className="mini-tags">{vacancy.required_skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}</div>}</div>
-              <em className={vacancy.is_published ? "vacancy-status vacancy-status--published" : "vacancy-status"}>{vacancy.is_published ? "Опубликована" : "Черновик"}</em>
+              <em className={vacancy.is_published ? "vacancy-status vacancy-status--published" : "vacancy-status"}>{vacancy.is_published ? "Опубликована" : "Не опубликована"}</em>
               <div className="vacancy-management__actions">
                 <Button variant="outline" onClick={() => editVacancy(vacancy)}>Редактировать</Button>
                 <Button variant={vacancy.is_published ? "ghost" : "primary"} onClick={() => void toggleVacancyPublication(vacancy)}>{vacancy.is_published ? "Снять" : "Опубликовать"}</Button>
@@ -1977,7 +1978,7 @@ function EmployerScreen({
               </div>
             </article>
           ))}
-          {!vacanciesLoading && shownVacancies.length === 0 && <div className="empty-state">Здесь пока нет вакансий. Создайте вакансию, чтобы начать публикацию.</div>}
+          {!vacanciesLoading && shownVacancies.length === 0 && <div className="empty-state">{vacancyListFilter === "published" ? "Опубликованных вакансий пока нет." : vacancyListFilter === "drafts" ? "Неопубликованных вакансий пока нет." : "Вакансий пока нет. Создайте первую вакансию."}</div>}
         </div>
         {applicationsVacancy && <section className="feature-card vacancy-applications">
           <div className="feature-head"><div><span>ОТКЛИКИ</span><strong>{vacancies.find((item) => item.id === applicationsVacancy)?.title}</strong></div><Button variant="ghost" onClick={() => setApplicationsVacancy(null)}>Закрыть</Button></div>
@@ -3499,16 +3500,17 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   if (active === "Приглашения") return <Invitations onNotify={onNotify} onNavigate={onNavigate} />;
 
   if (active === "Вакансии") {
-    const appliedVacancyIds = new Set(jobApplications.map((application) => application.vacancy_id));
     const normalizedJobSearch = jobSearch.trim().toLowerCase();
     const visibleVacancies = jobVacancies.filter((vacancy) =>
-      (!normalizedJobSearch || `${vacancy.title} ${vacancy.company?.company_name ?? ""} ${vacancy.required_skills.join(" ")}`.toLowerCase().includes(normalizedJobSearch)) &&
-      (jobsTab !== "applications" || appliedVacancyIds.has(vacancy.id)),
+      !normalizedJobSearch || `${vacancy.title} ${vacancy.company?.company_name ?? ""} ${vacancy.required_skills.join(" ")}`.toLowerCase().includes(normalizedJobSearch),
+    );
+    const visibleApplications = jobApplications.filter((application) =>
+      !normalizedJobSearch || `${application.vacancy_title} ${application.company_name}`.toLowerCase().includes(normalizedJobSearch),
     );
     const applicationStatusLabel = (status: string) => ({
       pending: "Ожидает ответа",
       reviewed: "Рассматривается",
-      accepted: "Приглашение получено",
+      accepted: "Отклик принят",
       rejected: "Отказ",
     }[status] ?? status);
     return (
@@ -3522,7 +3524,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         {jobsLoading ? <div className="empty-state">Загружаем вакансии…</div> : null}
         {jobApplications.length > 0 && jobsTab === "applications" && <div className="application-status"><Icon name="check" /><div><strong>Ваши отклики</strong><span>Статус обновляется работодателем после рассмотрения заявки.</span></div></div>}
         <div className="jobs-grid">
-          {visibleVacancies.map((vacancy) => {
+          {jobsTab === "vacancies" && visibleVacancies.map((vacancy) => {
             const application = jobApplications.find((item) => item.vacancy_id === vacancy.id);
             const companyName = vacancy.company?.company_name ?? "Компания";
             const salary = `${new Intl.NumberFormat("ru-RU").format(vacancy.salary_min)}–${new Intl.NumberFormat("ru-RU").format(vacancy.salary_max)} ₽ ${vacancy.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}`;
@@ -3534,7 +3536,14 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               <div className="job-card__footer"><span>{vacancy.specialization} · {vacancy.required_grade} · {vacancy.work_format === "remote" ? "Удалённо" : vacancy.work_format === "hybrid" ? "Гибрид" : "Офис"}{vacancy.city ? ` · ${vacancy.city}` : ""}</span><Button variant={application ? "outline" : "primary"} disabled={Boolean(application) || applyingTo === vacancy.id} onClick={() => void applyToVacancy(vacancy)}>{application ? applicationStatusLabel(application.status) : applyingTo === vacancy.id ? "Отправляем…" : "Откликнуться"}</Button></div>
             </article>;
           })}
-          {!jobsLoading && visibleVacancies.length === 0 && <div className="empty-state">{jobsTab === "applications" ? "У вас пока нет откликов на вакансии" : "Подходящих опубликованных вакансий пока нет"}</div>}
+          {jobsTab === "applications" && visibleApplications.map((application) => (
+            <article className="job-card" key={application.id}>
+              <div className="job-card__top"><div className="invitation-logo">{application.company_name.slice(0, 2).toUpperCase()}</div><div><strong>{application.vacancy_title}</strong><span>{application.company_name}</span></div><b className="job-card__status">{applicationStatusLabel(application.status)}</b></div>
+              <div className="job-salary">{new Intl.NumberFormat("ru-RU").format(application.salary_min)}–{new Intl.NumberFormat("ru-RU").format(application.salary_max)} ₽ {application.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}</div>
+              <p>{application.status === "pending" ? "Отклик отправлен. Работодатель ещё не ответил." : application.status === "reviewed" ? "Работодатель рассматривает отклик." : application.status === "accepted" ? "Работодатель принял отклик." : "Работодатель отклонил отклик."}</p>
+            </article>
+          ))}
+          {!jobsLoading && (jobsTab === "applications" ? visibleApplications.length === 0 : visibleVacancies.length === 0) && <div className="empty-state">{jobsTab === "applications" ? "Откликов по этому запросу нет" : "Подходящих опубликованных вакансий пока нет"}</div>}
         </div>
       </div>
     );

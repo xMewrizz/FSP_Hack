@@ -85,6 +85,38 @@ async def test_vacancy_and_application_lifecycle_b30(client: AsyncClient):
     )
     assert invalid_salary_resp.status_code == 422
 
+    draft_resp = await client.post(
+        "/api/v1/vacancies",
+        headers=emp1_headers,
+        json={
+            "title": "Backend Developer — черновик",
+            "specialization": "Backend",
+            "required_grade": "middle",
+            "salary_min": 200000,
+            "salary_max": 260000,
+            "salary_tax_type": "net",
+            "is_published": False,
+        },
+    )
+    assert draft_resp.status_code == 201
+    draft_id = draft_resp.json()["id"]
+    assert draft_resp.json()["is_published"] is False
+    assert draft_resp.json()["salary_tax_type"] == "net"
+    assert all(item["id"] != draft_id for item in (await client.get("/api/v1/vacancies")).json())
+    assert (await client.get(f"/api/v1/vacancies/{draft_id}")).status_code == 404
+    assert (await client.post(
+        f"/api/v1/vacancies/{draft_id}/apply",
+        headers=cand_headers,
+        json={"cover_letter": ""},
+    )).status_code == 400
+    publish_resp = await client.patch(
+        f"/api/v1/vacancies/{draft_id}",
+        headers=emp1_headers,
+        json={"is_published": True},
+    )
+    assert publish_resp.status_code == 200
+    assert publish_resp.json()["is_published"] is True
+
     # 4. Работодатель 1 успешно публикует вакансию с пометкой «до вычета НДФЛ» (gross)
     create_resp = await client.post(
         "/api/v1/vacancies",
@@ -203,3 +235,14 @@ async def test_vacancy_and_application_lifecycle_b30(client: AsyncClient):
     # 11. Кандидат проверяет свои отклики и видит статус accepted
     my_apps_updated = await client.get("/api/v1/vacancies/applications/my", headers=cand_headers)
     assert my_apps_updated.json()[0]["status"] == "accepted"
+
+    close_resp = await client.patch(
+        f"/api/v1/vacancies/{vacancy_id}",
+        headers=emp1_headers,
+        json={"is_published": False},
+    )
+    assert close_resp.status_code == 200
+    assert all(item["id"] != vacancy_id for item in (await client.get("/api/v1/vacancies")).json())
+    closed_application = await client.get("/api/v1/vacancies/applications/my", headers=cand_headers)
+    assert closed_application.json()[0]["id"] == application_id
+    assert closed_application.json()[0]["status"] == "accepted"
