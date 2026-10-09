@@ -3,7 +3,7 @@
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -181,7 +181,14 @@ class MatchingService:
                 CandidateProfile.onboarding_completed.is_(True),
                 CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
-                CandidateProfile.verified_grade.is_not(None),
+                func.lower(CandidateProfile.verified_grade) == need.required_grade.casefold(),
+                or_(
+                    func.lower(CandidateProfile.verified_specialization) == need.specialization.casefold(),
+                    and_(
+                        CandidateProfile.verified_specialization.is_(None),
+                        func.lower(CandidateProfile.specialization) == need.specialization.casefold(),
+                    ),
+                ),
             )
         )).all()
         if not candidates:
@@ -281,9 +288,11 @@ class MatchingService:
         specialization: str | None = None,
         grade: str | None = None,
         skill: str | None = None,
+        stack: str | None = None,
         work_format: str | None = None,
         city: str | None = None,
         fsp_only: bool = False,
+        verified_only: bool = False,
     ) -> list[CandidateMatchItem]:
         stmt = (
             select(CandidateProfile)
@@ -307,12 +316,23 @@ class MatchingService:
             stmt = stmt.where(CandidateProfile.fsp_verified.is_(True))
 
         candidates = (await db.scalars(stmt)).all()
-        if skill and skill.strip():
-            skill_query = skill.strip().casefold()
-            candidates = [
-                candidate for candidate in candidates
-                if any(skill_query in candidate_skill.casefold() for candidate_skill in (candidate.skills or []))
-            ]
+
+        filter_text = (stack or skill or "").strip()
+        if filter_text:
+            raw = filter_text.replace(";", ",")
+            if "," in raw:
+                tokens = [t.strip().casefold() for t in raw.split(",") if t.strip()]
+            else:
+                tokens = [t.strip().casefold() for t in raw.split() if t.strip()]
+            if tokens:
+                candidates = [
+                    candidate for candidate in candidates
+                    if all(
+                        any(token in candidate_skill.casefold() for candidate_skill in (candidate.skills or []))
+                        for token in tokens
+                    )
+                ]
+
         return [
             CandidateMatchItem(
                 candidate_id=candidate.id,

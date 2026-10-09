@@ -50,6 +50,7 @@ class CandidateOnboardingRequest(BaseModel):
     telegram: str | None = Field(None, max_length=100)
     bio: str | None = None
     github_url: str | None = None
+    skills: list[str] | None = Field(None, description="Ключевые навыки и стек технологий")
 
 
 class CandidateProfileUpdateRequest(BaseModel):
@@ -61,6 +62,7 @@ class CandidateProfileUpdateRequest(BaseModel):
     bio: str | None = None
     city: str | None = None
     github_url: str | None = None
+    skills: list[str] | None = None
     work_format: WorkFormat | None = None
     specialization: str | None = None
     programming_language: str | None = None

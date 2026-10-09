@@ -36,7 +36,7 @@ async def parse_need_text(data: NeedText):
 
 @app.post("/evaluate-open-answer", response_model=OpenEvaluationResult)
 async def evaluate_open_answer_endpoint(payload: OpenAnswerEvaluationRequest):
-    async with httpx.AsyncClient(timeout=45.0) as client:
+    async with httpx.AsyncClient(timeout=80.0) as client:
         return await evaluate_open_answer(
             question_code=payload.question_code,
             question_type=payload.question_type,

@@ -72,8 +72,8 @@ class CandidateService:
         profile.work_format = data.work_format.value
         profile.salary_expectation = data.salary_expectation
         profile.salary_tax_type = data.salary_tax_type
-        if data.skills:
-            profile.skills = data.skills
+        if data.skills is not None:
+            profile.skills = list(data.skills)
 
         profile.agreed_152_fz = True
         profile.agreed_152_fz_at = now

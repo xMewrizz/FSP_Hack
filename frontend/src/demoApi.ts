@@ -794,14 +794,15 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
   if (route === "/matching/search" && method === "GET") {
     const specialization = url.searchParams.get("specialization");
     const grade = url.searchParams.get("grade");
-    const skill = url.searchParams.get("skill")?.trim().toLowerCase();
+    const stack = (url.searchParams.get("stack") || url.searchParams.get("skill"))?.trim().toLowerCase();
+    const stackTokens = stack?.split(stack.includes(",") || stack.includes(";") ? /[,;]/ : /\s+/).map((token) => token.trim()).filter(Boolean) ?? [];
     const workFormat = url.searchParams.get("work_format");
     const city = url.searchParams.get("city")?.toLowerCase();
     const fspOnly = url.searchParams.get("fsp_only") === "true";
     return candidates.filter((item) =>
       (!specialization || item.specialization === specialization) &&
       (!grade || item.verified_grade === grade) &&
-      (!skill || item.skills.some((candidateSkill) => candidateSkill.toLowerCase().includes(skill))) &&
+      stackTokens.every((token) => item.skills.some((candidateSkill) => candidateSkill.toLowerCase().includes(token))) &&
       (!workFormat || item.work_format === workFormat) &&
       (!city || item.city.toLowerCase().includes(city)) &&
       (!fspOnly || item.fsp_verified) &&

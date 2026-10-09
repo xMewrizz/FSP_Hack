@@ -1557,8 +1557,7 @@ function EmployerScreen({
   }, [active, bankSpecialization, bankGrade, bankSkill, bankFormat, bankCity, bankFspOnly, demoMode]);
 
   const visibleBankItems = bankItems.filter((candidate) =>
-    (!bankQuery || candidate.name.toLowerCase().includes(bankQuery.trim().toLowerCase())) &&
-    (!bankSkill || candidate.skills.some((skill) => skill.toLowerCase().includes(bankSkill.trim().toLowerCase()))),
+    !bankQuery || candidate.name.toLowerCase().includes(bankQuery.trim().toLowerCase()),
   );
 
   const resetVacancyForm = () => {

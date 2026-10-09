@@ -68,6 +68,43 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
         ),
     },
     {
+        "code": "OPEN-BE-CODE-02",
+        "title": "Реализация LRU-кэша с ограничением емкости (LRU Cache)",
+        "specialization": "Backend",
+        "grade": "middle",
+        "question_type": "code",
+        "question_text": (
+            "Реализуйте класс `LRUCache` на Python, принимающий параметр `capacity: int`. "
+            "Класс должен содержать методы `get(key: str) -> Any` и `put(key: str, value: Any) -> None`. "
+            "При превышении емкости кэша должен вытесняться наименее недавно использованный (Least Recently Used) элемент. "
+            "Обе операции должны выполняться со сложностью O(1)."
+        ),
+        "rubric_criteria": [
+            "Инициализация с заданной емкостью capacity и структурой для быстрого поиска и поддержания порядка (OrderedDict или HashMap + DoublyLinkedList)",
+            "Метод get возвращает значение и обновляет приоритет использования ключа (перемещение в конец)",
+            "Метод put сохраняет/обновляет значение и вытесняет самый старый элемент при превышении capacity",
+            "Выполнение операций чтения и записи за константное время O(1)",
+        ],
+        "reference_solution": (
+            "from collections import OrderedDict\n\n"
+            "class LRUCache:\n"
+            "    def __init__(self, capacity: int):\n"
+            "        self.capacity = capacity\n"
+            "        self.cache = OrderedDict()\n\n"
+            "    def get(self, key: str):\n"
+            "        if key not in self.cache:\n"
+            "            return None\n"
+            "        self.cache.move_to_end(key)\n"
+            "        return self.cache[key]\n\n"
+            "    def put(self, key: str, value: int) -> None:\n"
+            "        if key in self.cache:\n"
+            "            self.cache.move_to_end(key)\n"
+            "        self.cache[key] = value\n"
+            "        if len(self.cache) > self.capacity:\n"
+            "            self.cache.popitem(last=False)\n"
+        ),
+    },
+    {
         "code": "OPEN-DS-ARCH-01",
         "title": "Архитектура Real-Time ML Serving и мониторинга дрейфа данных",
         "specialization": "Data Science",

@@ -33,11 +33,13 @@ docker compose up --build -d
 
 Адрес `VITE_API_URL` встраивается при сборке frontend. После его изменения нужна повторная сборка. Для проверки сценария на работающем backend запустите из `backend/` команду `uv run python smoke_compose.py` (при другом порте сначала задайте `$env:FSP_API_BASE_URL = "http://localhost:18000/api/v1"`). Скрипт создаёт две тестовые учётные записи.
 
-Режим «Описать задачу для LLM» использует локальную Ollama. На компьютере, где она запущена, загрузите модель командой `ollama pull qwen3:8b`. По умолчанию ML-сервис в Compose обращается к `http://host.docker.internal:11434` (`OLLAMA_BASE_URL`), модель — `qwen3:8b` (`OLLAMA_MODEL`). Для Qwen3 запрос отключает режим размышления и использует контекст 4096 токенов. Адрес `OLLAMA_BASE_URL` — настройка клиента внутри Compose; `OLLAMA_HOST` — настройка самого сервера Ollama. Не задавайте серверный `OLLAMA_HOST` в `.env` проекта вместо адреса клиента.
+По умолчанию предложения навыков и оценка отдельных открытых ответов используют локальную Ollama. На компьютере, где она запущена, загрузите модель командой `ollama pull qwen3:8b`. ML-сервис в Compose обращается к `http://host.docker.internal:11434` (`OLLAMA_BASE_URL`), модель — `qwen3:8b` (`OLLAMA_MODEL`). Для Qwen3 запрос отключает режим размышления и использует контекст 4096 токенов. Адрес `OLLAMA_BASE_URL` — настройка клиента внутри Compose; `OLLAMA_HOST` — настройка самого сервера Ollama. Не задавайте серверный `OLLAMA_HOST` в `.env` проекта вместо адреса клиента.
 
 Если Ollama работает в Windows, а контейнер не видит её, задайте для приложения Ollama `OLLAMA_HOST=0.0.0.0:11434` и перезапустите его ([инструкция Ollama для Windows](https://docs.ollama.com/faq)). Порт 11434 должен быть доступен контейнеру; публиковать его в интернет не требуется. Проверить связь можно из корня репозитория: `docker compose exec ml-service python -c "import httpx; print(httpx.get('http://host.docker.internal:11434/api/tags').status_code)"` — ожидается `200`. После первого запроса `ollama ps` покажет, загружена ли модель на GPU. Ответ модели запрашивается в JSON по схеме и проверяется сервисом ([документация Ollama](https://docs.ollama.com/capabilities/structured-outputs)). Если Ollama не запущена или модель не установлена, ручное заполнение потребности остаётся доступным.
 
-После запуска модели можно выполнить `uv run --project backend python ml-service/check_need_suggestions.py` из корня репозитория. Скрипт выводит предложенные навыки, веса и время ответа для восьми вымышленных потребностей; результаты нужно просмотреть вручную, прежде чем считать B-26 проверенной.
+Для запуска через OpenRouter скопируйте `.env.example` в `.env` и задайте там `LLM_PROVIDER=openrouter` и свой `OPENROUTER_API_KEY`. Модель по умолчанию — [`qwen/qwen3-14b`](https://openrouter.ai/qwen/qwen3-14b); её можно заменить через `OPENROUTER_MODEL`. Затем пересоздайте ML-сервис: `docker compose up -d --build ml-service`. Ключ хранится только в локальном `.env`, который исключён из Git. OpenRouter получает текст потребности работодателя при запросе подсказки; при отдельной проверке открытого задания — вопрос, критерии, эталон и ответ кандидата. Не включайте в эти тексты лишние персональные данные. Без ключа подсказка вернёт ошибку, а открытый ответ будет отмечен для ручной проверки. Подключение к API подготовлено и проверено на имитации ответов; запрос с настоящим ключом ещё не проверялся.
+
+После запуска выбранной модели можно выполнить `uv run --project backend python ml-service/check_need_suggestions.py` из корня репозитория. Скрипт выводит навыки, веса и время ответа для восьми вымышленных потребностей. Флаг `--direct` проверяет текущий код напрямую; для локальной Ollama задайте `OLLAMA_BASE_URL=http://127.0.0.1:11434`. Предложения модели остаются черновиком, который работодатель проверяет перед сохранением.
 
 Если обычные порты заняты, можно запустить отдельный Compose-проект с пустой базой:
 
@@ -69,11 +71,15 @@ uv run pytest -v
 
 Замер B-31 запускается отдельно: `uv run pytest tests/benchmark_performance_b31.py -q -s`. Он использует SQLite внутри процесса, поэтому его цифры не заменяют проверку работающего стенда с PostgreSQL.
 
-Заполнение базы реалистичными демонстрационными данными (5 кандидатов, 2 работодателя, потребности, приглашения):
+Для замера работающего Compose с PostgreSQL после заполнения демо-данных запустите из `backend/`: `uv run python benchmark_live_b31.py --concurrency 50 --rounds 3`. Скрипт измеряет чтение истории теста, поиск и подбор по потребности. Он не создаёт новые тестовые попытки. Результат зависит от нагрузки на компьютер, поэтому сравнивать изменения нужно повторными прогонами на одном стенде.
+
+Заполнение базы демонстрационными данными (14 кандидатов, 2 работодателя, потребности, приглашения):
 ```powershell
 # Можно вызвать через Swagger POST /api/v1/system/seed или curl:
 curl -X POST http://localhost:8000/api/v1/system/seed
 ```
+
+Среди них девять вымышленных профилей Data Science / ML: по три Junior, Middle и Senior. У каждого свой стек и дополнительные навыки. Их грейды и общие результаты теста сгенерированы для показа подборки; это не реальные прохождения и не доказательство готовности теста Data Science. Повторный вызов не создаёт дублей.
 
 ---
 
@@ -144,7 +150,7 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/needs/parse` | Через Ollama предложить навыки и их веса по описанию; ничего не сохраняет | `Bearer JWT` (Employer) | `{ "text": "Нужен специалист для API и работы с данными..." }` (20–5000 символов) | `200 OK`: предложения модели и явно найденные грейд, зарплата, тип зарплаты, формат. Если модель недоступна или ответ некорректен — `503`; ручная форма работает |
+| `POST` | `/needs/parse` | Предложить навыки и их веса по описанию через выбранную модель; ничего не сохраняет | `Bearer JWT` (Employer) | `{ "text": "Нужен специалист для API и работы с данными..." }` (20–5000 символов) | `200 OK`: предложения модели и явно найденные грейд, зарплата, тип зарплаты, формат. Если модель недоступна или ответ некорректен — `503`; ручная форма работает |
 | `POST` | `/needs` | Создать потребность в кандидате (с проверкой `salary_min <= salary_max`) | `Bearer JWT` (Employer) | `{ "title": "Senior Python Backend", "specialization": "Backend", "required_grade": "senior", "required_skills": [{"name": "PostgreSQL", "weight": 3}], "salary_min": 250000, "salary_max": 350000, "salary_tax_type": "gross", "currency": "RUB", "work_format": "remote", "city": "Москва", "description": "..." }` | `201 Created`: `EmployerNeedResponse` |
 | `GET` | `/needs` | Список потребностей текущей компании | `Bearer JWT` (Employer) | — | `200 OK`: Массив `EmployerNeedResponse` |
 | `GET` | `/needs/{id}` | Детали потребности своей компании | `Bearer JWT` (Employer) | — | `200 OK`: `EmployerNeedResponse` |
@@ -158,7 +164,7 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | Метод | URL | Описание | Авторизация | Параметры | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/matching/for-need/{need_id}` | Обратный подбор кандидатов под конкретную потребность (ранжирование, % соответствия, объяснение) | `Bearer JWT` (Employer) | `need_id` | `200 OK`: `MatchingCandidatesResponse` (ранжированные кандидаты, match_score, match_explanation, ФСП бонус) |
-| `GET` | `/matching/search` | Поиск по банку кандидатов с подтвержденными категориями | `Bearer JWT` (Employer) | Query: `specialization`, `grade`, `work_format`, `city`, `fsp_only` | `200 OK`: Массив `CandidateMatchItem` |
+| `GET` | `/matching/search` | Поиск по банку опубликованных профилей с подтверждённым грейдом | `Bearer JWT` (Employer) | Query: `specialization`, `grade` (подтверждённый), `stack` или `skill` (навыки), `work_format`, `city`, `fsp_only`. Параметр `verified_only` оставлен для совместимости: без него выдача также ограничена подтверждёнными профилями. | `200 OK`: Массив `CandidateMatchItem` |
 
 ---
 
@@ -235,3 +241,19 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | `GET` | `/vacancies/applications/my` | Мои отклики на вакансии | `Bearer JWT` (Candidate) | — | `200 OK`: `list[ApplicationCandidateResponse]` |
 | `GET` | `/vacancies/{id}/applications` | Список откликов (раскрывает контакты только автору вакансии, 152-ФЗ) | `Bearer JWT` (Employer) | — | `200 OK`: `list[ApplicationEmployerResponse]` (с контактами) |
 | `PATCH` | `/vacancies/applications/{id}/status` | Изменение статуса отклика (`accepted`, `rejected`) | `Bearer JWT` (Employer) | `ApplicationStatusUpdate` (`status`) | `200 OK`: статус обновлен |
+
+---
+
+### 11. Открытые вопросы и безопасная песочница кода (B-25, B-27) (`/api/v1/testing`)
+
+| Метод | URL | Описание | Доступ | Тело / Параметры | Ответ |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/testing/open-questions` | Список открытых вопросов с критериями | Публичный | `specialization` (опционально) | `200 OK`: `list[OpenQuestionResponse]` |
+| `GET` | `/testing/open-questions/{code}` | Просмотр открытого вопроса по коду | Публичный | — | `200 OK`: `OpenQuestionResponse` |
+| `POST` | `/testing/open-questions/{code}/submit` | Сдача решения открытого вопроса (автоматическая проверка песочницей для кода) | `Bearer JWT` (Candidate) | `{ "answer_text": "..." }` | `201 Created`: `OpenQuestionSubmissionResponse` |
+| `POST` | `/testing/code-sandbox/execute` | Безопасный запуск кода в изолированной песочнице с лимитами времени и ресурсов | `Bearer JWT` (Candidate) | `{ "code": "...", "question_code": "...", "timeout_seconds": 3.0 }` | `200 OK`: `SandboxExecutionResponse` |
+| `POST` | `/testing/open-questions/{code}/test-run` | Тестовый запуск решения со скрытыми тестами до финальной отправки | `Bearer JWT` (Candidate) | `{ "code": "...", "timeout_seconds": 3.0 }` | `200 OK`: `SandboxExecutionResponse` |
+| `GET` | `/testing/open-submissions` | История отправленных решений кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
+| `GET` | `/testing/open-submissions/pending` | Список решений, ожидающих проверки экспертом | `Bearer JWT` (Reviewer/Admin) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
+| `POST` | `/testing/open-submissions/{id}/review` | Экспертная оценка и рецензия решения | `Bearer JWT` (Reviewer/Admin) | `{ "score": 0.9, "passed": true, "notes": "..." }` | `200 OK`: `OpenQuestionSubmissionResponse` |
+
