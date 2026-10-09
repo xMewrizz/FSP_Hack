@@ -15,6 +15,7 @@ type Candidate = {
   verifiedGrade?: boolean;
   matchedSkills?: string[];
   missingSkills?: string[];
+  requestedSkillTests?: RequestedSkillTest[];
   availableFrom?: string | null;
   trueScore?: number | null;
   trueScoreFlags?: Array<{ label: string; status: "verified" | "review" | "warning"; detail: string }>;
@@ -407,6 +408,7 @@ type MatchingCandidate = {
   achievements_count: number;
   skills: string[];
   match_score: number;
+  requested_skill_tests: RequestedSkillTest[];
   match_explanation: {
     summary: string;
     matched_skills: string[];
@@ -414,6 +416,15 @@ type MatchingCandidate = {
     salary_match?: boolean | null;
     salary_note?: string | null;
   };
+};
+
+type RequestedSkillTest = {
+  name: string;
+  weight: number;
+  percentage: number | null;
+  test_grade: string | null;
+  test_kind: "base" | "additional" | null;
+  completed_at: string | null;
 };
 
 type EmployerNeedRecord = {
@@ -717,6 +728,7 @@ function mapMatchToCandidate(item: MatchingCandidate, index: number, demoMode = 
     resumeVersions: item.resume_versions,
     matchedSkills: item.match_explanation.matched_skills,
     missingSkills: item.match_explanation.missing_skills,
+    requestedSkillTests: item.requested_skill_tests ?? [],
     initials: `${item.first_name[0] ?? "?"}${item.last_name[0] ?? ""}`.toUpperCase(),
     name: `${item.first_name} ${item.last_name}`.trim(),
     role: item.specialization ?? "Специализация не указана",
@@ -737,7 +749,7 @@ function mapMatchToCandidate(item: MatchingCandidate, index: number, demoMode = 
     summary: item.match_explanation.summary,
     gap: item.match_explanation.missing_skills.length
       ? item.match_explanation.missing_skills.join(", ")
-      : "Нет данных о пробелах",
+      : "нет",
     about: "Полный профиль доступен после открытия кандидата.",
     email: "",
     telegram: "",
@@ -1026,7 +1038,7 @@ function Radar({
   description = "Сравнение компетенций кандидата и вакансии",
   className = "",
 }: {
-  values: number[];
+  values: Array<number | null>;
   target: number[];
   compact?: boolean;
   axisLabels?: string[];
@@ -1077,10 +1089,16 @@ function Radar({
         points={targetValues.map((v, i) => point(v, i)).join(" ")}
         className="radar__target"
       />
-      <polygon
-        points={values.map((v, i) => point(v, i)).join(" ")}
+      {values.every((value) => value !== null) ? <polygon
+        points={values.map((value, i) => point(value!, i)).join(" ")}
         className="radar__value"
-      />
+      /> : values.map((value, i) => value === null ? null : <circle
+        key={i}
+        cx={point(value, i).split(",")[0]}
+        cy={point(value, i).split(",")[1]}
+        r={compact ? 3 : 4}
+        className="radar__measured-point"
+      />)}
       {!compact && showAxisLabels &&
         visibleLabels.map((label, i) => {
           const pos = labelPoint(i);
@@ -3601,6 +3619,7 @@ function ResumeModal({
               <section className="resume-section"><span>ЗАРПЛАТНЫЕ ОЖИДАНИЯ</span><p>{candidate.salary}</p></section>
               <section className="resume-section"><span>СТЕК</span><div className="tags tags--large">{candidate.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></section>
               <section className="resume-section"><span>СОПОСТАВЛЕНИЕ НАВЫКОВ</span><SkillComparison matched={candidate.matchedSkills ?? []} notListed={candidate.missingSkills ?? []} /></section>
+              {candidate.requestedSkillTests?.length ? <section className="resume-section"><span>ТЕСТЫ ПО НАВЫКАМ ПОТРЕБНОСТИ</span><RequestedSkillRadar skills={candidate.requestedSkillTests} /></section> : null}
             </div>
             <aside className="resume-side">
               <section className="resume-section true-score-panel">
@@ -4070,7 +4089,7 @@ function SwipeDeck({
             <div className="resume-match"><span>Балл подбора</span><strong>{candidate.score}</strong></div>
           </div>
           <div className="swipe-card__body">
-            {candidate.radar.length ? <Radar values={candidate.radar} target={candidate.jobRadar} /> : <div className="swipe-skill-match"><strong>Совпадение по навыкам</strong><div><span>Совпало</span><b>{candidate.matchedSkills?.join(" · ") || "Нет данных"}</b></div><div><span>Проверить</span><b>{candidate.missingSkills?.join(" · ") || "Нет данных"}</b></div></div>}
+            {candidate.requestedSkillTests?.length ? <RequestedSkillRadar skills={candidate.requestedSkillTests} /> : candidate.radar.length ? <Radar values={candidate.radar} target={candidate.jobRadar} /> : <div className="swipe-skill-match"><strong>Совпадение по навыкам</strong><div><span>Совпало</span><b>{candidate.matchedSkills?.join(" · ") || "Нет данных"}</b></div><div><span>Проверить</span><b>{candidate.missingSkills?.join(" · ") || "Нет данных"}</b></div></div>}
             <div className="swipe-details">
               <p>{candidate.summary}</p>
               <div className="compare-facts">
@@ -4133,7 +4152,7 @@ function CompareModal({
               <div className="compare-match-details">
                 <SkillComparison matched={candidate.matchedSkills ?? []} notListed={candidate.missingSkills ?? []} />
               </div>
-              {candidate.radar.length > 0 && <div className="compare-radar"><Radar values={candidate.radar} target={candidate.jobRadar} compact /></div>}
+              {candidate.requestedSkillTests?.length ? <div className="compare-radar"><RequestedSkillRadar skills={candidate.requestedSkillTests} compact /></div> : candidate.radar.length > 0 && <div className="compare-radar"><Radar values={candidate.radar} target={candidate.jobRadar} compact /></div>}
               <div className="compare-facts">
                 {[
                   ["Уровень", candidate.level],
@@ -4173,6 +4192,41 @@ function SkillComparison({ matched, notListed }: { matched: string[]; notListed:
       <p>Список показывает наличие упоминаний в данных профиля, а не оценку уровня владения или процент совместимости.</p>
     </div>
   );
+}
+
+function RequestedSkillRadar({ skills, compact = false }: { skills: RequestedSkillTest[]; compact?: boolean }) {
+  if (skills.length === 0) return null;
+  const measured = skills.filter((skill) => skill.percentage !== null).length;
+  return <div className={`requested-skill-radar ${compact ? "requested-skill-radar--compact" : ""}`}>
+    {skills.length >= 3 && measured > 0 ? <Radar
+      values={skills.map((skill) => skill.percentage === null ? null : Math.max(0, Math.min(10, skill.percentage / 10)))}
+      target={skills.map(() => 10)}
+      axisLabels={skills.map((skill) => skill.name)}
+      compact={compact}
+      showAxisLabels={!compact}
+      description={`Результаты тестов по запрошенным навыкам: ${skills.map((skill) => `${skill.name} — ${skill.percentage === null ? "нет результата" : `${skill.percentage}%`}`).join(", ")}`}
+    /> : null}
+    {compact ? <>
+      <small>{measured === 0 ? "Нет результатов тестов по этим навыкам" : `${measured} из ${skills.length} навыков оценены тестом`}</small>
+      {measured > 0 && <div className="requested-skill-radar__mini-results">
+        {skills.slice(0, 6).map((skill) => <span key={skill.name}>{skill.name}: {skill.percentage === null ? "нет результата" : `${skill.percentage}%`}</span>)}
+        {skills.length > 6 && <span>Ещё {skills.length - 6} — в профиле</span>}
+      </div>}
+    </> : <>
+      <div className="requested-skill-radar__results">
+        {skills.map((skill) => <div key={skill.name}>
+          <span>{skill.name}</span>
+          <strong>{skill.percentage === null ? "Нет результата теста" : `${skill.percentage}% на уровне ${skill.test_grade}`}</strong>
+          {skill.test_kind === "additional" && <small>Дополнительный тест</small>}
+        </div>)}
+      </div>
+      <p>{measured === 0
+        ? "По этим требованиям пока нет результатов тестов. Это не оценка знаний кандидата."
+        : measured === skills.length
+        ? "Каждая вершина показывает долю баллов за тест на подтверждённом грейде; внешний контур соответствует 100%."
+        : "Точки показывают результаты тестов на подтверждённом грейде. Фигура заполнится, когда будут результаты по всем навыкам; отсутствие результата не означает отсутствие навыка."}</p>
+    </>}
+  </div>;
 }
 
 function App() {
@@ -4714,7 +4768,9 @@ function App() {
                   </div>
                 </div>
                 <div className="candidate-card__middle">
-                  {candidate.backendId && !(offlineDemo && candidate.radar.length)
+                  {candidate.backendId && candidate.requestedSkillTests?.length
+                    ? <div className="candidate-card__radar-preview"><RequestedSkillRadar skills={candidate.requestedSkillTests} compact /></div>
+                    : candidate.backendId && !(offlineDemo && candidate.radar.length)
                     ? <div className="match-explanation">{candidate.summary}</div>
                     : candidate.radar.length > 0
                       ? <div className="candidate-card__radar-preview"><Radar values={candidate.radar} target={candidate.jobRadar} compact description={`Демонстрационное сравнение навыков ${candidate.name} с профилем вакансии`} />{candidate.backendId && <small>ДЕМО-КАРТА · НЕ РЕЗУЛЬТАТ ТЕСТА</small>}</div>
@@ -4774,24 +4830,20 @@ function App() {
                 <span>{selected.verifiedGrade ? "ПОДТВЕРЖДЁННЫЙ УРОВЕНЬ" : "ЗАЯВЛЕННЫЙ УРОВЕНЬ"}</span>
                 <strong>{selected.level}</strong>
               </div>
-              <div className="grade-line__score">06.001 / ур. 6</div>
+              <div className="grade-line__score">{selected.backendId ? `${selected.score} баллов в подборе` : "06.001 / ур. 6"}</div>
             </div>
             <div className="panel-section">
               <div className="section-title">
-                <span>ЧЕГО НЕ ХВАТАЕТ</span>
-                <div className="legend">
-                  <i className="legend__candidate" /> Кандидат
-                  <i className="legend__job" /> Вакансия
-                </div>
+                <span>ТЕСТЫ ПО НАВЫКАМ ПОТРЕБНОСТИ</span>
               </div>
-              <p className="feature-description feature-description--left">Детализация навыков появится после получения результатов тестирования кандидата.</p>
+              {selected.requestedSkillTests?.length ? <RequestedSkillRadar skills={selected.requestedSkillTests} /> : <p className="feature-description feature-description--left">В потребности не указаны навыки для сравнения.</p>}
             </div>
             <div className="explain-card">
               <div className="explain-card__icon">i</div>
               <div>
                 <strong>Почему этот кандидат в подборке</strong>
                 <p>{selected.summary}</p>
-                <span>Зона роста: {selected.gap}</span>
+                <span>{selected.backendId ? "Не указано в профиле" : "Зона роста"}: {selected.gap}</span>
               </div>
             </div>
             <div className="panel-section">
