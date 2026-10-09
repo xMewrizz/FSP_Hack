@@ -42,10 +42,13 @@ services:
   ml-service:
     build: ./ml-service
     restart: unless-stopped
-    # Модель запускается отдельно в Ollama; в Compose — только API-обёртка.
+    # ML-сервис обращается к выбранному провайдеру; ключ передаётся через окружение.
     environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3-14b}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
     ports:
       - "${ML_PORT:-8001}:8001"

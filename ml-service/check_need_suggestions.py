@@ -56,14 +56,18 @@ CASES = [
 ]
 
 
-async def main(url: str) -> None:
+async def main(url: str, direct: bool = False) -> None:
     async with httpx.AsyncClient(timeout=120.0) as client:
         for name, description in CASES:
             started = perf_counter()
             try:
-                response = await client.post(url, json={"text": description})
-                response.raise_for_status()
-                result = response.json()
+                if direct:
+                    from need_llm import suggest_need
+                    result = await suggest_need(description, client)
+                else:
+                    response = await client.post(url, json={"text": description})
+                    response.raise_for_status()
+                    result = response.json()
                 elapsed = perf_counter() - started
                 print(f"\n{name} — {elapsed:.1f} с")
                 print(description)
@@ -82,4 +86,6 @@ async def main(url: str) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://localhost:8001/parse-need")
-    asyncio.run(main(parser.parse_args().url))
+    parser.add_argument("--direct", action="store_true", help="Проверить текущий код напрямую через Ollama без Compose")
+    args = parser.parse_args()
+    asyncio.run(main(args.url, args.direct))

@@ -38,7 +38,7 @@ async def search_candidates(
     work_format: str | None = Query(None, description="Формат работы"),
     city: str | None = Query(None, description="Город"),
     fsp_only: bool = Query(False, description="Только спортсмены реестра ФСП"),
-    verified_only: bool = Query(False, description="Только кандидаты с подтвержденной категорией"),
+    verified_only: bool = Query(False, description="Совместимость со старым клиентом: выдача всегда ограничена подтверждёнными профилями"),
     current_user: User = Depends(get_current_employer),
     db: AsyncSession = Depends(get_db),
 ):

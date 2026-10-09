@@ -59,7 +59,50 @@ SKILLS = (
     ("PyTorch", r"\bpytorch\b"),
     ("TensorFlow", r"\btensorflow\b"),
     ("A/B-тесты", r"\ba\s*/\s*b[ -]?тест\w*\b|\bа\s*/\s*б[ -]?тест\w*\b"),
+    ("Spark", r"\bspark\b"),
+    ("Postman", r"\bpostman\b"),
+    ("SQLite", r"\bsqlite\b"),
+    ("Room", r"\broom\b"),
+    ("Android SDK", r"\bandroid[ -]?sdk\b"),
+    ("AWS", r"\baws\b"),
+    ("GCP", r"\bgcp\b"),
+    ("Azure", r"\bazure\b"),
 )
+
+
+def skill_mentions(text: str) -> dict[str, str]:
+    """Явные технологии и отношение работодателя к ним.
+
+    Значения: core, optional, excluded. Это ограничивает предложения модели,
+    но не пытается вывести весь стек из свободного описания задач.
+    """
+    mentions: dict[str, str] = {}
+    for name, pattern in SKILLS:
+        matches = (
+            [*re.finditer(r"\bGo\b", text), *re.finditer(r"\bgolang\b", text, re.IGNORECASE)]
+            if name == "Go" else re.finditer(pattern, text, re.IGNORECASE)
+        )
+        for match in matches:
+            before = text[max(0, match.start() - 35):match.start()].lower()
+            after = text[match.end():match.end() + 55].lower()
+            # Не переносим уточнение из следующего предложения на текущий навык.
+            after = re.split(r"[.!?;\n]", after, maxsplit=1)[0]
+            if re.search(r"(?:\bбез\s+|\bне\s+(?:используем|нужен|нужна|нужно|нужны|требуется|обязателен|обязательна)\b)\s*$", before) or re.match(
+                r"\s+(?:не\s+(?:нужен|нужна|нужно|нужны|требуется|обязателен|обязательна)\b|исключ[а-я]*\b|(?:знать\s+)?(?:необязательно|не\s+обязательно)\b)", after
+            ):
+                status = "excluded"
+            elif re.search(r"\bжелательно\s*$", before) or re.match(
+                r"\s+(?:знать\s+)?(?:желательно\b|будет\s+плюсом\b|плюс\b)", after
+            ):
+                status = "optional"
+            else:
+                status = "core"
+            # Если технология встречается дважды, явное требование важнее
+            # вторичного упоминания в качестве плюса.
+            priority = {"excluded": 0, "optional": 1, "core": 2}
+            if name not in mentions or priority[status] > priority[mentions[name]]:
+                mentions[name] = status
+    return mentions
 
 AMOUNT = r"(?:\d{1,3}(?:[ \u00a0]\d{3})+|\d{2,7})"
 UNIT = r"(?:тыс(?:яч)?\.?|[кk])"
@@ -96,15 +139,6 @@ def _salary(text: str) -> tuple[int | None, int | None, str | None]:
     return None, None, None
 
 
-def _negated(text: str, start: int, end: int) -> bool:
-    before = text[max(0, start - 35):start].lower()
-    after = text[end:end + 25].lower()
-    return bool(
-        re.search(r"(?:не\s+(?:нужен|нужна|нужны|требуется|обязателен|обязательна|обязательно)|без|желательно)\s*$", before)
-        or re.match(r"\s+(?:не\s+(?:нужен|нужна|нужны|требуется|обязателен|обязательна|обязательно)|будет плюсом)\b", after)
-    )
-
-
 def parse_need(text: str) -> dict:
     specializations = [name for name, pattern in SPECIALIZATIONS if re.search(pattern, text, re.IGNORECASE)]
     specialization = specializations[0] if len(specializations) == 1 else None
@@ -113,6 +147,7 @@ def parse_need(text: str) -> dict:
     grade = grades[0] if len(grades) == 1 else None
 
     found_skills = []
+    mentions = skill_mentions(text)
     for name, pattern in SKILLS:
         matches = (
             sorted(
@@ -122,7 +157,7 @@ def parse_need(text: str) -> dict:
             if name == "Go" else re.finditer(pattern, text, re.IGNORECASE)
         )
         for match in matches:
-            if not _negated(text, match.start(), match.end()):
+            if mentions.get(name) == "core":
                 found_skills.append((match.start(), name))
                 break
     skills = [{"name": name, "weight": 3} for _, name in sorted(found_skills)]

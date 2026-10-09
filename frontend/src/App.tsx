@@ -1524,17 +1524,15 @@ function EmployerScreen({
     if (bankSkill.trim()) params.set("skill", bankSkill.trim());
     if (bankFormat) params.set("work_format", bankFormat);
     if (bankCity.trim()) params.set("city", bankCity.trim());
-    if (bankQuery.trim()) params.set("stack", bankQuery.trim());
     setBankLoading(true);
     apiGet<MatchingCandidate[]>(`/matching/search?${params}`)
       .then((items) => setBankItems(items.map((item, index) => mapMatchToCandidate(item, index, demoMode))))
       .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось выполнить поиск", "error"))
       .finally(() => setBankLoading(false));
-  }, [active, bankSpecialization, bankGrade, bankSkill, bankFormat, bankCity, bankFspOnly, bankQuery, demoMode]);
+  }, [active, bankSpecialization, bankGrade, bankSkill, bankFormat, bankCity, bankFspOnly, demoMode]);
 
   const visibleBankItems = bankItems.filter((candidate) =>
-    (!bankQuery || candidate.name.toLowerCase().includes(bankQuery.trim().toLowerCase())) &&
-    (!bankSkill || candidate.skills.some((skill) => skill.toLowerCase().includes(bankSkill.trim().toLowerCase()))),
+    !bankQuery || candidate.name.toLowerCase().includes(bankQuery.trim().toLowerCase()),
   );
 
   const resetVacancyForm = () => {
