@@ -151,8 +151,8 @@ async def get_test_history(
     response_model=list[OpenQuestionResponse],
     summary="Список доступных открытых вопросов и заданий с кодом",
 )
-async def list_open_questions(specialization: str | None = None):
-    return get_public_open_questions(specialization)
+async def list_open_questions(specialization: str | None = None, grade: str | None = None):
+    return get_public_open_questions(specialization, grade)
 
 
 @router.get(
@@ -170,7 +170,9 @@ async def get_open_question(code: str):
         "specialization": q["specialization"],
         "grade": q["grade"],
         "question_type": q["question_type"],
+        "skill": q.get("skill", ""),
         "question_text": q["question_text"],
+        "acceptable_solutions": q.get("acceptable_solutions", []),
         "rubric_criteria": q["rubric_criteria"],
     }
 

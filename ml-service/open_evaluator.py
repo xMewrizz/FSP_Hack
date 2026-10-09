@@ -47,7 +47,9 @@ SYSTEM_PROMPT = """Ты — строгий технический эксперт
 Твоя задача:
 - Проанализировать ответ кандидата относительно каждого критерия из рубрики.
 - Для каждого критерия указать met (True/False) и краткое пояснение.
-- Выставить итоговый скор от 0.0 до 1.0 (доля выполненных критериев).
+- СТРОГОСТЬ ПРОВЕРКИ: Простое упоминание терминов, библиотек или ключевых слов НЕ дает зачет по критерию. Критерий считается выполненным (met: true) ТОЛЬКО если кандидат явно и технически корректно описал или запрограммировал требуемую логику, согласующуюся с эталонным решением.
+- Если в ответе содержится грубая ошибка, антипаттерн или прямое нарушение критерия (например, data leakage, race condition, неверные формулы, отсутствие обязательных блоков, синтаксический нонсенс), данный критерий ОБЯЗАН быть помечен met: false.
+- Итоговый score должен строго равняться доле выполненных критериев: количество критериев с met: true, деленное на общее число критериев в рубрике.
 - passed = True если score >= 0.70, иначе False.
 - Написать конструктивную обратную связь (general_feedback).
 
@@ -121,6 +123,50 @@ def deterministic_fallback_evaluation(
                 matched = any(k in answer_lower for k in ("popleft", "pop", "remove", ">", "<", "threshold", "while", "for"))
             elif "проверка лимита" in crit_lower or "лимит" in crit_lower:
                 matched = any(k in answer_lower for k in ("<", "<=", "return true", "return false", "max_requests"))
+            elif "pydantic" in crit_lower or "схем" in crit_lower or "quantity" in crit_lower or "валидаци" in crit_lower:
+                matched = any(k in answer_lower for k in ("basemodel", "field", "gt=0", "quantity", "price", "validator"))
+            elif "эндпоинт" in crit_lower or "201" in crit_lower or "post" in crit_lower:
+                matched = any(k in answer_lower for k in ("post", "201", "created", "router", "app"))
+            elif "check_inventory" in crit_lower or "наличи" in crit_lower or "await" in crit_lower:
+                matched = "check_inventory" in answer_lower and ("await" in answer_lower or "def " in answer_lower)
+            elif "httpexception" in crit_lower or "400" in crit_lower or "order_id" in crit_lower:
+                matched = any(k in answer_lower for k in ("httpexception", "400", "order_id", "out of stock"))
+            elif "извлечение задач" in crit_lower or "queue.get" in crit_lower:
+                matched = any(k in answer_lower for k in ("queue.get", "get()", "await queue"))
+            elif "wait_for" in crit_lower or "таймаут" in crit_lower:
+                matched = any(k in answer_lower for k in ("wait_for", "timeout", "asyncio.timeout"))
+            elif "task_done" in crit_lower or "finally" in crit_lower:
+                matched = "task_done" in answer_lower and "finally" in answer_lower
+            elif "cancellederror" in crit_lower or "shutdown" in crit_lower:
+                matched = any(k in answer_lower for k in ("cancellederror", "cancel", "break", "shutdown"))
+            elif "semaphore" in crit_lower or "семафор" in crit_lower or "backpressure" in crit_lower:
+                matched = any(k in answer_lower for k in ("semaphore", "max_concurrency", "maxsize", "queue"))
+            elif "circuit" in crit_lower or "breaker" in crit_lower:
+                matched = any(k in answer_lower for k in ("circuit", "breaker", "is_open", "recovery_timeout", "failure"))
+            elif "приведение типов" in crit_lower or "ram" in crit_lower or "category" in crit_lower:
+                matched = any(k in answer_lower for k in ("category", "to_datetime", "downcast", "astype"))
+            elif "векторизованная фильтрация" in crit_lower or "фильтрация" in crit_lower:
+                matched = any(k in answer_lower for k in ("status == 'success'", "status == \"success\"", "res[", "df["))
+            elif "агрегация" in crit_lower or "groupby" in crit_lower:
+                matched = any(k in answer_lower for k in ("groupby", "agg", "sum", "count"))
+            elif "сортировка" in crit_lower or "sort_values" in crit_lower:
+                matched = any(k in answer_lower for k in ("sort_values", "ascending=false", "ascending=0"))
+            elif "ковариаци" in crit_lower or "cov" in crit_lower:
+                matched = any(k in answer_lower for k in ("cov", "cov_yx", "var"))
+            elif "theta" in crit_lower or "оптимальн" in crit_lower:
+                matched = any(k in answer_lower for k in ("theta", "cov_yx / var_x", "cov / var"))
+            elif "центрирование" in crit_lower or "y_cuped" in crit_lower:
+                matched = any(k in answer_lower for k in ("y_cuped", "cuped", "mean", "- theta *"))
+            elif "снижения дисперсии" in crit_lower or "variance" in crit_lower:
+                matched = any(k in answer_lower for k in ("variance_reduction", "var_cuped", "var_y", "1.0 -"))
+            elif "baseestimator" in crit_lower or "наследование" in crit_lower or "classifiermixin" in crit_lower:
+                matched = any(k in answer_lower for k in ("baseestimator", "classifiermixin", "class "))
+            elif "разделение выборки" in crit_lower or "калибровочн" in crit_lower:
+                matched = any(k in answer_lower for k in ("train_test_split", "test_size", "calib", "split"))
+            elif "калибровк" in crit_lower or "isotonic" in crit_lower or "platt" in crit_lower:
+                matched = any(k in answer_lower for k in ("isotonic", "isotonicregression", "calibrated", "calibrate"))
+            elif "brier" in crit_lower or "матриц" in crit_lower or "predict_proba" in crit_lower:
+                matched = any(k in answer_lower for k in ("brier_score", "brier", "predict_proba", "column_stack", "** 2"))
             elif "фолд" in crit_lower or "kfold" in crit_lower or "split" in crit_lower:
                 matched = any(k in answer_lower for k in ("kfold", "split", "stratifiedkfold", "cv"))
             elif "fit" in crit_lower or "scaler" in crit_lower or "обучение" in crit_lower:
@@ -204,8 +250,8 @@ def resolve_ollama_base_url() -> str:
 
 
 def resolve_ollama_model() -> str:
-    """Модель по умолчанию: qwen2.5:latest (или OLLAMA_MODEL при наличии)."""
-    return os.getenv("OLLAMA_MODEL", "qwen2.5:latest")
+    """Модель по умолчанию: qwen2.5:14b-instruct-q4_K_M (или OLLAMA_MODEL при наличии)."""
+    return os.getenv("OLLAMA_MODEL", "qwen2.5:14b-instruct-q4_K_M")
 
 
 async def evaluate_open_answer(

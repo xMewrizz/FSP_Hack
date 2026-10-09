@@ -24,7 +24,7 @@ class OpenEvaluatorTests(unittest.IsolatedAsyncioTestCase):
         def reply(request: httpx.Request) -> httpx.Response:
             payload = json.loads(request.content)
             self.assertEqual(request.url.path, "/api/chat")
-            self.assertIn(payload["model"], ("qwen2.5:latest", "qwen3:8b"))
+            self.assertIn(payload["model"], ("qwen2.5:latest", "qwen3:8b", "qwen2.5:14b-instruct-q4_K_M"))
             self.assertIn("OPEN-BE-ARCH-01", payload["messages"][1]["content"])
             return httpx.Response(
                 200,

@@ -18,8 +18,12 @@ from app.models.test import OpenQuestionSubmission
 from app.models.user import User
 
 
-def get_public_open_questions(specialization: str | None = None) -> list[dict[str, Any]]:
-    questions = OPEN_QUESTIONS if not specialization else [q for q in OPEN_QUESTIONS if q["specialization"] == specialization]
+def get_public_open_questions(specialization: str | None = None, grade: str | None = None) -> list[dict[str, Any]]:
+    questions = OPEN_QUESTIONS
+    if specialization:
+        questions = [q for q in questions if q["specialization"] == specialization]
+    if grade:
+        questions = [q for q in questions if q["grade"] == grade.lower()]
     return [
         {
             "code": q["code"],
@@ -27,7 +31,9 @@ def get_public_open_questions(specialization: str | None = None) -> list[dict[st
             "specialization": q["specialization"],
             "grade": q["grade"],
             "question_type": q["question_type"],
+            "skill": q.get("skill", ""),
             "question_text": q["question_text"],
+            "acceptable_solutions": q.get("acceptable_solutions", []),
             "rubric_criteria": q["rubric_criteria"],
         }
         for q in questions

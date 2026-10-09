@@ -9,23 +9,72 @@ from app.services.open_question_service import get_public_open_questions
 
 
 def test_open_questions_bank_structure():
-    assert len(OPEN_QUESTIONS) >= 4
+    assert len(OPEN_QUESTIONS) == 16
     codes = [q["code"] for q in OPEN_QUESTIONS]
     assert len(codes) == len(set(codes))
 
+    be_questions = [q for q in OPEN_QUESTIONS if q["specialization"] == "Backend"]
+    ds_questions = [q for q in OPEN_QUESTIONS if q["specialization"] == "Data Science"]
+    assert len(be_questions) == 8
+    assert len(ds_questions) == 8
+
+    # Проверка распределения по грейдам
+    for spec_questions in (be_questions, ds_questions):
+        juniors = [q for q in spec_questions if q["grade"] == "junior"]
+        middles = [q for q in spec_questions if q["grade"] == "middle"]
+        seniors = [q for q in spec_questions if q["grade"] == "senior"]
+        assert len(juniors) == 2
+        assert len(middles) == 4
+        assert len(seniors) == 2
+
+    # Проверка структуры каждого вопроса
     for q in OPEN_QUESTIONS:
         assert q["code"].startswith("OPEN-")
         assert q["specialization"] in ("Backend", "Data Science")
+        assert q["grade"] in ("junior", "middle", "senior")
         assert q["question_type"] in ("free_text", "code")
+        assert len(q["skill"]) > 3
+        assert len(q["acceptable_solutions"]) >= 2
         assert len(q["rubric_criteria"]) >= 3
         assert len(q["reference_solution"]) > 20
         assert len(q["question_text"]) > 20
 
     public = get_public_open_questions()
+    assert len(public) == 16
     for pub in public:
         assert "reference_solution" not in pub
         assert "rubric_criteria" in pub
         assert "code" in pub
+        assert "skill" in pub
+        assert "acceptable_solutions" in pub
+
+    # Проверка фильтра по грейду
+    juniors_pub = get_public_open_questions(grade="junior")
+    assert len(juniors_pub) == 4
+    seniors_pub = get_public_open_questions(grade="senior")
+    assert len(seniors_pub) == 4
+    ds_middles_pub = get_public_open_questions(specialization="Data Science", grade="middle")
+    assert len(ds_middles_pub) == 4
+
+
+@pytest.mark.asyncio
+async def test_open_questions_endpoints_grade_filter(client: AsyncClient):
+    resp = await client.get("/api/v1/testing/open-questions?grade=junior")
+    assert resp.status_code == 200
+    items = resp.json()
+    assert len(items) == 4
+    for it in items:
+        assert it["grade"] == "junior"
+        assert "skill" in it
+        assert len(it["acceptable_solutions"]) > 0
+
+    resp_sr = await client.get("/api/v1/testing/open-questions?specialization=Backend&grade=senior")
+    assert resp_sr.status_code == 200
+    items_sr = resp_sr.json()
+    assert len(items_sr) == 2
+    for it in items_sr:
+        assert it["specialization"] == "Backend"
+        assert it["grade"] == "senior"
 
 
 async def open_test_candidate_headers(client: AsyncClient, email: str = "open_cand@example.com") -> dict[str, str]:

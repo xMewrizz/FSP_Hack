@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.constants import Grade
 
@@ -145,7 +145,9 @@ class OpenQuestionResponse(BaseModel):
     specialization: str
     grade: str
     question_type: str
+    skill: str = ""
     question_text: str
+    acceptable_solutions: list[str] = Field(default_factory=list)
     rubric_criteria: list[str]
 
 

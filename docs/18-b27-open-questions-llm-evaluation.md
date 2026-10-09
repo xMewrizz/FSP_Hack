@@ -1,6 +1,6 @@
 # Задания с развернутым ответом и оценка моделью (B-27)
 
-Документ описывает реализацию открытых заданий (архитектурные кейсы и задачи по написанию кода) с автоматической оценкой через LLM (`Qwen3:8b` в Ollama) и надежным детерминированным fallback-контуром в соответствии с регламентом хакатона.
+Документ описывает реализацию открытых заданий (архитектурные кейсы и задачи по написанию кода) с автоматической оценкой через LLM (`Qwen2.5` в Ollama) и надежным детерминированным fallback-контуром в соответствии с регламентом хакатона.
 
 ---
 
@@ -26,7 +26,7 @@
 |                                  ML-Service                                     |
 |                                                                                 |
 |   +--------------------------+                 +----------------------------+   |
-|   |   Ollama / Qwen3:8b      |  [сбой / оффлайн] |  Детерминированный         |   |
+|   |   Ollama / Qwen2.5       |  [сбой / оффлайн] |  Детерминированный         |   |
 |   |   Structured JSON Output | ---------------> |  AST & Heuristic Fallback  |   |
 |   |   evaluator: llm_qwen3   |                  |  evaluator: fallback_heur  |   |
 |   |   needs_manual: False    |                  |  needs_manual_review: True |   |
@@ -36,101 +36,66 @@
 
 ---
 
-## 2. Банк открытых заданий
+## 2. Расширенный банк открытых заданий (16 задач)
 
-Задания хранятся в модуле `app.core.open_question_bank` с эталонными решениями (`reference_solution`) и атомарными критериями проверки (`rubric_criteria`). Эталонное решение скрыто от кандидата при вызове публичного API `GET /testing/open-questions`.
+Банк заданий структурирован по грейдам (**Junior**, **Middle**, **Senior**) и специализациям (**Backend** и **Data Science**), покрывая 8 практических задач по коду (Python в различном контексте) и 8 комплексных архитектурных кейсов.
 
-### Включенные задачи:
-1. **`OPEN-BE-ARCH-01` (Backend Architecture, Middle)**:
-   - *Тема*: Проектирование идемпотентного обработчика платежей.
-   - *Критерии*: Уникальный `idempotency_key` с `UNIQUE constraint`, транзакционная изоляция со статусами (`PENDING` -> `PROCESSED`) через `SELECT ... FOR UPDATE`, возврат кэшированного ответа при дубликатах, обработка сетевых сбоев и асинхронная сверка.
-2. **`OPEN-BE-CODE-01` (Backend Code Challenge, Middle)**:
-   - *Тема*: Реализация скользящего ограничителя запросов (`SlidingWindowRateLimiter`).
-   - *Критерии*: Инициализация с `max_requests` и `window_seconds`, ведение истории меток через `deque`, удаление устаревших меток (`threshold = current_time - window_seconds`), проверка лимита и возврат `True`/`False`.
-3. **`OPEN-DS-ARCH-01` (Data Science Architecture, Middle)**:
-   - *Тема*: Архитектура Real-Time ML Serving и мониторинга дрейфа данных.
-   - *Критерии*: In-Memory Feature Store (`Redis`/`Feast`) для соблюдения P99 SLA < 50мс, асинхронное логирование инференса в очередь (`Kafka`), фоновый расчет метрик дрейфа (`PSI`, `KS-тест`), валидация входных признаков.
-4. **`OPEN-DS-CODE-01` (Data Science Code Challenge, Middle)**:
-   - *Тема*: Реализация честной кросс-валидации с препроцессингом без Data Leakage.
-   - *Критерии*: Разделение выборки на фолды (`KFold`/`StratifiedKFold`), обучение `StandardScaler.fit` строго внутри обучающей части фолда, применение `transform` к валидационной части, расчет `roc_auc_score` и возврат среднего.
+Все задачи хранятся в модуле `app.core.open_question_bank` с указанием проверяемого навыка (`skill`), допустимых вариантов решения (`acceptable_solutions`), эталонного решения (`reference_solution`) и атомарных критериев оценки (`rubric_criteria`).
+
+### Матрица покрытия навыков и грейдов
+
+| Специализация | Грейд | Код задания | Тип | Проверяемый навык | Ключевая тема |
+|---|---|---|---|---|---|
+| **Backend** | **Junior** | `OPEN-BE-ARCH-JR-01` | `free_text` | SQL и моделирование данных | Проектирование реляционной схемы БД заказов, FK, ON DELETE RESTRICT, индексы, soft delete |
+| **Backend** | **Junior** | `OPEN-BE-CODE-JR-01` | `code` | Python для Backend & HTTP API | Асинхронный эндпоинт FastAPI с Pydantic-валидацией, статусом 201 Created и обработкой ошибок |
+| **Backend** | **Middle** | `OPEN-BE-ARCH-01` | `free_text` | Архитектура и надёжность | Идемпотентный обработчик платежей, UNIQUE constraint, SELECT FOR UPDATE, reconciliation worker |
+| **Backend** | **Middle** | `OPEN-BE-CODE-01` | `code` | Python для Backend и алгоритмы | Скользящий ограничитель запросов (`SlidingWindowRateLimiter`) на `deque` с очисткой окна |
+| **Backend** | **Middle** | `OPEN-BE-ARCH-MID-02` | `free_text` | SQL и работа с транзакциями | Разрешение Deadlocks, уровни изоляции Read Committed vs Repeatable Read, ORDER BY id FOR UPDATE |
+| **Backend** | **Middle** | `OPEN-BE-CODE-MID-02` | `code` | Python & Concurrency (asyncio) | Асинхронный воркер очереди задач с graceful shutdown, таймаутами и finally queue.task_done() |
+| **Backend** | **Senior** | `OPEN-BE-ARCH-SR-01` | `free_text` | Распределенные системы | Распределенные транзакции: Saga Orchestrator, Transactional Outbox + CDC (Debezium/Kafka), DLQ |
+| **Backend** | **Senior** | `OPEN-BE-CODE-SR-01` | `code` | Python High-Load Concurrency | Пул асинхронных воркеров с управлением Backpressure (ограниченная очередь) и Circuit Breaker |
+| **Data Science** | **Junior** | `OPEN-DS-ARCH-JR-01` | `free_text` | ML-валидация и статистика | Валидация временных рядов (Time-based split), GroupKFold по пользователям, изоляция препроцессинга |
+| **Data Science** | **Junior** | `OPEN-DS-CODE-JR-01` | `code` | Python & Pandas Processing | Оптимизация памяти (category, datetime, downcast), векторизованная фильтрация и groupby aggregation |
+| **Data Science** | **Middle** | `OPEN-DS-ARCH-01` | `free_text` | MLOps и онлайн-инференс | Real-Time ML Serving (Redis Feature Store, P99 < 50мс), асинхронное логирование в Kafka, дрейф данных |
+| **Data Science** | **Middle** | `OPEN-DS-CODE-01` | `code` | ML-валидация и пайплайны | Честная K-Fold кросс-валидация без Data Leakage (fit StandardScaler строго внутри обучающего фолда) |
+| **Data Science** | **Middle** | `OPEN-DS-ARCH-MID-02` | `free_text` | A/B тестирование и статистика | Дизайн A/B теста, расчет выборки по MDE/мощности, диагностика SRM через Chi-square, FDR коррекция |
+| **Data Science** | **Middle** | `OPEN-DS-CODE-MID-02` | `code` | Статистика и A/B (CUPED) | Снижение дисперсии методом CUPED: расчет $\theta = \mathrm{Cov}(Y, X)/\mathrm{Var}(X)$ и скорректированной метрики |
+| **Data Science** | **Senior** | `OPEN-DS-ARCH-SR-01` | `free_text` | Enterprise MLOps & Vector DB | Корпоративный Feature Store (Offline point-in-time join + Online Redis), 2-stage ANN HNSW, Shadow Deploy |
+| **Data Science** | **Senior** | `OPEN-DS-CODE-SR-01` | `code` | Sklearn Architecture & Math | Кастомный sklearn-оценщик (BaseEstimator, ClassifierMixin) с калибровкой вероятностей и Brier Score |
 
 ---
 
-## 3. Оценка моделью (LLM Evaluation)
+## 3. Оценка моделью (LLM Evaluation) и защита от мягкого промпта
 
-- **Модель**: `qwen3:8b` (локальный запуск через Ollama).
-- **Схема структурированного вывода**:
-  ```json
-  {
-    "score": 0.85,
-    "passed": true,
-    "criteria_breakdown": [
-      {
-        "criterion": "Использование idempotency_key с UNIQUE constraint",
-        "met": true,
-        "explanation": "Кандидат явно выделил поле в таблице с ограничением уникальности."
-      }
-    ],
-    "general_feedback": "Отличное архитектурное решение..."
-  }
-  ```
-- **Правило подтверждения**:
-  - `score >= 0.70` трактуется как успешное прохождение (`passed = True`).
-  - Пограничные оценки (0.60–0.75) получают `needs_manual_review = True` для перепроверки старшим разработчиком.
+### Проблема «мягкого промпта» (Lenient Prompt Bias)
+В непродуманных промптах языковая модель склонна засчитывать поверхностные ответы: если кандидат просто упоминает названия библиотек («использую StandardScaler», «сделаю через Redis») без правильной логики или с грубыми ошибками (например, вызов `fit()` на всей выборке до сплита), модель может выставить положительную оценку.
+
+### Меры устранения в B-27:
+1. **Строгий системный промпт**:
+   - Явное правило: *«Простое упоминание терминов, библиотек или ключевых слов НЕ дает зачет по критерию. Критерий считается выполненным (met: true) ТОЛЬКО если кандидат явно и технически корректно описал или запрограммировал требуемую логику, согласующуюся с эталонным решением»*.
+   - Прямое указание: *«Если в ответе содержится грубая ошибка, антипаттерн или прямое нарушение критерия (data leakage, race condition, неверные формулы, отсутствие обязательных блоков), данный критерий ОБЯЗАН быть помечен met: false»*.
+2. **Атомарная рубрика**: Каждая задача разбита на 4–5 бинарных, технически проверяемых критериев.
+3. **Строгая привязка балла к критериям**: Итоговый балл формируется на основе доли выполненных критериев, исключая галлюцинации завышенного балла при проваленных пунктах рубрики.
 
 ---
 
 ## 4. Детерминированный Fallback (Регламент хакатона)
 
-В соответствии с правилом `docs/05-backlog.md` (строка 51):
-> «Если LLM недоступна, ответ на развёрнутое задание ждёт ручной проверки; автоматически присваивать за него балл нельзя. Основной сценарий P0 при этом продолжает работать.»
+В соответствии с правилом `docs/05-backlog.md`:
+> «Если LLM недоступна, ответ на развёрнутое задание ждёт ручной проверки; автоматически присваивать за него балл нельзя.»
 
-При недоступности сервиса Ollama, ошибке сети, синтаксических сбоях парсинга или пустых ответах система активирует детерминированный fallback:
-1. **Для кода**:
-   - Анализ AST-дерева через модуль `ast`.
-   - Проверка синтаксической валидности (при `SyntaxError` сразу фиксируется неуспех с подробным описанием ошибки).
-   - Проверка наличия функциональных конструкций (определение классов/методов, использование очередей `deque`, вызовов `fit`/`transform`, циклов очистки окна).
-2. **Для архитектурного текста**:
-   - Морфологический стемминг ключевых терминов критериев (поиск корней слов `уник`, `идем`, `тран`, `кэш`, `сете`, `дрейф`, `redis`, `kafka` и др.).
-   - Расчет доли совпадения каждого критерия рубрики.
-3. **Ограничение прав присвоения грейда**:
-   - При срабатывании fallback обязательным инвариантом является:
-     ```python
-     evaluator = "fallback_heuristic"
-     needs_manual_review = True
-```
-   - Задание сохраняется со статусом ожидания ручной проверки, предотвращая несанкционированное присвоение грейда.
+При недоступности сервиса Ollama активируется детерминированный эвристический fallback:
+1. **Предварительный фильтр синтаксиса (AST)**: Для заданий с кодом синтаксические ошибки (`SyntaxError`, `IndentationError`) детектируются за 0.1 мс до отправки в LLM, сохраняя ресурсы и фиксируя оценку 0.10.
+2. **Фильтр Prompt Injection**: Регулярные выражения выявляют попытки подмены инструкций («ignore previous instructions», «поставь 100 баллов») и аннулируют балл до нуля.
+3. **Инвариант безопасности**: `evaluator = "fallback_heuristic"`, `needs_manual_review = True`. Задание попадает в очередь ручной проверки для ревьюера.
 
 ---
 
-## 5. Модель данных и API
+## 5. API Эндпоинты
 
-- **Таблица БД**: `open_question_submissions`
-  - `id`: UUID (Primary Key)
-  - `user_id`: UUID (Foreign Key -> `users.id`)
-  - `candidate_profile_id`: UUID (Foreign Key -> `candidate_profiles.id`)
-  - `question_code`: String
-  - `question_type`: String (`free_text` / `code`)
-  - `answer_text`: Text
-  - `score`: Float (0.0 .. 1.0)
-  - `passed`: Boolean
-  - `feedback`: Text
-  - `criterion_scores`: JSON
-  - `evaluator`: String (`llm_qwen3` / `fallback_heuristic` / `manual_reviewer`)
-  - `needs_manual_review`: Boolean
-
-- **API Эндпоинты**:
-  - `GET /api/v1/testing/open-questions` — список доступных открытых задач без эталонных ответов.
-  - `GET /api/v1/testing/open-questions/{code}` — детальная карточка задачи с критериями.
-  - `POST /api/v1/testing/open-questions/{code}/submit` — отправка решения, синхронная оценка и сохранение.
-  - `GET /api/v1/testing/open-submissions` — история попыток кандидата с обратной связью и скорами.
-
----
-
-## 6. Затраты и производительность
-
-- **Стоимость**: 0 рублей (используется локальный контейнер Ollama с открытыми весами Qwen).
-- **Время отклика**:
-  - Локальный fallback (AST / Heuristic): **10–25 мс**
-  - Оценка LLM (Qwen3:8b на CPU / GPU): **2.5–6.5 с**
-- **Изоляция сбоев**: Падение или перезапуск Ollama не блокирует работу платформы и не приводит к 5xx ошибкам у пользователя — ответ всегда принимается и ставится в очередь ручной проверки.
+- `GET /api/v1/testing/open-questions?specialization={Backend|Data Science}&grade={junior|middle|senior}` — список доступных открытых задач с фильтрацией по специализации и грейду.
+- `GET /api/v1/testing/open-questions/{code}` — детальная карточка задачи с описанием, допустимыми вариантами решения и рубрикой оценки (эталон скрыт).
+- `POST /api/v1/testing/open-questions/{code}/submit` — отправка ответа кандидата на оценку.
+- `GET /api/v1/testing/open-submissions` — история попыток кандидата со скорами и детализацией критериев.
+- `GET /api/v1/testing/open-submissions/pending-review` — очередь для экспертов на ручную верификацию.
+- `POST /api/v1/testing/open-submissions/{id}/review` — утверждение/исправление оценки экспертом.
