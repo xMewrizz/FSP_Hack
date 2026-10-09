@@ -4688,7 +4688,7 @@ function App() {
                 <span className="muted-label">АКТИВНАЯ ПОТРЕБНОСТЬ</span>
                 <strong>{activeNeed ? `${activeNeed.title} · ${activeNeed.required_grade}` : "Подборка по подтверждённым профилям"}</strong>
               </div>
-              <span className="status"><i /> Подбор активен</span>
+              {activeNeed ? <span className="status"><i /> Подбор активен</span> : <span className="muted-label">Нет активной потребности</span>}
             </div>
             <div className="need-summary__meta">
               {activeNeed ? (
@@ -4838,7 +4838,9 @@ function App() {
               </article>
             ))}
             {filtered.length === 0 && (
-              <div className="empty-state">{backendCandidates.length === 0
+              <div className="empty-state">{!activeNeed
+                ? "Создайте потребность, чтобы увидеть кандидатов в подборке"
+                : backendCandidates.length === 0
                 ? "Пока нет кандидатов с подтверждённой категорией для этой потребности"
                 : "По выбранным параметрам кандидаты не найдены"}</div>
             )}
