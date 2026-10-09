@@ -1,4 +1,4 @@
-"""Предложение навыков и их важности по описанию потребности через Ollama."""
+"""Предложение навыков и их важности по описанию потребности."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 from need_parser import SKILLS, SPECIALIZATIONS, parse_need, skill_mentions
+from llm_client import chat_json
 
 
 class SkillDraft(TypedDict):
@@ -142,26 +143,22 @@ async def suggest_need(text: str, client: httpx.AsyncClient) -> dict:
     host = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
     model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
     schema = SuggestedNeed.model_json_schema()
-    response = await client.post(
-        f"{host}/api/chat",
-        json={
-            "model": model,
-            "messages": [
+    raw_content = await chat_json(
+        client,
+        messages=[
                 {"role": "system", "content": SYSTEM_PROMPT.format(
                     specializations=", ".join(name for name, _ in SPECIALIZATIONS),
                     skills=", ".join(sorted(TECH_SKILLS | GENERIC_SKILLS.keys())),
                 )},
                 {"role": "user", "content": text},
-            ],
-            "format": schema,
-            "stream": False,
-            "think": False,
-            "options": {"temperature": 0, "num_ctx": 4096},
-        },
+        ],
+        schema=schema,
+        schema_name="suggested_need",
+        ollama_url=host,
+        ollama_model=model,
     )
-    response.raise_for_status()
     try:
-        suggested = SuggestedNeed.model_validate_json(response.json()["message"]["content"])
+        suggested = SuggestedNeed.model_validate_json(raw_content)
     except (KeyError, TypeError, ValueError, ValidationError) as exc:
         raise ValueError("Модель вернула некорректный список навыков") from exc
 

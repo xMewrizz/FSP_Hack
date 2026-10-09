@@ -146,7 +146,7 @@ async def submit_open_question_answer(
     eval_result: dict[str, Any]
     should_close_client = False
     if client is None:
-        client = httpx.AsyncClient(timeout=30.0)
+        client = httpx.AsyncClient(timeout=90.0)
         should_close_client = True
 
     try:

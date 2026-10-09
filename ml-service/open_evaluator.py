@@ -11,6 +11,7 @@ import re
 from typing import Any
 import httpx
 from pydantic import BaseModel, Field, ValidationError
+from llm_client import chat_json, provider_name
 
 
 class LLMCriterionEvaluation(BaseModel):
@@ -217,7 +218,7 @@ async def evaluate_open_answer(
     candidate_answer: str,
     client: httpx.AsyncClient | None = None,
 ) -> OpenEvaluationResult:
-    """Оценка через Ollama (Qwen) с автоматическим переходом на детерминированный fallback."""
+    """Оценка через выбранную модель с переходом на ручную проверку при сбое."""
     stripped_answer = candidate_answer.strip()
     if not stripped_answer:
         return deterministic_fallback_evaluation(
@@ -264,27 +265,21 @@ async def evaluate_open_answer(
 
     should_close_client = False
     if client is None:
-        client = httpx.AsyncClient(timeout=45.0)
+        client = httpx.AsyncClient(timeout=80.0)
         should_close_client = True
 
     try:
-        response = await client.post(
-            f"{host}/api/chat",
-            json={
-                "model": model,
-                "messages": [
+        raw_content = await chat_json(
+            client,
+            messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_content},
-                ],
-                "format": LLMEvaluationOutput.model_json_schema(),
-                "stream": False,
-                "think": False,
-                "options": {"temperature": 0, "num_ctx": 4096},
-            },
+            ],
+            schema=LLMEvaluationOutput.model_json_schema(),
+            schema_name="open_answer_evaluation",
+            ollama_url=host,
+            ollama_model=model,
         )
-        response.raise_for_status()
-        data = response.json()
-        raw_content = data["message"]["content"].strip()
         if raw_content.startswith("```"):
             raw_content = re.sub(r"^```(?:json)?\s*", "", raw_content, flags=re.IGNORECASE)
             raw_content = re.sub(r"\s*```$", "", raw_content)
@@ -322,7 +317,7 @@ async def evaluate_open_answer(
             passed=passed,
             feedback=feedback_text,
             criterion_scores=crit_scores,
-            evaluator="llm_qwen3",
+            evaluator="llm_openrouter_qwen3_14b" if provider_name() == "openrouter" else "llm_qwen3",
             needs_manual_review=(0.60 <= clamped_score <= 0.75) or has_injection_attempt,
         )
 
