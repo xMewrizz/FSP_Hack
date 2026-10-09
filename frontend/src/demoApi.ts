@@ -61,6 +61,61 @@ type DemoInvitation = {
   candidate_contacts: { email: string; phone: string; telegram: string } | null;
 };
 
+type DemoInvitationMessage = {
+  id: string;
+  invitation_id: string;
+  sender_role: DemoRole;
+  body: string;
+  created_at: string;
+  read: boolean;
+};
+
+type DemoVacancy = {
+  id: string;
+  employer_id: string;
+  title: string;
+  specialization: string;
+  required_grade: string;
+  required_skills: string[];
+  salary_min: number;
+  salary_max: number;
+  salary_tax_type: "gross" | "net";
+  currency: string;
+  work_format: string;
+  city: string | null;
+  description: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+  company: { id: string; company_name: string; industry: string; website: string; city: string };
+};
+
+type DemoVacancyApplication = {
+  id: string;
+  vacancy_id: string;
+  status: "pending" | "reviewed" | "accepted" | "rejected";
+  cover_letter: string | null;
+  created_at: string;
+  status_updated_at: string | null;
+  candidate_id: string;
+  candidate: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string | null;
+    telegram: string | null;
+    city: string | null;
+    specialization: string | null;
+    verified_grade: string | null;
+    skills: string[];
+  };
+  vacancy_title: string;
+  company_name: string;
+  salary_min: number;
+  salary_max: number;
+  salary_tax_type: "gross" | "net";
+};
+
 const candidateProfile = {
   first_name: "Алексей",
   last_name: "Морозов",
@@ -81,6 +136,7 @@ const candidateProfile = {
   agreed_publication: true,
   visibility_public: true,
   agreed_osint: true,
+  mentor_available: false,
   onboarding_completed: true,
 };
 
@@ -292,6 +348,64 @@ const invitations: DemoInvitation[] = [
   },
 ];
 
+invitations[1].status = "accepted";
+invitations[1].accepted_at = "2026-10-04T15:30:00Z";
+invitations[1].candidate_contacts = { email: "alexey.demo@example.ru", phone: "+7 900 000-00-01", telegram: "@alexey_demo" };
+
+const invitationMessages: DemoInvitationMessage[] = [
+  {
+    id: "demo-message-1",
+    invitation_id: "demo-invitation-2",
+    sender_role: "employer",
+    body: "Добрый день! Приглашаем обсудить задачи команды и условия сотрудничества.",
+    created_at: "2026-10-04T15:30:00Z",
+    read: false,
+  },
+];
+
+const vacancies: DemoVacancy[] = [
+  {
+    id: "demo-vacancy-1",
+    employer_id: "demo-employer",
+    title: "Backend-разработчик",
+    specialization: "Backend",
+    required_grade: "middle",
+    required_skills: ["Python", "FastAPI", "PostgreSQL", "Docker"],
+    salary_min: 220000,
+    salary_max: 280000,
+    salary_tax_type: "gross",
+    currency: "RUB",
+    work_format: "remote",
+    city: "Москва",
+    description: "Развитие API финансовой платформы, работа с PostgreSQL и сервисами обработки событий.",
+    is_published: true,
+    created_at: "2026-10-01T10:00:00Z",
+    updated_at: "2026-10-01T10:00:00Z",
+    company: { id: "demo-company", company_name: "NovaTech", industry: "FinTech", website: "https://example.com", city: "Москва" },
+  },
+  {
+    id: "demo-vacancy-2",
+    employer_id: "demo-employer",
+    title: "Инженер платформы данных",
+    specialization: "Data Science / ML",
+    required_grade: "middle",
+    required_skills: ["Python", "SQL", "Docker"],
+    salary_min: 230000,
+    salary_max: 300000,
+    salary_tax_type: "net",
+    currency: "RUB",
+    work_format: "hybrid",
+    city: "Москва",
+    description: "Разработка сервисов обработки данных и поддержка инфраструктуры аналитической платформы.",
+    is_published: true,
+    created_at: "2026-10-02T10:00:00Z",
+    updated_at: "2026-10-02T10:00:00Z",
+    company: { id: "demo-company", company_name: "NovaTech", industry: "FinTech", website: "https://example.com", city: "Москва" },
+  },
+];
+
+const vacancyApplications: DemoVacancyApplication[] = [];
+
 const questions = [
   {
     id: "demo-question-1",
@@ -325,6 +439,21 @@ let currentCandidateProfile = { ...candidateProfile };
 let currentEmployerProfile = { ...employerProfile };
 let nextNeedId = 3;
 let nextInvitationId = 3;
+const demoMentors = [
+  { user_id: "demo-mentor-anna", name: "Анна Петрова", specialization: "Backend", verified_grade: "senior", skills: ["Python", "PostgreSQL", "Architecture", "Kafka"], city: "Москва" },
+  { user_id: "demo-mentor-elena", name: "Елена Смирнова", specialization: "Backend", verified_grade: "senior", skills: ["Go", "Kafka", "Kubernetes", "gRPC"], city: "Санкт-Петербург" },
+];
+const networkConversations: Array<{
+  id: string;
+  other_user_id: string;
+  other_name: string;
+  skill_focus: string;
+  status: "pending" | "accepted" | "rejected";
+  can_accept: boolean;
+  last_message: string;
+  updated_at: string;
+}> = [];
+const networkMessages: Record<string, Array<{ id: string; body: string; created_at: string; is_mine: boolean }>> = {};
 
 function currentRole(): DemoRole {
   return window.localStorage.getItem("fsp-role") === "employer" ? "employer" : "candidate";
@@ -422,6 +551,112 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     return { ...currentEmployerProfile } as T;
   }
 
+  if (route === "/vacancies/my" && method === "GET") {
+    return vacancies.filter((vacancy) => vacancy.employer_id === "demo-employer") as T;
+  }
+  if (route === "/vacancies/applications/my" && method === "GET") {
+    return vacancyApplications
+      .filter((application) => application.candidate_id === "demo-candidate-alex")
+      .map(({ candidate: _candidate, candidate_id: _candidateId, ...application }) => application) as T;
+  }
+  if (route === "/vacancies" && method === "GET") {
+    return vacancies.filter((vacancy) => vacancy.is_published) as T;
+  }
+  if (route === "/vacancies" && method === "POST") {
+    const now = new Date().toISOString();
+    const vacancy: DemoVacancy = {
+      id: `demo-vacancy-${Date.now()}`,
+      employer_id: "demo-employer",
+      title: String(body.title ?? ""),
+      specialization: String(body.specialization ?? ""),
+      required_grade: String(body.required_grade ?? ""),
+      required_skills: Array.isArray(body.required_skills) ? body.required_skills.map(String) : [],
+      salary_min: Number(body.salary_min ?? 0),
+      salary_max: Number(body.salary_max ?? 0),
+      salary_tax_type: body.salary_tax_type === "net" ? "net" : "gross",
+      currency: String(body.currency ?? "RUB"),
+      work_format: String(body.work_format ?? "remote"),
+      city: typeof body.city === "string" ? body.city : null,
+      description: String(body.description ?? ""),
+      is_published: false,
+      created_at: now,
+      updated_at: now,
+      company: { id: "demo-company", company_name: currentEmployerProfile.company_name, industry: currentEmployerProfile.industry, website: currentEmployerProfile.website, city: currentEmployerProfile.city },
+    };
+    vacancies.unshift(vacancy);
+    return vacancy as T;
+  }
+  const vacancyApplicationsForEmployer = route.match(/^\/vacancies\/([^/]+)\/applications$/);
+  if (vacancyApplicationsForEmployer && method === "GET") {
+    return vacancyApplications
+      .filter((application) => application.vacancy_id === vacancyApplicationsForEmployer[1])
+      .map(({ candidate_id: _candidateId, ...application }) => application) as T;
+  }
+  const vacancyApply = route.match(/^\/vacancies\/([^/]+)\/apply$/);
+  if (vacancyApply && method === "POST") {
+    const vacancy = vacancies.find((item) => item.id === vacancyApply[1] && item.is_published);
+    if (!vacancy) throw new Error("Демо-вакансия не найдена или уже снята с публикации");
+    const existing = vacancyApplications.find((item) => item.vacancy_id === vacancy.id && item.candidate_id === "demo-candidate-alex");
+    if (existing) throw new Error("Вы уже откликнулись на эту вакансию");
+    const now = new Date().toISOString();
+    const application: DemoVacancyApplication = {
+      id: `demo-application-${Date.now()}`,
+      vacancy_id: vacancy.id,
+      status: "pending",
+      cover_letter: typeof body.cover_letter === "string" ? body.cover_letter : null,
+      created_at: now,
+      status_updated_at: null,
+      candidate_id: "demo-candidate-alex",
+      candidate: {
+        first_name: currentCandidateProfile.first_name,
+        last_name: currentCandidateProfile.last_name,
+        email: currentCandidateProfile.email,
+        phone: currentCandidateProfile.phone,
+        telegram: currentCandidateProfile.telegram,
+        city: currentCandidateProfile.city,
+        specialization: currentCandidateProfile.specialization,
+        verified_grade: currentCandidateProfile.verified_grade,
+        skills: candidates[0].skills,
+      },
+      vacancy_title: vacancy.title,
+      company_name: vacancy.company.company_name,
+      salary_min: vacancy.salary_min,
+      salary_max: vacancy.salary_max,
+      salary_tax_type: vacancy.salary_tax_type,
+    };
+    vacancyApplications.unshift(application);
+    return (({ candidate: _candidate, candidate_id: _candidateId, ...result }) => result)(application) as T;
+  }
+  const vacancyApplicationStatus = route.match(/^\/vacancies\/applications\/([^/]+)\/status$/);
+  if (vacancyApplicationStatus && method === "PATCH") {
+    const application = vacancyApplications.find((item) => item.id === vacancyApplicationStatus[1]);
+    if (!application) throw new Error("Демо-отклик не найден");
+    if (body.status !== "pending" && body.status !== "reviewed" && body.status !== "accepted" && body.status !== "rejected") {
+      throw new Error("Недопустимый статус демо-отклика");
+    }
+    application.status = body.status;
+    application.status_updated_at = new Date().toISOString();
+    return { status: "ok", application_id: application.id, new_status: application.status, status_updated_at: application.status_updated_at } as T;
+  }
+  const vacancyUpdate = route.match(/^\/vacancies\/([^/]+)$/);
+  if (vacancyUpdate && method === "PATCH") {
+    const vacancy = vacancies.find((item) => item.id === vacancyUpdate[1] && item.employer_id === "demo-employer");
+    if (!vacancy) throw new Error("Демо-вакансия не найдена");
+    if (typeof body.title === "string") vacancy.title = body.title;
+    if (typeof body.specialization === "string") vacancy.specialization = body.specialization;
+    if (typeof body.required_grade === "string") vacancy.required_grade = body.required_grade;
+    if (Array.isArray(body.required_skills)) vacancy.required_skills = body.required_skills.map(String);
+    if (typeof body.salary_min === "number") vacancy.salary_min = body.salary_min;
+    if (typeof body.salary_max === "number") vacancy.salary_max = body.salary_max;
+    if (body.salary_tax_type === "gross" || body.salary_tax_type === "net") vacancy.salary_tax_type = body.salary_tax_type;
+    if (typeof body.work_format === "string") vacancy.work_format = body.work_format;
+    if (typeof body.city === "string" || body.city === null) vacancy.city = body.city;
+    if (typeof body.description === "string") vacancy.description = body.description;
+    if (typeof body.is_published === "boolean") vacancy.is_published = body.is_published;
+    vacancy.updated_at = new Date().toISOString();
+    return vacancy as T;
+  }
+
   if (route === "/needs" && method === "GET") return needs.filter((need) => need.employer_id === "demo-employer") as T;
   if (route === "/needs" && method === "POST") {
     const need = {
@@ -453,20 +688,129 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
   if (route === "/matching/search" && method === "GET") {
     const specialization = url.searchParams.get("specialization");
     const grade = url.searchParams.get("grade");
+    const skill = url.searchParams.get("skill")?.trim().toLowerCase();
     const workFormat = url.searchParams.get("work_format");
     const city = url.searchParams.get("city")?.toLowerCase();
     const fspOnly = url.searchParams.get("fsp_only") === "true";
     return candidates.filter((item) =>
       (!specialization || item.specialization === specialization) &&
       (!grade || item.verified_grade === grade) &&
+      (!skill || item.skills.some((candidateSkill) => candidateSkill.toLowerCase().includes(skill))) &&
       (!workFormat || item.work_format === workFormat) &&
       (!city || item.city.toLowerCase().includes(city)) &&
-      (!fspOnly || item.fsp_verified),
+      (!fspOnly || item.fsp_verified) &&
+      item.verified_grade !== null,
     ) as T;
   }
 
+  if (route === "/testing/roadmap/current" && method === "GET") return null as T;
+  if (route === "/testing/additional" && method === "GET") return [] as T;
   if (route === "/invitations/sent" && method === "GET") return invitations as T;
   if (route === "/invitations/my" && method === "GET") return invitationsForCandidate() as T;
+  if (route === "/network/mentors" && method === "GET") {
+    const skill = (url.searchParams.get("skill") ?? "").trim().toLowerCase();
+    return demoMentors.filter((mentor) => !skill || mentor.skills.some((item) => item.toLowerCase().includes(skill))) as T;
+  }
+  if (route === "/network/conversations" && method === "GET") return networkConversations as T;
+  if (route === "/network/mentorship-requests" && method === "POST") {
+    const mentor = demoMentors.find((item) => item.user_id === body.mentor_user_id);
+    if (!mentor) throw new Error("Демо-наставник не найден");
+    if (networkConversations.some((item) => item.other_user_id === mentor.user_id && item.status !== "rejected")) {
+      throw new Error("Запрос или диалог с этим наставником уже существует");
+    }
+    const id = `demo-network-${Date.now()}`;
+    const message = String(body.message ?? "").trim();
+    const conversation = {
+      id,
+      other_user_id: mentor.user_id,
+      other_name: mentor.name,
+      skill_focus: String(body.skill_focus ?? ""),
+      status: "pending" as const,
+      can_accept: false,
+      last_message: message,
+      updated_at: new Date().toISOString(),
+    };
+    networkConversations.unshift(conversation);
+    networkMessages[id] = [{ id: `${id}-request`, body: message, created_at: conversation.updated_at, is_mine: true }];
+    return conversation as T;
+  }
+  const networkConversationAction = route.match(/^\/network\/conversations\/([^/]+)\/(accept|decline)$/);
+  if (networkConversationAction && method === "POST") {
+    const conversation = networkConversations.find((item) => item.id === networkConversationAction[1]);
+    if (!conversation || !conversation.can_accept || conversation.status !== "pending") throw new Error("Запрос не найден");
+    conversation.status = networkConversationAction[2] === "accept" ? "accepted" : "rejected";
+    conversation.can_accept = false;
+    return undefined as T;
+  }
+  const networkMessagesRoute = route.match(/^\/network\/conversations\/([^/]+)\/messages$/);
+  if (networkMessagesRoute && method === "GET") {
+    const conversation = networkConversations.find((item) => item.id === networkMessagesRoute[1]);
+    if (!conversation) throw new Error("Диалог не найден");
+    return { messages: networkMessages[conversation.id] ?? [] } as T;
+  }
+  if (networkMessagesRoute && method === "POST") {
+    const conversation = networkConversations.find((item) => item.id === networkMessagesRoute[1]);
+    if (!conversation || conversation.status !== "accepted") throw new Error("Наставник должен принять запрос до начала переписки");
+    const message = {
+      id: `demo-network-message-${Date.now()}`,
+      body: String(body.body ?? "").trim(),
+      created_at: new Date().toISOString(),
+      is_mine: true,
+    };
+    networkMessages[conversation.id].push(message);
+    conversation.last_message = message.body;
+    conversation.updated_at = message.created_at;
+    return message as T;
+  }
+  if (route === "/invitations/messages/unread-count" && method === "GET") {
+    const role = currentRole();
+    const byInvitation: Record<string, number> = {};
+    for (const invitation of invitations.filter((item) => item.status === "accepted")) {
+      const count = invitationMessages.filter((message) =>
+        message.invitation_id === invitation.id && message.sender_role !== role && !message.read,
+      ).length;
+      if (count) byInvitation[invitation.id] = count;
+    }
+    return { unread_count: Object.values(byInvitation).reduce((sum, count) => sum + count, 0), by_invitation: byInvitation } as T;
+  }
+  const invitationMessagesRoute = route.match(/^\/invitations\/([^/]+)\/messages$/);
+  if (invitationMessagesRoute && method === "GET") {
+    const invitation = invitations.find((item) => item.id === invitationMessagesRoute[1]);
+    if (!invitation || invitation.status !== "accepted") throw new Error("Чат доступен только после принятия приглашения");
+    const role = currentRole();
+    const messages = invitationMessages.filter((item) => item.invitation_id === invitation.id);
+    for (const message of messages) if (message.sender_role !== role) message.read = true;
+    return {
+      unread_count: 0,
+      messages: messages.map((message) => ({
+        id: message.id,
+        body: message.body,
+        created_at: message.created_at,
+        is_mine: message.sender_role === role,
+      })),
+    } as T;
+  }
+  if (invitationMessagesRoute && method === "POST") {
+    const invitation = invitations.find((item) => item.id === invitationMessagesRoute[1]);
+    const text = typeof body.body === "string" ? body.body.trim() : "";
+    if (!invitation || invitation.status !== "accepted") throw new Error("Чат доступен только после принятия приглашения");
+    if (!text || text.length > 4000) throw new Error("Сообщение должно содержать от 1 до 4000 символов");
+    const message: DemoInvitationMessage = {
+      id: `demo-message-${Date.now()}`,
+      invitation_id: invitation.id,
+      sender_role: currentRole(),
+      body: text,
+      created_at: new Date().toISOString(),
+      read: false,
+    };
+    invitationMessages.push(message);
+    return {
+      id: message.id,
+      body: message.body,
+      created_at: message.created_at,
+      is_mine: true,
+    } as T;
+  }
   if (route === "/invitations" && method === "POST") {
     const candidate = candidates.find((item) => item.candidate_id === body.candidate_id) ?? candidates[0];
     const need = needs.find((item) => item.id === body.need_id);

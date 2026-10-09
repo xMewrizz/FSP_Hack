@@ -310,6 +310,7 @@ class CandidateService:
             agreed_152_fz=profile.agreed_152_fz,
             agreed_publication=profile.agreed_publication,
             visibility_public=profile.visibility_public,
+            mentor_available=profile.mentor_available,
             agreed_osint=profile.agreed_osint,
             onboarding_completed=profile.onboarding_completed,
             achievements=[

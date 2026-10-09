@@ -92,5 +92,11 @@ async def test_matching_only_confirmed_and_order_matches_b14(client: AsyncClient
     search = await client.get("/api/v1/matching/search?specialization=Backend&grade=middle", headers=headers)
     assert search.status_code == 200
     assert {item["candidate_id"] for item in search.json()} == expected_ids
+    stack_search = await client.get("/api/v1/matching/search?specialization=Backend&grade=middle&skill=doc", headers=headers)
+    assert stack_search.status_code == 200
+    assert {item["candidate_id"] for item in stack_search.json()} == {str(profiles[0].id)}
+    empty_stack_search = await client.get("/api/v1/matching/search?skill=Rust", headers=headers)
+    assert empty_stack_search.status_code == 200
+    assert empty_stack_search.json() == []
     forbidden = await client.get(f"/api/v1/matching/for-need/{need_id}", headers=other_headers)
     assert forbidden.status_code == 403

@@ -71,6 +71,7 @@ class CandidateProfileUpdateRequest(BaseModel):
     fsp_id: str | None = None
     agreed_publication: bool | None = None
     visibility_public: bool | None = None
+    mentor_available: bool | None = None
 
     @field_validator("salary_tax_type", mode="before")
     @classmethod
@@ -113,6 +114,7 @@ class CandidateProfileResponse(BaseModel):
     agreed_152_fz: bool
     agreed_publication: bool
     visibility_public: bool
+    mentor_available: bool = False
     agreed_osint: bool
     onboarding_completed: bool
 

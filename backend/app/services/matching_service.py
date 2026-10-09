@@ -186,6 +186,7 @@ class MatchingService:
         db: AsyncSession,
         specialization: str | None = None,
         grade: str | None = None,
+        skill: str | None = None,
         work_format: str | None = None,
         city: str | None = None,
         fsp_only: bool = False,
@@ -212,6 +213,12 @@ class MatchingService:
             stmt = stmt.where(CandidateProfile.fsp_verified.is_(True))
 
         candidates = (await db.scalars(stmt)).all()
+        if skill and skill.strip():
+            skill_query = skill.strip().casefold()
+            candidates = [
+                candidate for candidate in candidates
+                if any(skill_query in candidate_skill.casefold() for candidate_skill in (candidate.skills or []))
+            ]
         return [
             CandidateMatchItem(
                 candidate_id=candidate.id,

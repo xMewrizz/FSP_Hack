@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { apiGet, apiPost, apiPut, apiRequest, clearSession, saveSession } from "./api";
 import {
   ALL_GRADES,
@@ -287,6 +287,22 @@ const DEMO_ACCOUNTS = {
 } as const;
 const DEMO_PASSWORD = "Password123!";
 
+const EMPLOYER_PAGES = ["Обзор", "Подборка", "Банк кандидатов", "Потребности", "Диалоги", "Приглашения", "Вакансии компании", "Аналитика", "Настройки"];
+const CANDIDATE_PAGES = ["Обзор", "Профиль", "Тестирование", "Мой грейд", "Задания", "Диалоги", "Приглашения", "Вакансии", "Настройки"];
+
+function pageForRole(page: string, role: "employer" | "candidate") {
+  const allowedPages = role === "employer" ? EMPLOYER_PAGES : CANDIDATE_PAGES;
+  return allowedPages.includes(page) ? page : role === "employer" ? "Подборка" : "Обзор";
+}
+
+function formatSalaryRange(minimum: number, maximum: number) {
+  if (minimum % 1000 === 0 && maximum % 1000 === 0) {
+    return `${minimum / 1000}–${maximum / 1000} тыс. ₽`;
+  }
+  const format = new Intl.NumberFormat("ru-RU");
+  return `${format.format(minimum)}–${format.format(maximum)} ₽`;
+}
+
 type MatchingCandidate = {
   candidate_id: string;
   first_name: string;
@@ -343,11 +359,57 @@ type NeedDraft = {
 
 type BankFilters = {
   query: string;
+  skill: string;
   specialization: string;
   grade: string;
   format: string;
   city: string;
   fspOnly: boolean;
+};
+
+type VacancyRecord = {
+  id: string;
+  title: string;
+  specialization: string;
+  required_grade: string;
+  required_skills: string[];
+  salary_min: number;
+  salary_max: number;
+  salary_tax_type: "gross" | "net";
+  work_format: string;
+  city: string | null;
+  description: string;
+  is_published: boolean;
+  company?: { company_name: string; city: string | null } | null;
+};
+
+type CandidateVacancyApplication = {
+  id: string;
+  vacancy_id: string;
+  status: string;
+  vacancy_title: string;
+  company_name: string;
+  salary_min: number;
+  salary_max: number;
+  salary_tax_type: "gross" | "net";
+};
+
+type EmployerVacancyApplication = {
+  id: string;
+  vacancy_id: string;
+  status: string;
+  cover_letter: string | null;
+  candidate: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string | null;
+    telegram: string | null;
+    city: string | null;
+    specialization: string | null;
+    verified_grade: string | null;
+    skills: string[];
+  };
 };
 
 type EmployerProfileData = {
@@ -383,6 +445,7 @@ type CandidateProfileData = {
   agreed_152_fz: boolean;
   agreed_publication: boolean;
   visibility_public: boolean;
+  mentor_available: boolean;
   agreed_osint: boolean;
 };
 
@@ -397,6 +460,54 @@ type ParsedResume = {
   suggested_grade: string | null;
   extracted_skills: string[];
   text_preview: string;
+};
+
+type InvitationChatMessage = {
+  id: string;
+  body: string;
+  created_at: string;
+  is_mine: boolean;
+};
+
+type InvitationUnreadCount = {
+  unread_count: number;
+  by_invitation: Record<string, number>;
+};
+
+type DialogueInvitation = {
+  id: string;
+  company_name: string;
+  candidate_name: string;
+  need_title: string | null;
+  status: string;
+  created_at: string;
+};
+
+type MentorProfile = {
+  user_id: string;
+  name: string;
+  specialization: string | null;
+  verified_grade: string | null;
+  skills: string[];
+  city: string | null;
+};
+
+type NetworkConversation = {
+  id: string;
+  other_user_id: string;
+  other_name: string;
+  skill_focus: string;
+  status: "pending" | "accepted" | "rejected";
+  can_accept: boolean;
+  last_message: string;
+  updated_at: string;
+};
+
+type NetworkMessage = {
+  id: string;
+  body: string;
+  created_at: string;
+  is_mine: boolean;
 };
 
 type TestQuestionData = {
@@ -585,6 +696,21 @@ function Icon({
     chevron: <path d="m9 18 6-6-6-6" />,
     check: <path d="m5 12 4 4L19 6" />,
     close: <path d="M18 6 6 18M6 6l12 12" />,
+    logout: (
+      <>
+        <path d="M10 17l5-5-5-5M15 12H3" />
+        <path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" />
+      </>
+    ),
+    building: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M9 21v-4h6v4M8 7h.01M12 7h.01M16 7h.01M8 11h.01M12 11h.01M16 11h.01" /></>,
+    pin: <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    shield: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
+    money: <><rect x="2" y="5" width="20" height="14" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M6 9h.01M18 15h.01" /></>,
+    medal: <><circle cx="12" cy="8" r="6" /><path d="m8.2 13-1.2 9 5-3 5 3-1.2-9" /></>,
+    sparkle: <><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3ZM19 14l1 2.5 2.5 1-2.5 1L19 21l-1-2.5-2.5-1 2.5-1L19 14Z" /></>,
+    school: <><path d="m2 10 10-6 10 6-10 6-10-6Z" /><path d="M6 12v5c3.5 3 8.5 3 12 0v-5M22 10v6" /></>,
+    arrowUpRight: <><path d="M7 17 17 7M7 7h10v10" /></>,
     compare: (
       <>
         <path d="M8 3v18M16 3v18M3 8h5M16 16h5" />
@@ -604,6 +730,8 @@ function Icon({
       </>
     ),
     moon: <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />,
+    menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+    refresh: <><path d="M20 7v5h-5" /><path d="M4 17v-5h5" /><path d="M5.6 9a7 7 0 0 1 11.6-2L20 12M4 12l2.8 5a7 7 0 0 0 11.6-2" /></>,
   };
 
   return (
@@ -624,6 +752,119 @@ function Icon({
   );
 }
 
+function ModalFrame({
+  children,
+  className,
+  labelledBy,
+  onClose,
+}: {
+  children: ReactNode;
+  className: string;
+  labelledBy: string;
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(dialogRef, onClose);
+
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        className={className}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        tabIndex={-1}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function useDialogA11y<T extends HTMLElement>(
+  dialogRef: { current: T | null },
+  onClose: () => void,
+) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const dialog = dialogRef.current;
+    const selector = 'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusable = dialog ? Array.from(dialog.querySelectorAll<HTMLElement>(selector))
+      .filter((element) => element.getClientRects().length > 0) : [];
+    (focusable[0] ?? dialog)?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const visible = Array.from(dialog.querySelectorAll<HTMLElement>(selector))
+        .filter((element) => element.getClientRects().length > 0);
+      if (!visible.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = visible[0];
+      const last = visible[visible.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, []);
+}
+
+function DiscardConfirmation({
+  title,
+  message,
+  onKeepEditing,
+  onDiscard,
+}: {
+  title: string;
+  message: string;
+  onKeepEditing: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <ModalFrame className="discard-dialog" labelledBy="discard-dialog-title" onClose={onKeepEditing}>
+      <div className="discard-dialog__content">
+        <span>НЕСОХРАНЁННЫЕ ИЗМЕНЕНИЯ</span>
+        <strong id="discard-dialog-title">{title}</strong>
+        <p>{message}</p>
+        <div className="modal__actions">
+          <Button variant="outline" onClick={onKeepEditing}>Вернуться к форме</Button>
+          <Button variant="ghost" onClick={onDiscard}>Закрыть без сохранения</Button>
+        </div>
+      </div>
+    </ModalFrame>
+  );
+}
+
 function Button({
   children,
   variant = "primary",
@@ -631,6 +872,7 @@ function Button({
   className = "",
   type = "button",
   disabled = false,
+  ariaPressed,
 }: {
   children: ReactNode;
   variant?: "primary" | "ghost" | "outline" | "danger";
@@ -638,11 +880,13 @@ function Button({
   className?: string;
   type?: "button" | "submit";
   disabled?: boolean;
+  ariaPressed?: boolean;
 }) {
   return (
     <button
       type={type}
       disabled={disabled}
+      aria-pressed={ariaPressed}
       className={`button button--${variant} ${className}`}
       onClick={onClick}
     >
@@ -655,13 +899,20 @@ function Radar({
   values,
   target,
   compact = false,
+  axisLabels,
+  showAxisLabels = true,
+  description = "Сравнение компетенций кандидата и вакансии",
 }: {
   values: number[];
   target: number[];
   compact?: boolean;
+  axisLabels?: string[];
+  showAxisLabels?: boolean;
+  description?: string;
 }) {
   const center = 110;
   const maxR = compact ? 72 : 76;
+  const visibleLabels = axisLabels ?? labels;
   const point = (value: number, i: number) => {
     const angle = -Math.PI / 2 + (Math.PI * 2 * i) / values.length;
     const radius = (value / 10) * maxR;
@@ -682,7 +933,7 @@ function Radar({
       className={`radar ${compact ? "radar--compact" : ""}`}
       viewBox="0 0 220 220"
       role="img"
-      aria-label="Сравнение компетенций кандидата и вакансии"
+      aria-label={description}
     >
       {[2, 4, 6, 8, 10].map((level) => (
         <polygon key={level} points={ring(level)} className="radar__ring" />
@@ -705,19 +956,21 @@ function Radar({
         points={values.map((v, i) => point(v, i)).join(" ")}
         className="radar__value"
       />
-      {!compact &&
-        labels.map((label, i) => {
+      {!compact && showAxisLabels &&
+        visibleLabels.map((label, i) => {
           const pos = labelPoint(i);
+          const shortLabel = label.length > 15 ? `${label.slice(0, 14).trimEnd()}…` : label;
           return (
             <text
-              key={label}
+              key={`${label}-${i}`}
               x={pos.x}
               y={pos.y}
               textAnchor={pos.x < center - 5 ? "end" : pos.x > center + 5 ? "start" : "middle"}
               dominantBaseline="middle"
               className="radar__label"
             >
-              {label}
+              <title>{label}</title>
+              {shortLabel}
             </text>
           );
         })}
@@ -747,30 +1000,15 @@ const pageCopy: Record<string, { eyebrow: string; title: string }> = {
   "Банк кандидатов": { eyebrow: "ВЕРИФИЦИРОВАННАЯ БАЗА", title: "Банк кандидатов" },
   Потребности: { eyebrow: "МАТЧИНГ И КАТЕГОРИЗАЦИЯ", title: "Потребности команды" },
   Приглашения: { eyebrow: "REVERSE RECRUITING", title: "Приглашения" },
+  Диалоги: { eyebrow: "СООБЩЕСТВО И НЕТВОРКИНГ", title: "Диалоги" },
   Аналитика: { eyebrow: "КАЧЕСТВО ПОДБОРА", title: "Аналитика" },
   Настройки: { eyebrow: "УПРАВЛЕНИЕ АККАУНТОМ", title: "Настройки" },
   Профиль: { eyebrow: "ЛИЧНЫЙ КАБИНЕТ", title: "Профиль и резюме" },
   Тестирование: { eyebrow: "ПРОВЕРКА НАВЫКОВ", title: "Тестирование" },
-  "Мой грейд": { eyebrow: "ПОДТВЕРЖДЁННЫЕ КОМПЕТЕНЦИИ", title: "Категория и уровень" },
+  "Мой грейд": { eyebrow: "ВАШ ПРОФЕССИОНАЛЬНЫЙ ПРОФИЛЬ", title: "Мой грейд" },
   Задания: { eyebrow: "АКТУАЛЬНОСТЬ ПРОФИЛЯ", title: "Регулярные задания" },
   Вакансии: { eyebrow: "ОТКРЫТЫЕ ПОЗИЦИИ", title: "Вакансии" },
   "Вакансии компании": { eyebrow: "ПУБЛИКАЦИЯ И ОТКЛИКИ", title: "Вакансии компании" },
-};
-
-const navHints: Record<string, string> = {
-  Обзор: "Сводка по задачам, приглашениям и текущему статусу профиля.",
-  Подборка: "Кандидаты, ранжированные по соответствию активной потребности компании.",
-  "Банк кандидатов": "Поиск по подтверждённым профилям с фильтрами по навыкам и достижениям.",
-  Потребности: "Опишите команду и критерии, по которым система подберёт специалистов.",
-  Приглашения: "Отслеживайте предложения и отвечайте на них, не раскрывая контакты заранее.",
-  "Вакансии компании": "Управляйте опубликованными позициями и входящими откликами.",
-  Аналитика: "Оценивайте качество подбора и динамику ответов по приглашениям.",
-  Настройки: "Управляйте профилем компании, приватностью и параметрами аккаунта.",
-  Профиль: "Обновляйте опыт и условия работы, которые увидят работодатели.",
-  Тестирование: "Пройдите обязательные навыки выбранного уровня по отдельности.",
-  "Мой грейд": "Смотрите подтверждённый уровень, результаты тестов и карту навыков.",
-  Задания: "Решайте короткие кейсы, чтобы поддерживать актуальность навыков.",
-  Вакансии: "Ищите позиции с открытой зарплатой и отслеживайте свои отклики.",
 };
 
 function MetricCard({
@@ -784,8 +1022,13 @@ function MetricCard({
   detail: string;
   accent?: boolean;
 }) {
+  const icon = label.includes("ПРИГЛАШ") ? "send"
+    : label.includes("УРОВЕН") ? "compare"
+      : label.includes("ФСП") ? "shield"
+        : "sparkle";
   return (
     <div className={`metric-card ${accent ? "metric-card--accent" : ""}`}>
+      <span className="metric-card__icon"><Icon name={icon} size={17} /></span>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{detail}</small>
@@ -881,11 +1124,31 @@ function EmployerScreen({
   onOpenResume: (candidate: Candidate) => void;
   onNeedCreated: (need: EmployerNeedRecord) => void;
   onNotify: (message: string, type?: "success" | "error") => void;
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, target?: string) => void;
   demoMode: boolean;
 }) {
   const [saved, setSaved] = useState(false);
   const [vacancyEditor, setVacancyEditor] = useState(false);
+  const [vacancyEditingId, setVacancyEditingId] = useState<string | null>(null);
+  const [vacancies, setVacancies] = useState<VacancyRecord[]>([]);
+  const [vacanciesLoading, setVacanciesLoading] = useState(false);
+  const [vacancySaving, setVacancySaving] = useState(false);
+  const [vacancyForm, setVacancyForm] = useState({
+    title: "",
+    specialization: "Backend",
+    required_grade: "middle",
+    required_skills: "",
+    salary_min: "220000",
+    salary_max: "280000",
+    salary_tax_type: "gross" as "gross" | "net",
+    work_format: "remote",
+    city: "",
+    description: "",
+  });
+  const [vacancyApplications, setVacancyApplications] = useState<EmployerVacancyApplication[]>([]);
+  const [applicationsVacancy, setApplicationsVacancy] = useState<string | null>(null);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [vacancyListFilter, setVacancyListFilter] = useState<"published" | "drafts" | "all">("published");
   const [needs, setNeeds] = useState<EmployerNeedRecord[]>([]);
   const [needTitle, setNeedTitle] = useState("Backend-разработчик");
   const [needSpecialization, setNeedSpecialization] = useState("Backend");
@@ -944,17 +1207,32 @@ function EmployerScreen({
   const [companyLoading, setCompanyLoading] = useState(false);
   const [bankItems, setBankItems] = useState<Candidate[]>([]);
   const [bankFilters, setBankFilters] = useState<BankFilters>(() => {
-    const defaults = { query: "", specialization: "", grade: "", format: "", city: "", fspOnly: false };
+    const defaults = { query: "", skill: "", specialization: "", grade: "", format: "", city: "", fspOnly: false };
+    const savedFilters = window.localStorage.getItem("fsp-bank-filters");
+    if (!savedFilters) return defaults;
+    let parsed: unknown;
     try {
-      const savedFilters = window.localStorage.getItem("fsp-bank-filters");
-      return savedFilters ? { ...defaults, ...JSON.parse(savedFilters) } : defaults;
+      parsed = JSON.parse(savedFilters);
     } catch {
       return defaults;
     }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return defaults;
+    const saved = parsed as Partial<BankFilters>;
+    return {
+      query: typeof saved.query === "string" ? saved.query : defaults.query,
+      skill: typeof saved.skill === "string" ? saved.skill : defaults.skill,
+      specialization: typeof saved.specialization === "string" ? saved.specialization : defaults.specialization,
+      grade: typeof saved.grade === "string" ? saved.grade : defaults.grade,
+      format: typeof saved.format === "string" ? saved.format : defaults.format,
+      city: typeof saved.city === "string" ? saved.city : defaults.city,
+      fspOnly: typeof saved.fspOnly === "boolean" ? saved.fspOnly : defaults.fspOnly,
+    };
   });
   const [bankLoading, setBankLoading] = useState(false);
+  const [bankCompare, setBankCompare] = useState<Candidate[]>([]);
+  const [bankCompareOpen, setBankCompareOpen] = useState(false);
   const [sentInvitations, setSentInvitations] = useState<Array<{ status: string }>>([]);
-  const { query: bankQuery, specialization: bankSpecialization, grade: bankGrade, format: bankFormat, city: bankCity, fspOnly: bankFspOnly } = bankFilters;
+  const { query: bankQuery, skill: bankSkill, specialization: bankSpecialization, grade: bankGrade, format: bankFormat, city: bankCity, fspOnly: bankFspOnly } = bankFilters;
 
   useEffect(() => {
     window.localStorage.setItem("fsp-bank-filters", JSON.stringify(bankFilters));
@@ -974,6 +1252,15 @@ function EmployerScreen({
   }, [active]);
 
   useEffect(() => {
+    if (active !== "Вакансии компании") return;
+    setVacanciesLoading(true);
+    apiGet<VacancyRecord[]>("/vacancies/my")
+      .then(setVacancies)
+      .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить вакансии", "error"))
+      .finally(() => setVacanciesLoading(false));
+  }, [active]);
+
+  useEffect(() => {
     if (active !== "Обзор") return;
     apiGet<Array<{ status: string }>>("/invitations/sent")
       .then(setSentInvitations)
@@ -985,6 +1272,7 @@ function EmployerScreen({
     const params = new URLSearchParams({ fsp_only: String(bankFspOnly) });
     if (bankSpecialization) params.set("specialization", bankSpecialization);
     if (bankGrade) params.set("grade", bankGrade);
+    if (bankSkill.trim()) params.set("skill", bankSkill.trim());
     if (bankFormat) params.set("work_format", bankFormat);
     if (bankCity.trim()) params.set("city", bankCity.trim());
     setBankLoading(true);
@@ -992,11 +1280,121 @@ function EmployerScreen({
       .then((items) => setBankItems(items.map(mapMatchToCandidate)))
       .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось выполнить поиск", "error"))
       .finally(() => setBankLoading(false));
-  }, [active, bankSpecialization, bankGrade, bankFormat, bankCity, bankFspOnly]);
+  }, [active, bankSpecialization, bankGrade, bankSkill, bankFormat, bankCity, bankFspOnly]);
 
   const visibleBankItems = bankItems.filter((candidate) =>
-    `${candidate.name} ${candidate.skills.join(" ")}`.toLowerCase().includes(bankQuery.toLowerCase()),
+    (!bankQuery || candidate.name.toLowerCase().includes(bankQuery.trim().toLowerCase())) &&
+    (!bankSkill || candidate.skills.some((skill) => skill.toLowerCase().includes(bankSkill.trim().toLowerCase()))),
   );
+
+  const resetVacancyForm = () => {
+    setVacancyEditingId(null);
+    setVacancyForm({
+      title: "",
+      specialization: "Backend",
+      required_grade: "middle",
+      required_skills: "",
+      salary_min: "220000",
+      salary_max: "280000",
+      salary_tax_type: "gross",
+      work_format: "remote",
+      city: "",
+      description: "",
+    });
+  };
+
+  const editVacancy = (vacancy: VacancyRecord) => {
+    setVacancyEditingId(vacancy.id);
+    setVacancyForm({
+      title: vacancy.title,
+      specialization: vacancy.specialization,
+      required_grade: vacancy.required_grade,
+      required_skills: vacancy.required_skills.join(", "),
+      salary_min: String(vacancy.salary_min),
+      salary_max: String(vacancy.salary_max),
+      salary_tax_type: vacancy.salary_tax_type,
+      work_format: vacancy.work_format,
+      city: vacancy.city ?? "",
+      description: vacancy.description,
+    });
+    setVacancyEditor(true);
+    setApplicationsVacancy(null);
+  };
+
+  const saveVacancy = async () => {
+    const salaryMin = Number(vacancyForm.salary_min.replace(/\D/g, ""));
+    const salaryMax = Number(vacancyForm.salary_max.replace(/\D/g, ""));
+    if (vacancyForm.title.trim().length < 2 || salaryMin <= 0 || salaryMax < salaryMin) {
+      onNotify("Укажите название и корректный диапазон зарплаты", "error");
+      return;
+    }
+    setVacancySaving(true);
+    try {
+      const payload = {
+        ...vacancyForm,
+        title: vacancyForm.title.trim(),
+        salary_min: salaryMin,
+        salary_max: salaryMax,
+        required_skills: vacancyForm.required_skills.split(",").map((skill) => skill.trim()).filter(Boolean),
+        city: vacancyForm.city.trim() || null,
+        description: vacancyForm.description.trim(),
+      };
+      const updated = vacancyEditingId
+        ? await apiRequest<VacancyRecord>(`/vacancies/${vacancyEditingId}`, { method: "PATCH", body: JSON.stringify(payload) })
+        : await apiPost<VacancyRecord>("/vacancies", payload);
+      setVacancies((current) => vacancyEditingId
+        ? current.map((item) => item.id === updated.id ? updated : item)
+        : [updated, ...current]);
+      setVacancyListFilter(updated.is_published ? "published" : "drafts");
+      setVacancyEditor(false);
+      resetVacancyForm();
+      onNotify(vacancyEditingId ? "Вакансия обновлена" : "Вакансия создана");
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось сохранить вакансию", "error");
+    } finally {
+      setVacancySaving(false);
+    }
+  };
+
+  const toggleVacancyPublication = async (vacancy: VacancyRecord) => {
+    try {
+      const updated = await apiRequest<VacancyRecord>(`/vacancies/${vacancy.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_published: !vacancy.is_published }),
+      });
+      setVacancies((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setVacancyListFilter(updated.is_published ? "published" : "drafts");
+      onNotify(updated.is_published ? "Вакансия опубликована" : "Вакансия снята с публикации");
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось изменить публикацию", "error");
+    }
+  };
+
+  const loadVacancyApplications = async (vacancy: VacancyRecord) => {
+    setApplicationsLoading(true);
+    setApplicationsVacancy(vacancy.id);
+    try {
+      setVacancyApplications(await apiGet<EmployerVacancyApplication[]>(`/vacancies/${vacancy.id}/applications`));
+    } catch (error) {
+      setApplicationsVacancy(null);
+      onNotify(error instanceof Error ? error.message : "Не удалось загрузить отклики", "error");
+    } finally {
+      setApplicationsLoading(false);
+    }
+  };
+
+  const updateVacancyApplication = async (applicationId: string, status: "reviewed" | "accepted" | "rejected") => {
+    try {
+      await apiRequest(`/vacancies/applications/${applicationId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      setVacancyApplications((current) => current.map((item) => item.id === applicationId ? { ...item, status } : item));
+      onNotify("Статус отклика обновлён");
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось обновить отклик", "error");
+    }
+  };
 
   const createNeed = async () => {
     if (needTitle.trim().length < 2 || !needSpecialization || !needGrade || !needSalaryTaxType || !needWorkFormat) {
@@ -1061,15 +1459,13 @@ function EmployerScreen({
 
   const applyNeedDraft = () => {
     if (!needDraft) return;
-    setNeedTitle("");
-    setNeedSpecialization(needDraft.specialization ?? "");
-    setNeedGrade(needDraft.required_grade ?? "");
-    setSkillItems(needDraft.required_skills);
-    setNeedSalaryMin(needDraft.salary_min?.toString() ?? "");
-    setNeedSalaryMax(needDraft.salary_max?.toString() ?? "");
-    setNeedSalaryTaxType(needDraft.salary_tax_type ?? "");
-    setNeedWorkFormat(needDraft.work_format ?? "");
-    setNeedCity("");
+    if (needDraft.specialization) setNeedSpecialization(needDraft.specialization);
+    if (needDraft.required_grade) setNeedGrade(needDraft.required_grade);
+    if (needDraft.required_skills.length > 0) setSkillItems(needDraft.required_skills);
+    if (needDraft.salary_min !== null) setNeedSalaryMin(needDraft.salary_min.toString());
+    if (needDraft.salary_max !== null) setNeedSalaryMax(needDraft.salary_max.toString());
+    if (needDraft.salary_tax_type) setNeedSalaryTaxType(needDraft.salary_tax_type);
+    if (needDraft.work_format) setNeedWorkFormat(needDraft.work_format);
     setNeedDraft(null);
     setNeedEntryMode("manual");
     onNotify("Найденные поля перенесены в форму. Проверьте их и заполните остальные.");
@@ -1111,7 +1507,7 @@ function EmployerScreen({
     const waitingInvitations = sentInvitations.filter((item) => item.status === "sent" || item.status === "viewed").length;
     const acceptedInvitations = sentInvitations.filter((item) => item.status === "accepted").length;
     return (
-      <div className="page-content">
+      <div className="page-content page-content--overview">
         <div className="metrics-grid">
           <MetricCard label="АКТИВНЫЕ ПОТРЕБНОСТИ" value={String(needs.filter((need) => need.is_active).length)} detail="По данным компании" accent />
           <MetricCard label="ОТПРАВЛЕНО ПРИГЛАШЕНИЙ" value={String(sentInvitations.length)} detail="По данным API" />
@@ -1126,9 +1522,8 @@ function EmployerScreen({
             {needs.filter((need) => need.is_active).map((need) => (
               <button type="button" className="need-row" key={need.id} onClick={() => onNeedCreated(need)}>
                 <div className="need-row__icon"><Icon name="briefcase" /></div>
-                <div><strong>{need.title}</strong><span>{need.specialization} · {need.required_grade}</span></div>
-                <div><span>Зарплата</span><strong>{new Intl.NumberFormat("ru-RU").format(need.salary_min)}–{new Intl.NumberFormat("ru-RU").format(need.salary_max)} ₽ ({need.salary_tax_type === "net" ? "на руки" : "до вычета"})</strong></div>
-                <div><span>Формат</span><strong>{need.work_format === "remote" ? "Удалённо" : need.work_format}</strong></div>
+                <div><strong>{need.title}</strong><span>{need.specialization} · {need.required_grade} · {need.work_format === "remote" ? "Удалённо" : need.work_format === "hybrid" ? "Гибрид" : "Офис"}</span></div>
+                <div className="need-row__salary"><span>Зарплата</span><strong>{formatSalaryRange(need.salary_min, need.salary_max)}</strong><small>{need.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}</small></div>
                 <Icon name="chevron" />
               </button>
             ))}
@@ -1147,30 +1542,47 @@ function EmployerScreen({
     return (
       <div className="page-content">
         <div className="bank-toolbar">
-          <div className="search-field search-field--wide"><Icon name="search" /><input value={bankQuery} onChange={(event) => setBankFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Имя или технология" /></div>
+          <div className="search-field search-field--wide"><Icon name="search" /><input value={bankQuery} onChange={(event) => setBankFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Имя кандидата" aria-label="Поиск по имени кандидата" /></div>
+          <div className="search-field"><Icon name="search" /><input maxLength={100} value={bankSkill} onChange={(event) => setBankFilters((current) => ({ ...current, skill: event.target.value }))} placeholder="Навык или стек" aria-label="Фильтр по навыку или стеку" /></div>
           <select className="bank-select" aria-label="Фильтр специализации" value={bankSpecialization} onChange={(event) => setBankFilters((current) => ({ ...current, specialization: event.target.value }))}><option value="">Все специализации</option>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select>
           <select className="bank-select" aria-label="Фильтр грейда" value={bankGrade} onChange={(event) => setBankFilters((current) => ({ ...current, grade: event.target.value }))}><option value="">Любой грейд</option>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
           <select className="bank-select" aria-label="Фильтр формата работы" value={bankFormat} onChange={(event) => setBankFilters((current) => ({ ...current, format: event.target.value }))}><option value="">Любой формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select>
           <input className="bank-select" aria-label="Фильтр города" value={bankCity} onChange={(event) => setBankFilters((current) => ({ ...current, city: event.target.value }))} placeholder="Город" />
           <Button variant={bankFspOnly ? "primary" : "outline"} onClick={() => setBankFilters((current) => ({ ...current, fspOnly: !current.fspOnly }))}><Icon name="filter" /> Достижения ФСП</Button>
         </div>
-        <div className="table-card">
-          <div className="table-summary"><strong>{bankLoading ? "Загрузка кандидатов…" : `${visibleBankItems.length} профилей по фильтрам`}</strong><span>Балл рассчитывается под конкретную потребность; контакты скрыты до принятия приглашения</span></div>
-          <div className="data-table data-table--candidates">
-            <div className="data-row data-row--head"><span>КАНДИДАТ</span><span>КАТЕГОРИЯ</span><span>СТЕК</span><span>БАЛЛ ПОДБОРА</span><span>ФСП</span><span /></div>
-            {visibleBankItems.map((candidate) => (
-              <div className="data-row" key={candidate.id}>
-                <div className="table-person"><div className="avatar">{candidate.initials}</div><div><strong>{candidate.name}</strong><span>{candidate.location}</span></div></div>
-                <div><strong>{candidate.role}</strong><span>{candidate.level} · {candidate.verifiedGrade ? "подтверждён" : "заявлен"}</span></div>
-                <div className="mini-tags">{candidate.skills.slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div>
-                <strong className="green">—</strong>
-                <div><strong>{candidate.fspVerified ? "Демо" : "Нет"}</strong><span>{candidate.achievementsCount ?? 0} тестовых достижений</span></div>
-                <Button variant="outline" onClick={() => onOpenResume(candidate)}>Открыть профиль</Button>
-              </div>
-            ))}
-            {!bankLoading && visibleBankItems.length === 0 && <div className="empty-state">По выбранным параметрам кандидаты не найдены</div>}
-          </div>
+        <div className="bank-results-heading">
+          <div><strong>{bankLoading ? "Загрузка кандидатов…" : `${visibleBankItems.length} профилей`}</strong><span>Резюме и сравнение доступны в каждой карточке — не нужно искать кнопки в конце строки.</span></div>
+          <span>Контакты открываются после принятия приглашения</span>
         </div>
+        <div className="candidate-directory-grid">
+          {visibleBankItems.map((candidate) => {
+            const selectedForCompare = bankCompare.some((item) => item.id === candidate.id);
+            return (
+              <article className="candidate-directory-card" key={candidate.id}>
+                <div className="candidate-directory-card__header">
+                  <div className="avatar">{candidate.initials}</div>
+                  <div><strong>{candidate.name}</strong><span>{candidate.location} · {candidate.format}</span></div>
+                  {candidate.fspVerified && <span className="candidate-directory-card__badge"><Icon name="check" size={13} /> ФСП</span>}
+                </div>
+                <div className="candidate-directory-card__grade"><strong>{candidate.role}</strong><span>{candidate.level} · {candidate.verifiedGrade ? "подтверждён" : "заявлен"}</span></div>
+                <div className="mini-tags">{candidate.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}{candidate.skills.length > 4 && <span>+{candidate.skills.length - 4}</span>}</div>
+                <div className="candidate-directory-card__footer">
+                  <Button variant="outline" onClick={() => onOpenResume(candidate)}><Icon name="users" size={15} /> Резюме</Button>
+                  <Button
+                    variant={selectedForCompare ? "primary" : "ghost"}
+                    disabled={!selectedForCompare && bankCompare.length >= 3}
+                    onClick={() => setBankCompare((current) => selectedForCompare
+                      ? current.filter((item) => item.id !== candidate.id)
+                      : [...current, candidate])}
+                  ><Icon name="compare" size={15} />{selectedForCompare ? "Убрать" : "Сравнить"}</Button>
+                </div>
+              </article>
+            );
+          })}
+          {!bankLoading && visibleBankItems.length === 0 && <div className="empty-state">По выбранным параметрам кандидаты не найдены</div>}
+        </div>
+        {bankCompare.length > 0 && <div className="bank-compare-bar"><span>Выбрано для сравнения: <strong>{bankCompare.length} / 3</strong></span><div>{bankCompare.map((candidate) => <span key={candidate.id}>{candidate.name}</span>)}</div><Button disabled={bankCompare.length < 2} onClick={() => setBankCompareOpen(true)}><Icon name="compare" /> Сравнить рядом</Button></div>}
+        {bankCompareOpen && <CompareModal items={bankCompare} onClose={() => setBankCompareOpen(false)} onOpen={(candidate) => { setBankCompareOpen(false); onOpenResume(candidate); }} />}
       </div>
     );
   }
@@ -1199,21 +1611,10 @@ function EmployerScreen({
           <div><b>2</b><span>Оценка важности</span></div>
           <div><b>3</b><span>Публикация</span></div>
         </div>
-        <div className="field-row field-row--flush" aria-label="Способ заполнения потребности">
-          <Button variant={needEntryMode === "manual" ? "primary" : "outline"} onClick={() => { setNeedEntryMode("manual"); setNeedDraft(null); }}>Задать фильтр вручную</Button>
-          <Button variant={needEntryMode === "llm" ? "primary" : "outline"} onClick={() => setNeedEntryMode("llm")}>Описать задачу для LLM</Button>
-        </div>
-        <div className="split-layout" style={needEntryMode === "llm" ? { gridTemplateColumns: "1fr" } : undefined}>
+        <div className="split-layout">
           <section className="feature-card">
-            <div className="feature-head"><div><span>ШАГ 1 ИЗ 3</span><strong>{needEntryMode === "llm" ? "Опишите задачи" : "Опишите специалиста"}</strong></div></div>
-            <label className="field field--flush"><span>ОПИСАНИЕ ПОТРЕБНОСТИ</span><textarea value={needDescription} onChange={(event) => { setNeedDescription(event.target.value); setNeedDraft(null); }} placeholder="Опишите задачи команды, стек и приоритеты роли." /></label>
-            {needEntryMode === "llm" && <><p className="feature-description feature-description--left">Опишите задачи обычными словами. Модель предложит навыки и выставит их важность; перед сохранением всё можно изменить.</p><Button variant="outline" disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing ? "Подбираем…" : "Предложить навыки с LLM"}</Button></>}
-            {needDraft && <div className="need-draft" aria-label="Предложенные поля">
-              <p className="feature-description feature-description--left">{needDraftSummary.join(" · ")}</p>
-              <p className="feature-description feature-description--left">Проверьте предложенные навыки и значения ползунков. Пустые поля заполните сами.</p>
-              <Button variant="outline" onClick={applyNeedDraft}>Подставить в форму</Button>
-            </div>}
-            {needEntryMode === "manual" && <><div className="field-row field-row--flush">
+            <div className="feature-head"><div><span>ПАРАМЕТРЫ ПОТРЕБНОСТИ</span><strong>Опишите специалиста</strong></div></div>
+            <div className="field-row field-row--flush">
               <label className="field"><span>НАЗВАНИЕ РОЛИ</span><input value={needTitle} onChange={(event) => setNeedTitle(event.target.value)} /></label>
               <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => handleSpecializationChange(event.target.value)}><option value="">Выберите специализацию</option>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
@@ -1234,67 +1635,83 @@ function EmployerScreen({
                 <option value="net">На руки (net)</option>
               </select>
             </label>
-            <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="">Выберите формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div></>}
+            <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="">Выберите формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
+            <label className="field field--flush need-description-field">
+              <span>{needEntryMode === "llm" ? "ОПИШИТЕ ПОТРЕБНОСТЬ ПРОМТОМ" : "ОПИСАНИЕ ПОТРЕБНОСТИ (НЕОБЯЗАТЕЛЬНО)"}</span>
+              <textarea value={needDescription} onChange={(event) => { setNeedDescription(event.target.value); setNeedDraft(null); }} placeholder="Опишите задачи команды, стек и приоритеты роли." />
+            </label>
           </section>
-          {needEntryMode === "manual" && <section className="feature-card">
-            <div className="feature-head"><div><span>ТРЕБОВАНИЯ ДЛЯ ПОДБОРА</span><strong>Важность навыков — от 1 до 5</strong></div></div>
-            <p className="feature-description feature-description--left">Чем выше значение, тем сильнее этот навык влияет на позицию кандидата в подборке.</p>
-            <div className="skill-weights">
-              {skillItems.map((item, index) => (
-                <div key={`${item.name}-${index}`}>
-                  <span>{item.name}</span>
-                  <input
-                    aria-label={`Вес ${item.name}`}
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="1"
-                    value={item.weight}
-                    onChange={(event) => handleUpdateSkillWeight(index, Number(event.target.value))}
-                  />
-                  <strong>{item.weight}/5</strong>
-                  <button
-                    type="button"
-                    className="skill-weight-del"
-                    title={`Удалить ${item.name}`}
-                    aria-label={`Удалить ${item.name}`}
-                    onClick={() => handleRemoveSkill(index)}
-                  >
-                    <Icon name="close" size={14} />
-                  </button>
-                </div>
-              ))}
+          <section className="feature-card skill-entry-card">
+            <div className="skill-entry-head">
+              <div className="feature-head"><div><span>ТРЕБОВАНИЯ ДЛЯ ПОДБОРА</span><strong>Как задать навыки?</strong></div></div>
+              <div className="skill-entry-switch" role="group" aria-label="Способ заполнения шкалы навыков">
+                <Button type="button" variant={needEntryMode === "manual" ? "primary" : "outline"} ariaPressed={needEntryMode === "manual"} onClick={() => setNeedEntryMode("manual")}>Расставить веса</Button>
+                <Button type="button" variant={needEntryMode === "llm" ? "primary" : "outline"} ariaPressed={needEntryMode === "llm"} onClick={() => setNeedEntryMode("llm")}>Описать промтом</Button>
+              </div>
             </div>
-            <div className="skill-add-row">
-              <input
-                type="text"
-                placeholder="Добавить навык (например, Redis)..."
-                aria-label="Новый навык"
-                value={newSkillName}
-                onChange={(e) => setNewSkillName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddSkill();
-                  }
-                }}
-              />
-              <Button variant="outline" onClick={handleAddSkill}>+ Добавить</Button>
-            </div>
+            {needEntryMode === "manual" ? <>
+              <p className="feature-description feature-description--left">Укажите навыки и их важность для подбора: от 1 — базовый приоритет до 5 — критически важный.</p>
+              <div className="skill-weights">
+                {skillItems.map((item, index) => (
+                  <div key={`${item.name}-${index}`}>
+                    <span>{item.name}</span>
+                    <input
+                      aria-label={`Вес ${item.name}`}
+                      type="range"
+                      min="1"
+                      max="5"
+                      step="1"
+                      value={item.weight}
+                      onChange={(event) => handleUpdateSkillWeight(index, Number(event.target.value))}
+                    />
+                    <strong>{item.weight}/5</strong>
+                    <button
+                      type="button"
+                      className="skill-weight-del"
+                      title={`Удалить ${item.name}`}
+                      aria-label={`Удалить ${item.name}`}
+                      onClick={() => handleRemoveSkill(index)}
+                    >
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="skill-add-row">
+                <input
+                  type="text"
+                  placeholder="Добавить навык (например, Redis)..."
+                  aria-label="Новый навык"
+                  value={newSkillName}
+                  onChange={(e) => setNewSkillName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddSkill();
+                    }
+                  }}
+                />
+                <Button variant="outline" onClick={handleAddSkill}>+ Добавить</Button>
+              </div>
+            </> : <>
+              <p className="feature-description feature-description--left">Опишите задачи и стек в поле слева — мы предложим навыки и веса. Результат можно проверить и отредактировать перед сохранением.</p>
+              <Button variant="outline" disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing ? "Подбираем навыки…" : "Предложить навыки по описанию"}</Button>
+              {needDraft && <div className="need-draft" aria-label="Предложенные поля">
+                <p className="feature-description feature-description--left">{needDraftSummary.join(" · ")}</p>
+                <p className="feature-description feature-description--left">Проверьте предложенные навыки и значения весов перед переносом в форму.</p>
+                <Button variant="outline" onClick={applyNeedDraft}>Подставить навыки и поля</Button>
+              </div>}
+            </>}
             <p className="feature-description feature-description--left">Требования и веса будут сохранены в потребности; подбор покажет кандидатов с объяснением совпадений.</p>
             <Button disabled={needSaving} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
-          </section>}
+          </section>
         </div>
       </div>
     );
   }
 
   if (active === "Приглашения") {
-    return <Invitations employer />;
-  }
-
-  if (!demoMode && active === "Вакансии компании") {
-    return <div className="page-content"><section className="feature-card"><div className="feature-head"><div><span>ВАКАНСИИ</span><strong>Публикация пока недоступна</strong></div></div><p className="feature-description feature-description--left">В backend нет API для публикации вакансий и обработки откликов. Для адресного подбора создайте потребность и отправьте кандидату приглашение.</p><Button onClick={() => onNavigate("Потребности")}>Открыть потребности</Button></section></div>;
+    return <Invitations employer onNotify={onNotify} onNavigate={onNavigate} />;
   }
 
   if (!demoMode && active === "Аналитика") {
@@ -1321,29 +1738,70 @@ function EmployerScreen({
   }
 
   if (active === "Вакансии компании") {
+    const shownVacancies = vacancies.filter((vacancy) =>
+      vacancyListFilter === "all" || vacancy.is_published === (vacancyListFilter === "published"),
+    );
+    const formatSalary = (vacancy: VacancyRecord) =>
+      `${new Intl.NumberFormat("ru-RU").format(vacancy.salary_min)}–${new Intl.NumberFormat("ru-RU").format(vacancy.salary_max)} ₽ ${vacancy.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}`;
     return (
       <div className="page-content">
-        <div className="vacancy-head"><div><strong>Вакансии NovaTech</strong><span>Зарплатный диапазон обязателен для публикации</span></div><Button onClick={() => setVacancyEditor(!vacancyEditor)}><span className="button-plus">+</span> Создать вакансию</Button></div>
+        <div className="vacancy-head"><div><strong>Вакансии компании</strong><span>Управляйте публикациями и откликами кандидатов</span></div><Button onClick={() => { resetVacancyForm(); setVacancyEditor(!vacancyEditor); setApplicationsVacancy(null); }}><span className="button-plus">+</span> Создать вакансию</Button></div>
         {vacancyEditor && (
           <section className="feature-card vacancy-editor">
-            <div className="feature-head"><div><span>НОВАЯ ВАКАНСИЯ</span><strong>Основные условия</strong></div><Button variant="ghost" onClick={() => setVacancyEditor(false)}>Закрыть</Button></div>
-            <div className="field-row field-row--flush"><label className="field"><span>НАЗВАНИЕ *</span><input defaultValue="Backend-разработчик" /></label><label className="field"><span>СПЕЦИАЛИЗАЦИЯ *</span><select>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label></div>
-            <div className="field-row field-row--flush"><label className="field"><span>УРОВЕНЬ *</span><select><option>Middle</option><option>Senior</option></select></label><label className="field"><span>ФОРМАТ *</span><select><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div>
-            <div className="field-row field-row--flush"><label className="field"><span>ЗАРПЛАТА ОТ, ₽ *</span><input defaultValue="220 000" /></label><label className="field"><span>ЗАРПЛАТА ДО, ₽ *</span><input defaultValue="280 000" /></label></div>
-            <label className="field field--flush"><span>ОПИСАНИЕ *</span><textarea defaultValue="Разработка API финансовой платформы, работа с PostgreSQL и сервисами обработки событий." /></label>
-            <div className="parsed-tags"><span>СТЕК</span><b>Python</b><b>FastAPI</b><b>PostgreSQL</b><b>Docker</b></div>
-            <div className="modal__actions"><Button variant="outline">Сохранить черновик</Button><Button onClick={() => setVacancyEditor(false)}>Опубликовать вакансию</Button></div>
+            <div className="feature-head"><div><span>{vacancyEditingId ? "РЕДАКТИРОВАНИЕ" : "НОВАЯ ВАКАНСИЯ"}</span><strong>Основные условия</strong></div><Button variant="ghost" onClick={() => { setVacancyEditor(false); resetVacancyForm(); }}>Закрыть</Button></div>
+            <div className="field-row field-row--flush">
+              <label className="field"><span>НАЗВАНИЕ *</span><input value={vacancyForm.title} onChange={(event) => setVacancyForm((current) => ({ ...current, title: event.target.value }))} /></label>
+              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ *</span><select value={vacancyForm.specialization} onChange={(event) => setVacancyForm((current) => ({ ...current, specialization: event.target.value }))}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
+            </div>
+            <div className="field-row field-row--flush">
+              <label className="field"><span>УРОВЕНЬ *</span><select value={vacancyForm.required_grade} onChange={(event) => setVacancyForm((current) => ({ ...current, required_grade: event.target.value }))}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+              <label className="field"><span>ФОРМАТ *</span><select value={vacancyForm.work_format} onChange={(event) => setVacancyForm((current) => ({ ...current, work_format: event.target.value }))}><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label>
+            </div>
+            <div className="field-row field-row--flush">
+              <label className="field"><span>ЗАРПЛАТА ОТ, ₽ *</span><input inputMode="numeric" value={vacancyForm.salary_min} onChange={(event) => setVacancyForm((current) => ({ ...current, salary_min: event.target.value }))} /></label>
+              <label className="field"><span>ЗАРПЛАТА ДО, ₽ *</span><input inputMode="numeric" value={vacancyForm.salary_max} onChange={(event) => setVacancyForm((current) => ({ ...current, salary_max: event.target.value }))} /></label>
+            </div>
+            <div className="field-row field-row--flush">
+              <label className="field"><span>НАЛОГОВАЯ ПОМЕТКА *</span><select value={vacancyForm.salary_tax_type} onChange={(event) => setVacancyForm((current) => ({ ...current, salary_tax_type: event.target.value as "gross" | "net" }))}><option value="gross">До вычета НДФЛ</option><option value="net">На руки</option></select></label>
+              <label className="field"><span>ГОРОД</span><input value={vacancyForm.city} onChange={(event) => setVacancyForm((current) => ({ ...current, city: event.target.value }))} /></label>
+            </div>
+            <label className="field field--flush"><span>НАВЫКИ ЧЕРЕЗ ЗАПЯТУЮ</span><input value={vacancyForm.required_skills} onChange={(event) => setVacancyForm((current) => ({ ...current, required_skills: event.target.value }))} placeholder="Python, FastAPI, PostgreSQL" /></label>
+            <label className="field field--flush"><span>ОПИСАНИЕ</span><textarea value={vacancyForm.description} onChange={(event) => setVacancyForm((current) => ({ ...current, description: event.target.value }))} /></label>
+            <div className="modal__actions"><Button variant="outline" onClick={() => { setVacancyEditor(false); resetVacancyForm(); }}>Отмена</Button><Button disabled={vacancySaving} onClick={() => void saveVacancy()}>{vacancySaving ? "Сохраняем…" : vacancyEditingId ? "Сохранить изменения" : "Сохранить черновик"}</Button></div>
           </section>
         )}
-        <div className="vacancy-tabs"><button type="button" className="active">Опубликованы · 3</button><button type="button">Черновики · 1</button><button type="button">Все отклики · 14</button></div>
-        <div className="vacancy-management">
-          {[
-            ["Backend-разработчик", "Middle", "220–280 тыс. ₽", "8 откликов", "Опубликована"],
-            ["DevOps-инженер", "Middle", "230–300 тыс. ₽", "4 отклика", "Опубликована"],
-            ["Frontend-разработчик", "Senior", "260–340 тыс. ₽", "2 отклика", "Приостановлена"],
-          ].map((item) => <article key={item[0]}><div className="need-row__icon"><Icon name="briefcase" /></div><div><strong>{item[0]}</strong><span>{item[1]} · {item[2]}</span></div><b>{item[3]}</b><em>{item[4]}</em><Button variant="outline">Редактировать</Button><Button variant="ghost">Отклики</Button></article>)}
+        <div className="vacancy-tabs" role="tablist" aria-label="Фильтр вакансий">
+          <button type="button" className={vacancyListFilter === "published" ? "active" : ""} onClick={() => { setVacancyListFilter("published"); setApplicationsVacancy(null); }}>Опубликованы · {vacancies.filter((item) => item.is_published).length}</button>
+          <button type="button" className={vacancyListFilter === "drafts" ? "active" : ""} onClick={() => { setVacancyListFilter("drafts"); setApplicationsVacancy(null); }}>Черновики · {vacancies.filter((item) => !item.is_published).length}</button>
+          <button type="button" className={vacancyListFilter === "all" ? "active" : ""} onClick={() => { setVacancyListFilter("all"); setApplicationsVacancy(null); }}>Все вакансии · {vacancies.length}</button>
         </div>
-        <section className="feature-card employer-task-create"><div><span>РЕГУЛЯРНАЯ ЗАДАЧА</span><strong>Проверьте кандидатов на реальном кейсе</strong><p>Создайте короткую задачу — результат будет виден только вашей компании и добавит свежий сигнал в профиль.</p></div><Button variant="outline">Создать задачу</Button></section>
+        {vacanciesLoading ? <div className="empty-state">Загружаем вакансии…</div> : null}
+        <div className="vacancy-management">
+          {shownVacancies.map((vacancy) => (
+            <article key={vacancy.id}>
+              <div className="need-row__icon"><Icon name="briefcase" /></div>
+              <div className="vacancy-management__main"><strong>{vacancy.title}</strong><span>{vacancy.specialization} · {vacancy.required_grade} · {formatSalary(vacancy)}</span>{vacancy.required_skills.length > 0 && <div className="mini-tags">{vacancy.required_skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}</div>}</div>
+              <em className={vacancy.is_published ? "vacancy-status vacancy-status--published" : "vacancy-status"}>{vacancy.is_published ? "Опубликована" : "Черновик"}</em>
+              <div className="vacancy-management__actions">
+                <Button variant="outline" onClick={() => editVacancy(vacancy)}>Редактировать</Button>
+                <Button variant={vacancy.is_published ? "ghost" : "primary"} onClick={() => void toggleVacancyPublication(vacancy)}>{vacancy.is_published ? "Снять" : "Опубликовать"}</Button>
+                <Button variant="ghost" onClick={() => { setVacancyEditor(false); void loadVacancyApplications(vacancy); }}>Отклики</Button>
+              </div>
+            </article>
+          ))}
+          {!vacanciesLoading && shownVacancies.length === 0 && <div className="empty-state">Здесь пока нет вакансий. Создайте вакансию, чтобы начать публикацию.</div>}
+        </div>
+        {applicationsVacancy && <section className="feature-card vacancy-applications">
+          <div className="feature-head"><div><span>ОТКЛИКИ</span><strong>{vacancies.find((item) => item.id === applicationsVacancy)?.title}</strong></div><Button variant="ghost" onClick={() => setApplicationsVacancy(null)}>Закрыть</Button></div>
+          {applicationsLoading ? <div className="empty-state">Загружаем отклики…</div> : vacancyApplications.length === 0 ? <div className="empty-state">Откликов пока нет</div> : vacancyApplications.map((application) => (
+            <article className="vacancy-application" key={application.id}>
+              <div className="avatar">{`${application.candidate.first_name[0] ?? ""}${application.candidate.last_name[0] ?? ""}`}</div>
+              <div className="vacancy-application__person"><strong>{application.candidate.first_name} {application.candidate.last_name}</strong><span>{application.candidate.specialization ?? "Специализация не указана"} · {application.candidate.verified_grade ?? "Грейд не подтверждён"} · {application.candidate.city ?? "Город не указан"}</span><span>{application.candidate.email}{application.candidate.phone ? ` · ${application.candidate.phone}` : ""}{application.candidate.telegram ? ` · ${application.candidate.telegram}` : ""}</span>{application.cover_letter && <p>{application.cover_letter}</p>}</div>
+              <span className="vacancy-application__status">{application.status === "accepted" ? "Принят" : application.status === "rejected" ? "Отклонён" : application.status === "reviewed" ? "Просмотрен" : "Новый"}</span>
+              {application.status !== "accepted" && application.status !== "rejected" && <div className="vacancy-application__actions"><Button variant="outline" onClick={() => void updateVacancyApplication(application.id, "reviewed")}>Просмотрен</Button><Button onClick={() => void updateVacancyApplication(application.id, "accepted")}>Принять</Button><Button variant="ghost" onClick={() => void updateVacancyApplication(application.id, "rejected")}>Отклонить</Button></div>}
+            </article>
+          ))}
+        </section>}
       </div>
     );
   }
@@ -1425,7 +1883,7 @@ function ToggleRow({ title, detail, checked = false }: { title: string; detail: 
   );
 }
 
-function Invitations({ employer = false, onNotify }: { employer?: boolean; onNotify?: (message: string, type?: "success" | "error") => void }) {
+function Invitations({ employer = false, onNotify, onNavigate }: { employer?: boolean; onNotify?: (message: string, type?: "success" | "error") => void; onNavigate: (screen: string, target?: string) => void }) {
   const [items, setItems] = useState<Array<{
     id: string;
     company_name: string;
@@ -1445,6 +1903,7 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [unreadByInvitation, setUnreadByInvitation] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setLoading(true);
@@ -1452,6 +1911,17 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
       .then(setItems)
       .catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : "Не удалось загрузить приглашения"))
       .finally(() => setLoading(false));
+  }, [employer]);
+
+  useEffect(() => {
+    const refresh = () => {
+      apiGet<InvitationUnreadCount>("/invitations/messages/unread-count")
+        .then((result) => setUnreadByInvitation(result.by_invitation))
+        .catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : "Не удалось загрузить счётчик сообщений"));
+    };
+    refresh();
+    window.addEventListener("fsp-invitations-updated", refresh);
+    return () => window.removeEventListener("fsp-invitations-updated", refresh);
   }, [employer]);
 
   const statusLabels: Record<string, string> = {
@@ -1485,20 +1955,21 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
       {loading ? <div className="empty-state">Загружаем приглашения…</div> : filteredItems.length === 0 ? <div className="empty-state">Приглашений в этом разделе пока нет</div> : (
         <div className="invitation-list">
           {filteredItems.map((item) => (
-            <article className="invitation-card" key={item.id}>
+                <article className={`invitation-card ${employer ? "invitation-card--employer" : "invitation-card--candidate"}`} key={item.id}>
               <div className="invitation-logo">{(employer ? item.candidate_name : item.company_name).slice(0, 2).toUpperCase()}</div>
               <div className="invitation-main">
                 <span>{employer ? "КАНДИДАТ" : "ПРИГЛАШЕНИЕ ОТ КОМПАНИИ"}</span>
                 <strong>{employer ? item.candidate_name : item.company_name}</strong>
                 <p>{item.need_title ?? "Предложение о работе"}</p>
                 <p className="invitation-description">{item.offer_description}</p>
-                <div className="tags"><span>{money(item.salary_min)}–{money(item.salary_max)} ₽ {item.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}</span><span>Связь: {item.contact_method}</span></div>
+                <div className="tags"><span>{money(item.salary_min)}–{money(item.salary_max)} ₽ {item.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}</span>{(employer || item.status !== "accepted") && <span>Связь: {item.contact_method}</span>}</div>
                 {item.candidate_reply && <p className="invitation-description">Ответ: {item.candidate_reply}</p>}
               </div>
               <div className="invitation-status"><span className={`status-pill status-pill--${item.status === "accepted" ? "green" : "violet"}`}>{statusLabels[item.status] ?? item.status}</span></div>
               {!employer && ["sent", "viewed"].includes(item.status) && <div className="invitation-actions"><Button variant="ghost" disabled={pendingId === item.id} onClick={() => actOnInvitation(item.id, "reject")}>Отклонить</Button><Button disabled={pendingId === item.id} onClick={() => actOnInvitation(item.id, "accept")}>{pendingId === item.id ? "Сохраняем…" : "Принять"}</Button></div>}
               {employer && item.candidate_contacts && <div className="contact-box"><span>КОНТАКТ КАНДИДАТА</span><strong>{item.candidate_contacts.email}</strong>{item.candidate_contacts.telegram && <small>{item.candidate_contacts.telegram}</small>}{item.candidate_contacts.phone && <small>{item.candidate_contacts.phone}</small>}</div>}
               {!employer && item.status === "accepted" && <div className="contact-box"><span>КОНТАКТ КОМПАНИИ</span><strong>{item.contact_method}</strong></div>}
+              {item.status === "accepted" && <div className="invitation-chat-action"><Button variant="outline" onClick={() => onNavigate("Диалоги", `invitation:${item.id}`)}>Перейти к диалогу{unreadByInvitation[item.id] ? ` · ${unreadByInvitation[item.id]} новых` : ""}</Button></div>}
             </article>
           ))}
         </div>
@@ -1507,7 +1978,362 @@ function Invitations({ employer = false, onNotify }: { employer?: boolean; onNot
   );
 }
 
-function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: string; onNotify: (message: string, type?: "success" | "error") => void; onNavigate: (screen: string) => void; demoMode: boolean }) {
+function DialogsScreen({
+  employer,
+  initialTarget,
+  onClearInitialTarget,
+  onNotify,
+}: {
+  employer: boolean;
+  initialTarget: string | null;
+  onClearInitialTarget: () => void;
+  onNotify: (message: string, type?: "success" | "error") => void;
+}) {
+  const [invitations, setInvitations] = useState<DialogueInvitation[]>([]);
+  const [networkConversations, setNetworkConversations] = useState<NetworkConversation[]>([]);
+  const [mentors, setMentors] = useState<MentorProfile[]>([]);
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(initialTarget);
+  const [skillQuery, setSkillQuery] = useState("");
+  const [mentorTarget, setMentorTarget] = useState<MentorProfile | null>(null);
+  const [directoryMode, setDirectoryMode] = useState<"chats" | "mentors">("chats");
+  const [requestMessage, setRequestMessage] = useState("");
+  const [requestSending, setRequestSending] = useState(false);
+  const [verifiedGrade, setVerifiedGrade] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const invitationRequest = apiGet<DialogueInvitation[]>(employer ? "/invitations/sent" : "/invitations/my");
+      const networkRequest = employer
+        ? Promise.resolve([] as NetworkConversation[])
+        : apiGet<NetworkConversation[]>("/network/conversations");
+      const profileRequest = employer
+        ? Promise.resolve(null)
+        : apiGet<CandidateProfileData>("/candidate/profile");
+      const [invitationItems, networkItems, candidateProfile] = await Promise.all([invitationRequest, networkRequest, profileRequest]);
+      setInvitations(invitationItems.filter((item) => item.status === "accepted"));
+      setNetworkConversations(networkItems);
+      setVerifiedGrade(candidateProfile?.verified_grade ?? null);
+      setError("");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Не удалось загрузить диалоги");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void refresh(); }, [employer]);
+
+  useEffect(() => {
+    if (!initialTarget) return;
+    setSelectedTarget(initialTarget);
+    onClearInitialTarget();
+  }, [initialTarget]);
+
+  const findMentors = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!verifiedGrade) {
+      onNotify("Сначала подтвердите свой грейд в разделе «Мой грейд», чтобы найти наставника выше вашего уровня.", "error");
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      if (skillQuery.trim()) params.set("skill", skillQuery.trim());
+      setMentors(await apiGet<MentorProfile[]>(`/network/mentors?${params.toString()}`));
+    } catch (requestError) {
+      onNotify(requestError instanceof Error ? requestError.message : "Не удалось найти наставников", "error");
+    }
+  };
+
+  const sendMentorshipRequest = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!mentorTarget || !requestMessage.trim()) return;
+    setRequestSending(true);
+    try {
+      const conversation = await apiPost<NetworkConversation>("/network/mentorship-requests", {
+        mentor_user_id: mentorTarget.user_id,
+        skill_focus: skillQuery.trim() || mentorTarget.skills[0] || "Профессиональный рост",
+        message: requestMessage.trim(),
+      });
+      await refresh();
+      setSelectedTarget(`network:${conversation.id}`);
+      setDirectoryMode("chats");
+      setMentorTarget(null);
+      setRequestMessage("");
+      onNotify("Запрос наставнику отправлен");
+    } catch (requestError) {
+      onNotify(requestError instanceof Error ? requestError.message : "Не удалось отправить запрос", "error");
+    } finally {
+      setRequestSending(false);
+    }
+  };
+
+  const invitationTarget = selectedTarget?.startsWith("invitation:")
+    ? selectedTarget.slice("invitation:".length)
+    : null;
+  const networkTarget = selectedTarget?.startsWith("network:")
+    ? selectedTarget.slice("network:".length)
+    : null;
+  const selectedInvitation = invitations.find((item) => item.id === invitationTarget);
+  const selectedNetworkConversation = networkConversations.find((item) => item.id === networkTarget);
+
+  return (
+    <div className="page-content dialogues-page">
+      <div className="dialogues-intro"><div><span>ОБЩЕНИЕ БЕЗ ПОТЕРИ КОНТЕКСТА</span><strong>{employer ? "Компании и кандидаты — в одном месте" : "Рабочие контакты и рост в профессии"}</strong><p>{employer ? "Здесь собраны чаты только по принятым приглашениям." : "Обсуждайте принятые приглашения и находите наставников с подтверждённым более высоким грейдом."}</p></div><div className="dialogues-intro__icon"><Icon name="send" size={22} /></div></div>
+      {error && <div className="form-error" role="alert">{error}</div>}
+      {!employer && <div className="dialogues-mode-switch" role="tablist" aria-label="Разделы общения">
+        <button type="button" role="tab" aria-selected={directoryMode === "chats"} className={directoryMode === "chats" ? "active" : ""} onClick={() => setDirectoryMode("chats")}><Icon name="send" size={16} /> Диалоги <span>{invitations.length + networkConversations.length}</span></button>
+        <button type="button" role="tab" aria-selected={directoryMode === "mentors"} className={directoryMode === "mentors" ? "active" : ""} onClick={() => setDirectoryMode("mentors")}><Icon name="school" size={16} /> Найти ментора</button>
+      </div>}
+      <div className={`dialogues-layout ${selectedTarget || mentorTarget ? "dialogues-layout--thread-open" : ""}`}>
+        <aside className="dialogues-list">
+          {directoryMode === "chats" && <><div className="dialogues-list__heading"><strong>Ваши диалоги</strong><Button variant="ghost" onClick={() => void refresh()} aria-label="Обновить диалоги"><Icon name="refresh" size={15} /></Button></div>
+          {loading && <div className="empty-state">Обновляем список…</div>}
+          {invitations.map((item) => {
+            const target = `invitation:${item.id}`;
+            const otherName = employer ? item.candidate_name : item.company_name;
+            return <button type="button" className={`dialogue-list-item ${selectedTarget === target ? "dialogue-list-item--active" : ""}`} key={target} onClick={() => setSelectedTarget(target)}>
+              <span className="dialogue-list-item__avatar">{otherName.slice(0, 2).toUpperCase()}</span><span className="dialogue-list-item__body"><strong>{otherName}</strong><small>{item.need_title || "Принятое приглашение"}</small><span>Рабочее приглашение</span></span><Icon name="chevron" size={15} />
+            </button>;
+          })}
+          {!employer && networkConversations.map((item) => {
+            const target = `network:${item.id}`;
+            return <button type="button" className={`dialogue-list-item ${selectedTarget === target ? "dialogue-list-item--active" : ""}`} key={target} onClick={() => setSelectedTarget(target)}>
+              <span className="dialogue-list-item__avatar dialogue-list-item__avatar--mentor">{item.other_name.slice(0, 2).toUpperCase()}</span><span className="dialogue-list-item__body"><strong>{item.other_name}</strong><small>Наставник · {item.skill_focus}</small><span>{item.status === "pending" ? item.can_accept ? "Новый запрос" : "Ожидает ответа" : item.last_message || "Диалог наставничества"}</span></span><Icon name={item.can_accept ? "sparkle" : "chevron"} size={15} />
+            </button>;
+          })}
+          {!loading && invitations.length === 0 && (employer || networkConversations.length === 0) && <div className="dialogues-empty">Пока нет диалогов. Принятые приглашения появятся здесь.</div>}
+          </>}
+          {!employer && directoryMode === "mentors" && <section className="mentor-finder">
+            <div><span>ПРОФЕССИОНАЛЬНЫЙ РОСТ</span><strong>Найти ментора</strong><p>{verifiedGrade ? "Показываем только тех, кто включил наставничество и подтвердил грейд выше вашего." : "Сначала подтвердите свой грейд — так мы найдём специалистов, которые действительно выше по уровню."}</p></div>
+            <form onSubmit={(event) => void findMentors(event)}><label htmlFor="mentor-skill">Какой навык прокачать?</label><div className="search-field"><Icon name="search" /><input id="mentor-skill" value={skillQuery} onChange={(event) => setSkillQuery(event.target.value)} placeholder="Например, PostgreSQL" /></div><Button type="submit" variant="outline" disabled={!verifiedGrade}><Icon name="search" /> Найти ментора</Button></form>
+            {mentors.map((mentor) => <article className="mentor-card" key={mentor.user_id}><div className="mentor-card__identity"><span className="dialogue-list-item__avatar dialogue-list-item__avatar--mentor">{mentor.name.slice(0, 2).toUpperCase()}</span><div><strong>{mentor.name}</strong><span>{mentor.specialization || "IT"} · {mentor.verified_grade}</span></div></div><div className="mini-tags">{mentor.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}</div><Button variant="outline" onClick={() => { setMentorTarget(mentor); setRequestMessage(`Здравствуйте! Хочу прокачать ${skillQuery.trim() || mentor.skills[0] || "навыки"} и подготовиться к следующему грейду. Будете готовы стать моим наставником?`); }}>Запросить поддержку</Button></article>)}
+            {mentors.length === 0 && <span className="mentor-finder__hint">Наставники появятся после поиска по навыку.</span>}
+          </section>}
+        </aside>
+        <section className="dialogues-thread">
+          {selectedInvitation && <InvitationChatDialog
+            embedded
+            invitationId={selectedInvitation.id}
+            title={employer ? selectedInvitation.candidate_name : selectedInvitation.company_name}
+            onClose={() => { setSelectedTarget(null); window.dispatchEvent(new Event("fsp-invitations-updated")); }}
+          />}
+          {selectedNetworkConversation && <NetworkChatPanel conversation={selectedNetworkConversation} onRefresh={refresh} onNotify={onNotify} />}
+          {mentorTarget && <form className="mentor-request-card" onSubmit={(event) => void sendMentorshipRequest(event)}><div><span>ЗАПРОС НА НАСТАВНИЧЕСТВО</span><strong>{mentorTarget.name}</strong><small>{mentorTarget.verified_grade} · фокус: {skillQuery.trim() || mentorTarget.skills[0]}</small></div><label htmlFor="mentor-request-message">Коротко расскажите, с чем нужна помощь</label><textarea id="mentor-request-message" value={requestMessage} maxLength={4000} onChange={(event) => setRequestMessage(event.target.value)} rows={5} /><div><Button type="button" variant="ghost" onClick={() => setMentorTarget(null)}>Отмена</Button><Button type="submit" disabled={!requestMessage.trim() || requestSending}>{requestSending ? "Отправляем…" : "Отправить запрос"} <Icon name="send" /></Button></div></form>}
+          {!selectedInvitation && !selectedNetworkConversation && !mentorTarget && <div className="dialogues-placeholder"><div><Icon name="send" size={24} /><strong>Выберите диалог</strong><span>История, контекст приглашения и отправка сообщений будут здесь.</span></div></div>}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function NetworkChatPanel({
+  conversation,
+  onRefresh,
+  onNotify,
+}: {
+  conversation: NetworkConversation;
+  onRefresh: () => Promise<void>;
+  onNotify: (message: string, type?: "success" | "error") => void;
+}) {
+  const [messages, setMessages] = useState<NetworkMessage[]>([]);
+  const draftKey = `fsp-chat-draft:network:${conversation.id}`;
+  const [draft, setDraft] = useState(() => window.sessionStorage.getItem(draftKey) ?? "");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer = 0;
+    const load = async () => {
+      try {
+        const result = await apiGet<{ messages: NetworkMessage[] }>(`/network/conversations/${conversation.id}/messages`);
+        if (!cancelled) { setMessages(result.messages); setError(""); }
+      } catch (requestError) {
+        if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Не удалось загрузить сообщения");
+      }
+      if (!cancelled) timer = window.setTimeout(() => void load(), 5000);
+    };
+    void load();
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [conversation.id]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages]);
+  useEffect(() => {
+    if (draft) window.sessionStorage.setItem(draftKey, draft);
+    else window.sessionStorage.removeItem(draftKey);
+  }, [draft, draftKey]);
+
+  const decideRequest = async (decision: "accept" | "decline") => {
+    try {
+      await apiPost(`/network/conversations/${conversation.id}/${decision}`, {});
+      await onRefresh();
+      onNotify(decision === "accept" ? "Запрос принят — можно начинать диалог" : "Запрос отклонён");
+    } catch (requestError) {
+      onNotify(requestError instanceof Error ? requestError.message : "Не удалось обновить запрос", "error");
+    }
+  };
+
+  const send = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!draft.trim() || conversation.status !== "accepted") return;
+    setSending(true);
+    try {
+      const message = await apiPost<NetworkMessage>(`/network/conversations/${conversation.id}/messages`, { body: draft.trim() });
+      setMessages((current) => [...current, message]);
+      setDraft("");
+      window.sessionStorage.removeItem(draftKey);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Не удалось отправить сообщение");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return <div className="conversation-panel">
+    <header className="conversation-panel__header"><div><span>НАСТАВНИЧЕСТВО · {conversation.skill_focus}</span><strong>{conversation.other_name}</strong><small>{conversation.status === "accepted" ? "Наставничество подтверждено" : conversation.can_accept ? "Входящий запрос" : "Ожидает ответа наставника"}</small></div><span className="dialogue-list-item__avatar dialogue-list-item__avatar--mentor">{conversation.other_name.slice(0, 2).toUpperCase()}</span></header>
+    {error && <div className="conversation-error" role="alert">{error}</div>}
+    <div className="conversation-messages">{messages.length ? messages.map((message) => <article className={`conversation-message ${message.is_mine ? "conversation-message--mine" : ""}`} key={message.id}><p>{message.body}</p><time>{new Date(message.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</time></article>) : <div className="empty-state">Загружаем переписку…</div>}<div ref={bottomRef} /></div>
+    {conversation.status === "pending" && conversation.can_accept ? <div className="mentor-request-actions"><p>Кандидат хочет развиваться по навыку «{conversation.skill_focus}» и попросил вас стать наставником.</p><Button variant="outline" onClick={() => void decideRequest("decline")}>Пока нет</Button><Button onClick={() => void decideRequest("accept")}>Принять запрос</Button></div> : conversation.status === "pending" ? <div className="mentor-request-pending">Запрос отправлен. Чат откроется после согласия наставника.</div> : conversation.status === "accepted" ? <form className="conversation-composer" onSubmit={(event) => void send(event)}><label htmlFor={`network-draft-${conversation.id}`}>Сообщение</label><textarea id={`network-draft-${conversation.id}`} value={draft} maxLength={4000} onChange={(event) => setDraft(event.target.value)} placeholder="Напишите сообщение…" rows={3} /><div><small>{draft.length}/4000</small><Button type="submit" disabled={!draft.trim() || sending}>{sending ? "Отправляем…" : "Отправить"} <Icon name="send" /></Button></div></form> : <div className="mentor-request-pending">Этот запрос закрыт.</div>}
+  </div>;
+}
+
+function InvitationChatDialog({
+  invitationId,
+  title,
+  onClose,
+  embedded = false,
+}: {
+  invitationId: string;
+  title: string;
+  onClose: () => void;
+  embedded?: boolean;
+}) {
+  const [messages, setMessages] = useState<InvitationChatMessage[]>([]);
+  const draftKey = `fsp-chat-draft:invitation:${invitationId}`;
+  const [draft, setDraft] = useState(() => window.sessionStorage.getItem(draftKey) ?? "");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const [discardConfirm, setDiscardConfirm] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const reportedReadRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer = 0;
+    const refresh = async () => {
+      try {
+        const response = await apiGet<{ messages: InvitationChatMessage[]; unread_count: number }>(
+          `/invitations/${invitationId}/messages`,
+        );
+        if (!cancelled) {
+          setMessages(response.messages);
+          setError("");
+          if (!reportedReadRef.current) {
+            reportedReadRef.current = true;
+            window.dispatchEvent(new Event("fsp-invitations-updated"));
+          }
+        }
+      } catch (requestError) {
+        if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Не удалось обновить переписку");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          timer = window.setTimeout(() => void refresh(), 5000);
+        }
+      }
+    };
+    void refresh();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [invitationId]);
+
+  useEffect(() => {
+    if (draft) window.sessionStorage.setItem(draftKey, draft);
+    else window.sessionStorage.removeItem(draftKey);
+  }, [draft, draftKey]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
+
+  const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const text = draft.trim();
+    if (!text || sending) return;
+    setSending(true);
+    try {
+      const sent = await apiPost<InvitationChatMessage>(`/invitations/${invitationId}/messages`, { body: text });
+      setMessages((current) => [...current.filter((message) => message.id !== sent.id), sent]);
+      setDraft("");
+      window.sessionStorage.removeItem(draftKey);
+      setError("");
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : "Не удалось отправить сообщение");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const requestClose = () => {
+    if (draft.trim()) {
+      setDiscardConfirm(true);
+      return;
+    }
+    onClose();
+  };
+
+  if (discardConfirm) {
+    return (
+      <DiscardConfirmation
+        title="Закрыть чат?"
+        message="Ваше сообщение ещё не отправлено. Вернитесь к нему или закройте чат и удалите текст."
+        onKeepEditing={() => setDiscardConfirm(false)}
+        onDiscard={() => {
+          setDraft("");
+          window.sessionStorage.removeItem(draftKey);
+          setDiscardConfirm(false);
+          onClose();
+        }}
+      />
+    );
+  }
+
+  const content = (
+    <>
+      <div className="conversation-modal__header">
+        <div><span>ПРИНЯТОЕ ПРИГЛАШЕНИЕ</span><strong id="conversation-title">{title}</strong><small>Переписка сохраняется для участников приглашения</small></div>
+        {embedded ? null : <button type="button" className="icon-button" aria-label="Закрыть чат" onClick={requestClose}><Icon name="close" /></button>}
+      </div>
+      {error && <div className="conversation-error" role="alert">{error}</div>}
+      <div className="conversation-messages" aria-label="История сообщений">
+        {loading ? <div className="empty-state">Загружаем историю…</div> : messages.length === 0 ? <div className="empty-state">Начните переписку — отправьте первое сообщение.</div> : messages.map((message) => (
+          <article className={`conversation-message ${message.is_mine ? "conversation-message--mine" : ""}`} key={message.id}>
+            <p>{message.body}</p>
+            <time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</time>
+          </article>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <form className="conversation-composer" onSubmit={(event) => void sendMessage(event)}>
+        <label htmlFor="conversation-draft">Сообщение</label>
+        <textarea id="conversation-draft" value={draft} maxLength={4000} onChange={(event) => setDraft(event.target.value)} placeholder="Напишите сообщение…" rows={3} />
+        <div><small>{draft.length}/4000 · обновляется автоматически</small><Button type="submit" disabled={!draft.trim() || sending}>{sending ? "Отправляем…" : "Отправить"} <Icon name="send" /></Button></div>
+      </form>
+    </>
+  );
+  return embedded
+    ? <div className="conversation-panel">{content}</div>
+    : <ModalFrame className="conversation-modal" labelledBy="conversation-title" onClose={requestClose}>{content}</ModalFrame>;
+}
+
+function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: string; onNotify: (message: string, type?: "success" | "error") => void; onNavigate: (screen: string, target?: string) => void; demoMode: boolean }) {
   const [testPurpose, setTestPurpose] = useState<"grade" | "fsp-olympiad">("grade");
   const [testStarted, setTestStarted] = useState(false);
   const [question, setQuestion] = useState(0);
@@ -1524,11 +2350,17 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [testDone, setTestDone] = useState(false);
   const [taskDone, setTaskDone] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [applied, setApplied] = useState<number[]>([]);
+  const [jobVacancies, setJobVacancies] = useState<VacancyRecord[]>([]);
+  const [jobApplications, setJobApplications] = useState<CandidateVacancyApplication[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobSearch, setJobSearch] = useState("");
+  const [jobsTab, setJobsTab] = useState<"vacancies" | "applications">("vacancies");
+  const [applyingTo, setApplyingTo] = useState<string | null>(null);
   const [profile, setProfile] = useState<CandidateProfileData | null>(null);
   const [candidateInvitations, setCandidateInvitations] = useState<Array<{ status: string }>>([]);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [resumeUploading, setResumeUploading] = useState(false);
   const [parsedResume, setParsedResume] = useState<ParsedResume | null>(null);
   const [fspInput, setFspInput] = useState("");
   const [diplomaStatus, setDiplomaStatus] = useState("");
@@ -1577,6 +2409,34 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить сводку", "error"));
   }, [active]);
 
+  useEffect(() => {
+    if (active !== "Вакансии") return;
+    setJobsLoading(true);
+    Promise.all([
+      apiGet<VacancyRecord[]>("/vacancies"),
+      apiGet<CandidateVacancyApplication[]>("/vacancies/applications/my"),
+    ])
+      .then(([available, applications]) => {
+        setJobVacancies(available);
+        setJobApplications(applications);
+      })
+      .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить вакансии", "error"))
+      .finally(() => setJobsLoading(false));
+  }, [active]);
+
+  const applyToVacancy = async (vacancy: VacancyRecord) => {
+    setApplyingTo(vacancy.id);
+    try {
+      const application = await apiPost<CandidateVacancyApplication>(`/vacancies/${vacancy.id}/apply`, { cover_letter: "" });
+      setJobApplications((current) => [application, ...current.filter((item) => item.id !== application.id)]);
+      onNotify(`Отклик на вакансию «${vacancy.title}» отправлен`);
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось отправить отклик", "error");
+    } finally {
+      setApplyingTo(null);
+    }
+  };
+
   const saveCandidateProfile = async () => {
     if (!profile) return;
     setProfileSaving(true);
@@ -1594,6 +2454,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         declared_grade: profile.declared_grade,
         salary_expectation: profile.salary_expectation ? Number(profile.salary_expectation) : null,
         salary_tax_type: profile.salary_tax_type ?? "gross",
+        skills: profile.skills ?? [],
         fsp_id: profile.fsp_id,
       });
       setProfile(updated);
@@ -1612,6 +2473,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       const updated = await apiPut<CandidateProfileData>("/candidate/profile", {
         agreed_publication: profile.agreed_publication,
         visibility_public: profile.visibility_public,
+        mentor_available: profile.mentor_available,
       });
       setProfile(updated);
       onNotify("Настройки видимости сохранены");
@@ -1630,23 +2492,32 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     }
     const body = new FormData();
     body.append("file", file);
+    setResumeUploading(true);
     try {
       const parsed = await apiRequest<ParsedResume>("/candidate/resume/upload", { method: "POST", body });
       setParsedResume(parsed);
-      setProfile((current) => current ? {
-        ...current,
-        first_name: parsed.first_name ?? current.first_name,
-        last_name: parsed.last_name ?? current.last_name,
-        phone: parsed.phone ?? current.phone,
-        telegram: parsed.telegram ?? current.telegram,
-        city: parsed.city ?? current.city,
-        specialization: parsed.specialization ?? current.specialization,
-        declared_grade: parsed.suggested_grade?.toLowerCase() ?? current.declared_grade,
-      } : current);
-      onNotify("Резюме распознано. Проверьте поля и сохраните профиль.");
+      onNotify("Резюме распознано. Проверьте найденные поля, затем решите, какие использовать.");
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось распознать резюме", "error");
+    } finally {
+      setResumeUploading(false);
     }
+  };
+
+  const applyParsedResume = () => {
+    if (!parsedResume) return;
+    setProfile((current) => current ? {
+      ...current,
+      first_name: parsedResume.first_name ?? current.first_name,
+      last_name: parsedResume.last_name ?? current.last_name,
+      phone: parsedResume.phone ?? current.phone,
+      telegram: parsedResume.telegram ?? current.telegram,
+      city: parsedResume.city ?? current.city,
+      specialization: parsedResume.specialization ?? current.specialization,
+      declared_grade: parsedResume.suggested_grade?.toLowerCase() ?? current.declared_grade,
+      skills: Array.from(new Set([...(current.skills ?? []), ...parsedResume.extracted_skills])),
+    } : current);
+    onNotify("Данные перенесены в черновик профиля. Проверьте их и нажмите «Сохранить профиль».");
   };
 
   const downloadProfilePdf = async () => {
@@ -1874,6 +2745,26 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <section className="feature-card">
             <div className="profile-edit-head"><div className="avatar avatar--xl">{`${profile?.first_name?.[0] ?? "?"}${profile?.last_name?.[0] ?? ""}`}</div><div><strong>{profile ? `${profile.first_name} ${profile.last_name}` : "Профиль кандидата"}</strong><span>{profile?.specialization ?? "Специализация не указана"} · {profile?.city ?? "Город не указан"}</span></div></div>
             <div className="field-row field-row--flush"><label className="field"><span>ИМЯ</span><input value={profile?.first_name ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, first_name: event.target.value } : current)} /></label><label className="field"><span>ФАМИЛИЯ</span><input value={profile?.last_name ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, last_name: event.target.value } : current)} /></label></div>
+            <div className="field-row field-row--flush">
+              <label className="field"><span>ТЕЛЕФОН</span><input type="tel" autoComplete="tel" value={profile?.phone ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, phone: event.target.value } : current)} /></label>
+              <label className="field"><span>TELEGRAM</span><input value={profile?.telegram ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, telegram: event.target.value } : current)} placeholder="@username" /></label>
+            </div>
+            <div className="field-row field-row--flush">
+              <label className="field">
+                <span>СПЕЦИАЛИЗАЦИЯ</span>
+                <select value={profile?.specialization ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, specialization: event.target.value || null } : current)}>
+                  <option value="">Выберите специализацию</option>
+                  {ALL_SPECIALIZATIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>ЗАЯВЛЕННЫЙ УРОВЕНЬ</span>
+                <select value={profile?.declared_grade ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, declared_grade: event.target.value || null } : current)}>
+                  <option value="">Не указан</option>
+                  {ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </label>
+            </div>
             <label className="field field--flush"><span>О СЕБЕ</span><textarea value={profile?.bio ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, bio: event.target.value } : current)} /></label>
             <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={profile?.city ?? ""} onChange={(event) => setProfile((current) => current ? { ...current, city: event.target.value } : current)} /></label><label className="field"><span>ФОРМАТ РАБОТЫ</span><select value={profile?.work_format ?? "remote"} onChange={(event) => setProfile((current) => current ? { ...current, work_format: event.target.value } : current)}><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
             <div className="field-row field-row--flush">
@@ -1901,12 +2792,39 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 </select>
               </label>
             </div>
+            <label className="field field--flush">
+              <span>НАВЫКИ · ЧЕРЕЗ ЗАПЯТУЮ</span>
+              <input
+                value={(profile?.skills ?? []).join(", ")}
+                onChange={(event) => setProfile((current) => current ? {
+                  ...current,
+                  skills: Array.from(new Set(event.target.value.split(",").map((skill) => skill.trim()).filter(Boolean))),
+                } : current)}
+                placeholder="Python, PostgreSQL, Docker"
+              />
+            </label>
             <Button disabled={!profile || profileSaving} className={profileSaving ? "button--disabled" : ""} onClick={() => void saveCandidateProfile()}>{profileSaving ? "Сохраняем…" : "Сохранить профиль"}</Button>
           </section>
           <section className="feature-card">
             <div className="feature-head"><div><span>РЕЗЮМЕ</span><strong>Опыт и документы</strong></div></div>
-            <div className="upload-box"><Icon name="briefcase" size={26} /><strong>Загрузить PDF-резюме</strong><span>До 10 МБ. Распознанные значения можно проверить перед сохранением.</span><input className="resume-file-input" type="file" accept="application/pdf,.pdf" onChange={(event) => void uploadResume(event.target.files?.[0])} /></div>
-            {parsedResume && <div className="resume-entry"><span>РАСПОЗНАННЫЕ ДАННЫЕ · ПРОВЕРЬТЕ ПЕРЕД СОХРАНЕНИЕМ</span><strong>{parsedResume.extracted_skills.length ? parsedResume.extracted_skills.join(" · ") : "Навыки не распознаны"}</strong><p>{parsedResume.text_preview.slice(0, 320) || "Текстовое превью недоступно."}</p></div>}
+            <div className="upload-box"><Icon name="briefcase" size={26} /><strong>{resumeUploading ? "Распознаём PDF…" : "Загрузить PDF-резюме"}</strong><span>До 10 МБ. Распознанные данные сначала появятся в черновике и не сохраняются без подтверждения.</span><input className="resume-file-input" type="file" accept="application/pdf,.pdf" disabled={resumeUploading} onChange={(event) => { void uploadResume(event.target.files?.[0]); event.currentTarget.value = ""; }} /></div>
+            {parsedResume && <div className="resume-entry" role="status" aria-live="polite">
+              <span>ПРЕДПРОСМОТР · ДАННЫЕ ЕЩЁ НЕ СОХРАНЕНЫ</span>
+              <div className="resume-review-grid">
+                {[
+                  ["Имя", [parsedResume.first_name, parsedResume.last_name].filter(Boolean).join(" ")],
+                  ["Email из файла · аккаунт не изменяется", parsedResume.email],
+                  ["Телефон", parsedResume.phone],
+                  ["Telegram", parsedResume.telegram],
+                  ["Город", parsedResume.city],
+                  ["Специализация", parsedResume.specialization],
+                  ["Предложенный уровень", parsedResume.suggested_grade],
+                ].map(([label, value]) => <div key={label}><small>{label}</small><strong>{value || "Не распознано"}</strong></div>)}
+              </div>
+              <strong>{parsedResume.extracted_skills.length ? parsedResume.extracted_skills.join(" · ") : "Навыки не распознаны"}</strong>
+              <p>{parsedResume.text_preview.slice(0, 320) || "Текстовое превью недоступно."}</p>
+              <Button variant="outline" onClick={applyParsedResume}>Перенести данные в профиль</Button>
+            </div>}
             <p className="feature-description feature-description--left">PDF доступен после согласия на публикацию профиля. Контакты в PDF не входят.</p>
             <Button variant="outline" disabled={!profile?.agreed_publication} onClick={() => void downloadProfilePdf()}>Скачать PDF-профиль</Button>
           </section>
@@ -1960,7 +2878,16 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       if (!currentQuestion) return <div className="page-content"><div className="empty-state">Загружаем задание…</div></div>;
       return (
         <div className="test-shell">
-          <div className="test-top"><div><span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП" : `${testSession?.assessment_id ? "ОБЯЗАТЕЛЬНЫЙ" : "ДОПОЛНИТЕЛЬНЫЙ"} НАВЫК: ${roadmap?.skills.find((item) => item.code === testSession?.skill_code)?.label ?? additionalTests.find((item) => item.code === testSession?.skill_code)?.label ?? testSession?.skill_code}`} · {testSession?.specialization} · {testSession?.target_grade}</span><strong>Задание {question + 1} из {testSession?.total_questions}</strong></div></div>
+          <div className="test-top">
+            <div>
+              <span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП" : `${testSession?.assessment_id ? "ОБЯЗАТЕЛЬНЫЙ" : "ДОПОЛНИТЕЛЬНЫЙ"} НАВЫК: ${roadmap?.skills.find((item) => item.code === testSession?.skill_code)?.label ?? additionalTests.find((item) => item.code === testSession?.skill_code)?.label ?? testSession?.skill_code} · ${testSession?.specialization} · ${testSession?.target_grade}`}</span>
+              <strong>Внимательно прочитайте задание</strong>
+            </div>
+            <div className="test-step" aria-label={`Задание ${question + 1} из ${testSession?.total_questions}`}>
+              <strong>{String(question + 1).padStart(2, "0")}</strong>
+              <span>из {testSession?.total_questions}</span>
+            </div>
+          </div>
           <Progress value={((question + 1) / (testSession?.total_questions ?? 1)) * 100} />
           <div className="test-content test-content--focused">
             <div className="question-card"><span>{currentQuestion.topic}</span><strong>{currentQuestion.question_text}</strong><div className="answers">{currentQuestion.options.map((option) => {
@@ -1984,33 +2911,131 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     return (
       <div className="page-content">
         <div className="assessment-mode" role="group" aria-label="Режим проверки"><button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}>Грейд</button><button type="button" className={testPurpose === "fsp-olympiad" ? "active" : ""} onClick={() => setTestPurpose("fsp-olympiad")}>Олимпиада ФСП</button></div>
-        {testPurpose === "grade" ? <><section className="feature-card">
-          <div className="feature-head"><div><span>ОБЯЗАТЕЛЬНЫЕ НАВЫКИ</span><strong>{roadmap ? `${roadmap.specialization} · ${roadmap.target_grade}` : "Подтверждение грейда"}</strong></div></div>
-          <p className="feature-description feature-description--left">Проходите навыки по одному в течение трёх дней. Задания в открытом наборе не меняются. Грейд присваивается после всех шагов при общем результате от 75% и результате каждого навыка от 50%. Пороги предварительные. {TEST_AVAILABILITY_HINT}</p>
-          {!roadmap ? <Button disabled={testStarting} onClick={() => void beginRoadmap()}>{testStarting ? "Открываем…" : "Открыть набор тестов"}</Button> : <>
-            {roadmap.status === "in_progress" && roadmap.expires_at && <p className="feature-description feature-description--left">Набор открыт до {new Date(roadmap.expires_at).toLocaleString("ru-RU")}. {roadmap.retake_used ? "Это пересдача всего набора." : "После всех шагов можно один раз пересдать весь набор с новым сроком в три дня."}</p>}
-            {roadmap.status === "expired" && <div className="notice-box">Срок набора истёк. Результаты остались в истории, грейд по нему не присваивается.</div>}
-            {roadmap.status === "cancelled" && <div className="notice-box">Набор прерван. Пройденные шаги остались в истории.</div>}
-            <div className="topic-summary"><h3>Ваши шаги</h3>{roadmap.skills.map((skill) => <div key={skill.code}><span>{skill.label} · {skill.status === "completed" ? `${skill.level_out_of_ten} из 10 на уровне ${roadmap.target_grade}` : skill.status === "in_progress" ? "Начат" : "Не пройден"}</span>{roadmap.status === "in_progress" && skill.status !== "completed" && <Button variant="outline" disabled={testStarting} onClick={() => void startRoadmapSkill(skill.code)}>{skill.status === "in_progress" ? "Продолжить" : "Начать"}</Button>}</div>)}</div>
-            {roadmap.status === "in_progress" && roadmap.suggested_grade && <div className="test-choice-actions"><Button variant="outline" disabled={testStarting} onClick={() => void switchToLowerRoadmap()}>Прервать набор и попробовать {roadmap.suggested_grade}</Button></div>}
-            {(roadmap.status === "expired" || roadmap.status === "cancelled") && (roadmap.retake_used ? lowerAfterRetake ? <Button disabled={testStarting} onClick={() => void beginRoadmap(lowerAfterRetake)}>Попробовать {lowerAfterRetake}</Button> : <Button disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button> : <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Открыть новый набор</Button>)}
-            {roadmap.status === "completed" && <div className="notice-box">Общий результат: {roadmap.percentage}%. {roadmap.passed ? `Грейд ${roadmap.target_grade} подтверждён.` : "Грейд не подтверждён; прежний уровень не меняется."}</div>}
-            {roadmap.status === "completed" && <div className="test-choice-actions">{!roadmap.retake_used && <Button variant="outline" disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Пересдать весь набор</Button>}{roadmap.retake_used && !roadmap.passed && roadmap.target_grade === "junior" && <><Button variant="outline" disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button>{juniorRetryLocked && juniorRetryAt && <span>Повторить Junior можно с {new Date(juniorRetryAt).toLocaleDateString("ru-RU")}</span>}</>}{roadmap.suggested_grade && <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.suggested_grade ?? undefined)}>Попробовать {roadmap.suggested_grade}</Button>}{roadmap.passed && roadmap.target_grade !== "senior" && <><Button disabled={testStarting || (roadmap.promotion_available_at !== null && Date.parse(roadmap.promotion_available_at) > Date.now())} onClick={() => void beginRoadmap(roadmap.target_grade === "junior" ? "middle" : "senior")}>Хочу поднять грейд</Button>{roadmap.promotion_available_at && Date.parse(roadmap.promotion_available_at) > Date.now() && <span>Повышение доступно с {new Date(roadmap.promotion_available_at).toLocaleDateString("ru-RU")}</span>}</>}</div>}
-          </>}
-        </section>
-        <section className="feature-card"><div className="feature-head"><div><span>ОТДЕЛЬНЫЕ ТЕСТЫ</span><strong>Дополнительные навыки</strong></div></div><p className="feature-description feature-description--left">Эти результаты видны в профиле и не влияют на грейд. Показываем только навыки, для которых есть готовые задания.</p>{additionalTests.length ? <div className="topic-summary">{additionalTests.map((skill) => <div key={`${skill.code}-${skill.target_grade}`}><span>{skill.label} · {skill.target_grade}{skill.level_out_of_ten !== null ? ` · ${skill.level_out_of_ten} из 10` : " · ещё не проверен"}</span><Button variant="outline" disabled={testStarting} onClick={() => void startAdditionalSkill(skill.code, skill.target_grade)}>{skill.latest_session_id ? "Пройти снова" : "Начать"}</Button></div>)}</div> : <p className="feature-description feature-description--left">Дополнительных тестов пока нет.</p>}</section></> : <div className="test-intro"><div className="test-intro__graphic"><span>&lt;/&gt;</span><i /><b /></div><span>ОЛИМПИАДА ФСП</span><strong>Практические задачи по навыкам</strong><p>Результат олимпиады дополняет профиль, но не присваивает грейд.</p><div className="test-choice-actions"><Button disabled={testStarting} onClick={() => void startAdaptiveTest()}>{testStarting ? "Подготавливаем…" : "Начать олимпиаду"}</Button></div></div>}
+        {testPurpose === "grade" ? <>
+          <section className="assessment-roadmap">
+            <div className="assessment-roadmap__head">
+              <div className="assessment-roadmap__title">
+                <div className="assessment-roadmap__icon"><Icon name="chart" size={22} /></div>
+                <div><span>ПУТЬ К ГРЕЙДУ</span><h2>{roadmap ? `${roadmap.specialization} · ${roadmap.target_grade}` : "Подтверждение навыков"}</h2></div>
+              </div>
+              {roadmap && <div className={`assessment-roadmap__status assessment-roadmap__status--${roadmap.status}`}>
+                <i />{roadmap.status === "completed" ? roadmap.passed ? "Грейд подтверждён" : "Набор завершён" : roadmap.status === "expired" ? "Срок истёк" : roadmap.status === "cancelled" ? "Набор прерван" : "Набор открыт"}
+              </div>}
+            </div>
+            {roadmap ? <>
+              <div className="assessment-roadmap__meta">
+                <span><Icon name="school" size={15} /> {roadmap.skills.length} обязательных компетенции</span>
+                <span><Icon name="clock" size={15} /> Доступен 3 дня</span>
+                {roadmap.expires_at && roadmap.status === "in_progress" && <span className="assessment-roadmap__deadline">До {new Date(roadmap.expires_at).toLocaleDateString("ru-RU")}</span>}
+              </div>
+              <div className="skill-roadmap" aria-label="Этапы подтверждения грейда">
+                {roadmap.skills.map((skill, index) => {
+                  const complete = skill.status === "completed";
+                  const inProgress = skill.status === "in_progress";
+                  const canStart = roadmap.status === "in_progress" && !complete;
+                  const statusLabel = complete ? `${skill.level_out_of_ten ?? 0} / 10` : inProgress ? "В процессе" : "Ожидает";
+                  return (
+                    <article className={`skill-roadmap__step${complete ? " is-complete" : ""}${inProgress ? " is-current" : ""}`} key={skill.code}>
+                      <div className="skill-roadmap__marker">{complete ? <Icon name="check" size={17} /> : <span>{String(index + 1).padStart(2, "0")}</span>}</div>
+                      <div className="skill-roadmap__body">
+                        <div className="skill-roadmap__copy"><span>ЭТАП {String(index + 1).padStart(2, "0")}</span><strong>{skill.label}</strong></div>
+                        <div className="skill-roadmap__actions">
+                          <span className={`skill-roadmap__result${complete ? " is-complete" : ""}`}>{statusLabel}</span>
+                          {canStart && <Button variant={inProgress ? "primary" : "outline"} disabled={testStarting} onClick={() => void startRoadmapSkill(skill.code)}>{testStarting ? "Открываем…" : inProgress ? "Продолжить" : "Начать"}</Button>}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              {roadmap.status === "in_progress" && <div className="assessment-roadmap__progress">
+                <div><span>Прогресс набора</span><strong>{roadmap.skills.filter((skill) => skill.status === "completed").length} из {roadmap.skills.length}</strong></div>
+                <Progress value={(roadmap.skills.filter((skill) => skill.status === "completed").length / Math.max(roadmap.skills.length, 1)) * 100} />
+              </div>}
+              <details className="assessment-info">
+                <summary>Как рассчитывается грейд</summary>
+                <p>Нужно набрать от 75% в сумме и не менее 50% по каждой компетенции. Пороги предварительные. {TEST_AVAILABILITY_HINT}</p>
+                {!roadmap.retake_used && roadmap.status === "in_progress" && <p>После прохождения всех этапов доступна одна пересдача всего набора.</p>}
+              </details>
+            </> : <div className="assessment-roadmap__empty">
+              <div><strong>Четыре компетенции — один подтверждённый уровень</strong><span>Проходите навыки в удобном темпе в течение трёх дней.</span></div>
+              <Button disabled={testStarting} onClick={() => void beginRoadmap()}>{testStarting ? "Открываем…" : "Открыть маршрут"}</Button>
+            </div>}
+            {roadmap && <>
+              {roadmap.status === "expired" && <div className="notice-box">Срок набора истёк. Результаты остались в истории, грейд по нему не присваивается.</div>}
+              {roadmap.status === "cancelled" && <div className="notice-box">Набор прерван. Пройденные шаги остались в истории.</div>}
+              {roadmap.status === "in_progress" && roadmap.suggested_grade && <div className="test-choice-actions"><Button variant="outline" disabled={testStarting} onClick={() => void switchToLowerRoadmap()}>Прервать набор и попробовать {roadmap.suggested_grade}</Button></div>}
+              {(roadmap.status === "expired" || roadmap.status === "cancelled") && (roadmap.retake_used ? lowerAfterRetake ? <Button disabled={testStarting} onClick={() => void beginRoadmap(lowerAfterRetake)}>Попробовать {lowerAfterRetake}</Button> : <Button disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button> : <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Открыть новый набор</Button>)}
+              {roadmap.status === "completed" && <div className="notice-box">Общий результат: {roadmap.percentage}%. {roadmap.passed ? `Грейд ${roadmap.target_grade} подтверждён.` : "Грейд не подтверждён; прежний уровень не меняется."}</div>}
+              {roadmap.status === "completed" && <div className="test-choice-actions">{!roadmap.retake_used && <Button variant="outline" disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Пересдать весь набор</Button>}{roadmap.retake_used && !roadmap.passed && roadmap.target_grade === "junior" && <><Button variant="outline" disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button>{juniorRetryLocked && juniorRetryAt && <span>Повторить Junior можно с {new Date(juniorRetryAt).toLocaleDateString("ru-RU")}</span>}</>}{roadmap.suggested_grade && <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.suggested_grade ?? undefined)}>Попробовать {roadmap.suggested_grade}</Button>}{roadmap.passed && roadmap.target_grade !== "senior" && <><Button disabled={testStarting || (roadmap.promotion_available_at !== null && Date.parse(roadmap.promotion_available_at) > Date.now())} onClick={() => void beginRoadmap(roadmap.target_grade === "junior" ? "middle" : "senior")}>Хочу поднять грейд</Button>{roadmap.promotion_available_at && Date.parse(roadmap.promotion_available_at) > Date.now() && <span>Повышение доступно с {new Date(roadmap.promotion_available_at).toLocaleDateString("ru-RU")}</span>}</>}</div>}
+            </>}
+          </section>
+          <section className="additional-competencies">
+            <div className="additional-competencies__head">
+              <div className="additional-competencies__icon"><Icon name="sparkle" size={20} /></div>
+              <div><span>ДОПОЛНИТЕЛЬНЫЙ ТРЕК</span><h2>Расширяйте компетенции</h2></div>
+              <span className="additional-competencies__badge">В профиль · без влияния на грейд</span>
+            </div>
+            {additionalTests.length ? <div className="additional-competencies__grid">{additionalTests.map((skill) => (
+              <article className="additional-skill-card" key={`${skill.code}-${skill.target_grade}`}>
+                <div className="additional-skill-card__mark"><Icon name="sparkle" size={17} /></div>
+                <div className="additional-skill-card__info"><strong>{skill.label}</strong><span>{skill.target_grade} · {skill.level_out_of_ten !== null ? `Результат ${skill.level_out_of_ten} / 10` : "Пока не проверена"}</span></div>
+                {skill.latest_session_id && skill.latest_percentage !== null ? <span className="additional-skill-card__score">{skill.latest_percentage}%</span> : null}
+                <Button variant="outline" disabled={testStarting} onClick={() => void startAdditionalSkill(skill.code, skill.target_grade)}>{testStarting ? "…" : skill.latest_session_id ? "Повторить" : "Начать"}</Button>
+              </article>
+            ))}</div> : <div className="additional-competencies__empty"><Icon name="sparkle" size={19} /><span>Новые тесты появятся здесь, когда по дополнительным навыкам будут готовы задания.</span></div>}
+          </section>
+        </> : <div className="test-intro"><div className="test-intro__graphic"><span>&lt;/&gt;</span><i /><b /></div><span>ОЛИМПИАДА ФСП</span><strong>Практические задачи по навыкам</strong><p>Результат олимпиады дополняет профиль, но не присваивает грейд.</p><div className="test-choice-actions"><Button disabled={testStarting} onClick={() => void startAdaptiveTest()}>{testStarting ? "Подготавливаем…" : "Начать олимпиаду"}</Button></div></div>}
       </div>
     );
   }
 
   if (active === "Мой грейд") {
+    const gradeSkills = roadmap?.skills ?? [];
+    const gradeSkillValues = gradeSkills.map((skill) => skill.level_out_of_ten ?? 0);
     return (
       <div className="page-content">
-        <div className="grade-hero"><div><span>{profile?.specialization ?? "ПРОФИЛЬ КАНДИДАТА"}</span><strong>{profile?.verified_grade ? `Подтверждён ${profile.verified_grade}` : "Уровень не подтверждён"}</strong><p>Заявленный уровень: {profile?.declared_grade ?? "не указан"}</p></div><div className="grade-stamp"><Icon name={profile?.verified_grade ? "check" : "chart"} /><span>{profile?.verified_grade ? "ПОДТВЕРЖДЁН" : "НУЖЕН ТЕСТ"}</span><strong>{profile?.fsp_verified ? "ФСП: ДЕМО" : ""}</strong></div></div>
-        <div className="dashboard-grid">
-          <section className="feature-card feature-card--wide"><div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Результаты проверок</strong></div><Button onClick={() => onNavigate("Тестирование")}>Пройти тест</Button></div>{testHistory.length ? <div className="history-table history-table--tests">{testHistory.map((item) => <div key={item.id}><span>{new Date(item.created_at).toLocaleDateString("ru-RU")}</span><strong>{item.skill_code ? `${roadmap?.skills.find((skill) => skill.code === item.skill_code)?.label ?? additionalTests.find((skill) => skill.code === item.skill_code)?.label ?? item.skill_code} · ${item.target_grade}` : `${item.specialization} · ${item.target_grade}`}</strong><b>{item.status === "completed" ? item.assessment_id ? "Обязательный навык" : item.skill_code ? "Дополнительный навык" : "Общий тест прежнего формата" : item.status === "expired" ? "Срок истёк" : item.status === "cancelled" ? "Прерван" : "В процессе"}</b><em>{item.status === "completed" ? `${item.percentage}%` : "—"}</em></div>)}</div> : <div className="empty-state">Истории тестирования пока нет</div>}</section>
-          <section className="feature-card"><div className="feature-head"><div><span>ПРОФИЛЬ</span><strong>Текущая категория</strong></div></div><div className="profile-status-row"><span>Специализация</span><strong>{profile?.specialization ?? "Не указана"}</strong></div><div className="profile-status-row"><span>Язык базового теста</span><strong>{profile?.programming_language ?? "Не выбран"}</strong></div><div className="profile-status-row"><span>Заявленный уровень</span><strong>{profile?.declared_grade ?? "Не указан"}</strong></div><div className="profile-status-row"><span>Подтверждённый уровень</span><strong>{profile?.verified_grade ?? "Нет"}</strong></div></section>
+        <section className="grade-hero">
+          <div className="grade-hero__copy">
+            <span className="grade-hero__eyebrow">КАТЕГОРИЯ И УРОВЕНЬ</span>
+            <div className="grade-hero__facts">
+              <div><span>СПЕЦИАЛИЗАЦИЯ</span><strong>{profile?.specialization ?? "Не указана"}</strong></div>
+              <div><span>ПОДТВЕРЖДЁННЫЙ ГРЕЙД</span><strong>{profile?.verified_grade ?? "Пока не подтверждён"}</strong></div>
+            </div>
+            <p>{profile?.verified_grade ? "Уровень подтверждён по результатам тестирования." : `Заявленный уровень: ${profile?.declared_grade ?? "не указан"}. Подтвердите навыки тестированием.`}</p>
+          </div>
+          <div className="grade-stamp"><Icon name={profile?.verified_grade ? "check" : "chart"} /><span>{profile?.verified_grade ? "ГРЕЙД ПОДТВЕРЖДЁН" : "НУЖНО ПРОЙТИ ТЕСТ"}</span>{profile?.fsp_verified && <strong>ФСП ID привязан</strong>}</div>
+        </section>
+        <div className="grade-overview-grid">
+          <section className="feature-card grade-radar-card">
+            <div className="feature-head"><div><span>КАРТА КОМПЕТЕНЦИЙ</span><strong>Результаты по навыкам</strong></div></div>
+            {gradeSkills.length > 0 ? <>
+              <div className="grade-radar">
+                <Radar values={gradeSkillValues} target={gradeSkillValues.map(() => 10)} axisLabels={gradeSkills.map((skill) => skill.label)} showAxisLabels={false} description="Карта результатов по обязательным навыкам от нуля до десяти" />
+              </div>
+              <div className="grade-skill-legend" aria-label="Результаты по навыкам">
+                {gradeSkills.map((skill) => (
+                  <div key={skill.code}>
+                    <span><i />{skill.label}</span>
+                    <strong>{skill.level_out_of_ten ?? 0}<small> / 10</small></strong>
+                  </div>
+                ))}
+              </div>
+            </> : <div className="grade-radar-empty"><div className="grade-radar-empty__mark"><Icon name="chart" size={28} /></div><strong>Карта появится после начала тестирования</strong><p>Откройте набор, чтобы увидеть результаты по каждому навыку.</p><Button onClick={() => onNavigate("Тестирование")}>Открыть тестирование</Button></div>}
+          </section>
+          <section className="feature-card grade-profile-card">
+            <div className="feature-head"><div><span>ВАШ ПРОФИЛЬ</span><strong>Категория и уровень</strong></div></div>
+            <div className="grade-profile-detail"><span>Специализация</span><strong>{profile?.specialization ?? "Не указана"}</strong></div>
+            <div className="grade-profile-detail"><span>Язык базового теста</span><strong>{profile?.programming_language ?? "Не выбран"}</strong></div>
+            <div className="grade-profile-detail"><span>Заявленный уровень</span><strong>{profile?.declared_grade ?? "Не указан"}</strong></div>
+            <div className="grade-profile-detail"><span>Подтверждённый уровень</span><strong>{profile?.verified_grade ?? "Нет"}</strong></div>
+            <Button variant="outline" onClick={() => onNavigate("Тестирование")}>Перейти к тестам</Button>
+          </section>
         </div>
+        <section className="feature-card grade-history-card">
+          <div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Результаты проверок</strong></div><Button onClick={() => onNavigate("Тестирование")}>Пройти тест</Button></div>
+          {testHistory.length ? <div className="history-table history-table--tests">{testHistory.map((item) => <div key={item.id}><span>{new Date(item.created_at).toLocaleDateString("ru-RU")}</span><strong>{item.skill_code ? `${roadmap?.skills.find((skill) => skill.code === item.skill_code)?.label ?? additionalTests.find((skill) => skill.code === item.skill_code)?.label ?? item.skill_code} · ${item.target_grade}` : `${item.specialization} · ${item.target_grade}`}</strong><b>{item.status === "completed" ? item.assessment_id ? "Обязательный навык" : item.skill_code ? "Дополнительный навык" : "Общий тест прежнего формата" : item.status === "expired" ? "Срок истёк" : item.status === "cancelled" ? "Прерван" : "В процессе"}</b><em>{item.status === "completed" ? `${item.percentage}%` : "—"}</em></div>)}</div> : <div className="empty-state">Истории тестирования пока нет</div>}
+        </section>
         {roadmap && <section className="feature-card"><div className="feature-head"><div><span>ПОСЛЕДНИЙ БАЗОВЫЙ НАБОР</span><strong>{roadmap.specialization} · {roadmap.target_grade}</strong></div></div><div className="topic-summary">{roadmap.skills.map((skill) => <div key={skill.code}><span>{skill.label}</span><strong>{skill.status === "completed" ? `${skill.level_out_of_ten} из 10 на уровне ${roadmap.target_grade}` : "Не пройден"}</strong></div>)}</div>{roadmap.status === "completed" && <p className="feature-description feature-description--left">Итого {roadmap.percentage}% · {roadmap.passed ? "грейд подтверждён" : "грейд не подтверждён"}</p>}</section>}
         {additionalTests.some((skill) => skill.latest_session_id) && <section className="feature-card"><div className="feature-head"><div><span>ДОПОЛНИТЕЛЬНЫЕ НАВЫКИ</span><strong>Отдельные результаты</strong></div></div><div className="topic-summary">{additionalTests.filter((skill) => skill.latest_session_id).map((skill) => <div key={`${skill.code}-${skill.target_grade}`}><span>{skill.label}</span><strong>{skill.level_out_of_ten} из 10 на уровне {skill.target_grade}</strong></div>)}</div></section>}
       </div>
@@ -2030,31 +3055,49 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     );
   }
 
-  if (active === "Приглашения") return <Invitations onNotify={onNotify} />;
-
-  if (!demoMode && active === "Вакансии") {
-    return <div className="page-content"><section className="feature-card"><div className="feature-head"><div><span>ВАКАНСИИ</span><strong>Каталог пока недоступен</strong></div></div><p className="feature-description feature-description--left">Backend пока не предоставляет каталог вакансий или API откликов. Приглашения от компаний доступны в соответствующем разделе.</p><Button variant="outline" onClick={() => onNavigate("Приглашения")}>Открыть приглашения</Button></section></div>;
-  }
+  if (active === "Приглашения") return <Invitations onNotify={onNotify} onNavigate={onNavigate} />;
 
   if (active === "Задания") {
     return <div className="page-content"><section className="feature-card"><div className="feature-head"><div><span>ЗАДАНИЯ</span><strong>Короткие кейсы ещё не подключены</strong></div></div><p className="feature-description feature-description--left">Backend пока не предоставляет выдачу или сдачу регулярных заданий. Подтвердить категорию можно через тестирование.</p><Button onClick={() => onNavigate("Тестирование")}>Перейти к тестированию</Button></section></div>;
   }
 
   if (active === "Вакансии") {
+    const appliedVacancyIds = new Set(jobApplications.map((application) => application.vacancy_id));
+    const normalizedJobSearch = jobSearch.trim().toLowerCase();
+    const visibleVacancies = jobVacancies.filter((vacancy) =>
+      (!normalizedJobSearch || `${vacancy.title} ${vacancy.company?.company_name ?? ""} ${vacancy.required_skills.join(" ")}`.toLowerCase().includes(normalizedJobSearch)) &&
+      (jobsTab !== "applications" || appliedVacancyIds.has(vacancy.id)),
+    );
+    const applicationStatusLabel = (status: string) => ({
+      pending: "Ожидает ответа",
+      reviewed: "Рассматривается",
+      accepted: "Приглашение получено",
+      rejected: "Отказ",
+    }[status] ?? status);
     return (
       <div className="page-content">
-        <div className="tab-row"><button type="button" className="active">Все вакансии</button><button type="button">Мои отклики <span>{applied.length}</span></button><button type="button">Просмотрены</button><button type="button">Приняты</button></div>
-        {applied.length > 0 && <div className="application-status"><Icon name="check" /><div><strong>Последний отклик отправлен</strong><span>Статус: отправлен · работодатель ещё не просмотрел профиль</span></div><Button variant="ghost">Все статусы</Button></div>}
-        <div className="bank-toolbar"><div className="search-field search-field--wide"><Icon name="search" /><input placeholder="Название, компания или технология" /></div><Button variant="outline"><Icon name="filter" /> Фильтры</Button></div>
+        <div className="vacancy-head"><div><strong>Вакансии</strong><span>Предложения работодателей и ваши отклики</span></div></div>
+        <div className="vacancy-tabs" role="tablist" aria-label="Раздел вакансий">
+          <button type="button" className={jobsTab === "vacancies" ? "active" : ""} onClick={() => setJobsTab("vacancies")}>Все вакансии · {jobVacancies.length}</button>
+          <button type="button" className={jobsTab === "applications" ? "active" : ""} onClick={() => setJobsTab("applications")}>Мои отклики · {jobApplications.length}</button>
+        </div>
+        <div className="bank-toolbar"><div className="search-field search-field--wide"><Icon name="search" /><input value={jobSearch} onChange={(event) => setJobSearch(event.target.value)} placeholder="Название, компания или технология" aria-label="Поиск вакансий" /></div></div>
+        {jobsLoading ? <div className="empty-state">Загружаем вакансии…</div> : null}
+        {jobApplications.length > 0 && jobsTab === "applications" && <div className="application-status"><Icon name="check" /><div><strong>Ваши отклики</strong><span>Статус обновляется работодателем после рассмотрения заявки.</span></div></div>}
         <div className="jobs-grid">
-          {[
-            ["Backend-разработчик", "NovaTech", "220–280 тыс. ₽", "94%", ["Python", "FastAPI", "PostgreSQL"]],
-            ["Python Developer", "Ozon Tech", "240–310 тыс. ₽", "89%", ["Python", "Kafka", "Kubernetes"]],
-            ["Software Engineer", "Яндекс", "250–330 тыс. ₽", "86%", ["Go", "gRPC", "PostgreSQL"]],
-            ["Backend Engineer", "Т-Банк", "230–300 тыс. ₽", "83%", ["Java", "Kafka", "Kubernetes"]],
-          ].map((job, index) => (
-            <article className="job-card" key={String(job[0]) + index}><div className="job-card__top"><div className="invitation-logo">{String(job[1]).slice(0,2).toUpperCase()}</div><div><strong>{job[0]}</strong><span>{job[1]}</span></div><b>Совпадение {job[3]}</b></div><div className="job-salary">{job[2]}</div><p>{["Развитие API финансовой платформы и сервисов обработки транзакций.", "Разработка систем логистики и обработки событий для миллионов заказов.", "Создание сервисов поиска и рекомендаций в распределённой инфраструктуре.", "Развитие банковской платформы и интеграций с внутренними продуктами."][index]}</p><div className="tags">{(job[4] as string[]).map((tag) => <span key={tag}>{tag}</span>)}</div><div className="job-card__footer"><span>Уровень Middle · Москва</span><Button variant={applied.includes(index) ? "outline" : "primary"} onClick={() => { if (!applied.includes(index)) { setApplied([...applied, index]); onNotify(`Отклик в ${job[1]} отправлен`); } }}>{applied.includes(index) ? "Отклик отправлен" : "Откликнуться"}</Button></div></article>
-          ))}
+          {visibleVacancies.map((vacancy) => {
+            const application = jobApplications.find((item) => item.vacancy_id === vacancy.id);
+            const companyName = vacancy.company?.company_name ?? "Компания";
+            const salary = `${new Intl.NumberFormat("ru-RU").format(vacancy.salary_min)}–${new Intl.NumberFormat("ru-RU").format(vacancy.salary_max)} ₽ ${vacancy.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}`;
+            return <article className="job-card" key={vacancy.id}>
+              <div className="job-card__top"><div className="invitation-logo">{companyName.slice(0, 2).toUpperCase()}</div><div><strong>{vacancy.title}</strong><span>{companyName}</span></div>{application && <b className="job-card__status">{applicationStatusLabel(application.status)}</b>}</div>
+              <div className="job-salary">{salary}</div>
+              <p>{vacancy.description || "Работодатель пока не добавил описание вакансии."}</p>
+              <div className="tags">{vacancy.required_skills.map((tag) => <span key={tag}>{tag}</span>)}</div>
+              <div className="job-card__footer"><span>{vacancy.specialization} · {vacancy.required_grade} · {vacancy.work_format === "remote" ? "Удалённо" : vacancy.work_format === "hybrid" ? "Гибрид" : "Офис"}{vacancy.city ? ` · ${vacancy.city}` : ""}</span><Button variant={application ? "outline" : "primary"} disabled={Boolean(application) || applyingTo === vacancy.id} onClick={() => void applyToVacancy(vacancy)}>{application ? applicationStatusLabel(application.status) : applyingTo === vacancy.id ? "Отправляем…" : "Откликнуться"}</Button></div>
+            </article>;
+          })}
+          {!jobsLoading && visibleVacancies.length === 0 && <div className="empty-state">{jobsTab === "applications" ? "У вас пока нет откликов на вакансии" : "Подходящих опубликованных вакансий пока нет"}</div>}
         </div>
       </div>
     );
@@ -2063,7 +3106,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   return (
     <div className="page-content">
       <div className="settings-layout">
-        <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Кому виден профиль</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Согласие на OSINT-проверку</span><strong>{profile?.agreed_osint ? "Сохранено" : "Не предоставлено"}</strong></div><label className="consent-large"><input type="checkbox" checked={profile?.agreed_publication ?? false} onChange={(event) => setProfile((current) => current ? { ...current, agreed_publication: event.target.checked, visibility_public: event.target.checked ? current.visibility_public : false } : current)} /><span>Разрешаю показывать мой профиль работодателям</span></label><label className="consent-large"><input type="checkbox" checked={profile?.visibility_public ?? false} disabled={!profile?.agreed_publication} onChange={(event) => setProfile((current) => current ? { ...current, visibility_public: event.target.checked } : current)} /><span>Показывать профиль в поиске и подборке</span></label><p className="feature-description feature-description--left">Без согласия на публикацию профиль остаётся скрытым. Видимость можно выключить в любой момент.</p><Button disabled={!profile || profileSaving} onClick={() => void saveCandidatePrivacy()}>{profileSaving ? "Сохраняем…" : "Сохранить настройки"}</Button></section>
+        <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Кому виден профиль</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Согласие на OSINT-проверку</span><strong>{profile?.agreed_osint ? "Сохранено" : "Не предоставлено"}</strong></div><label className="consent-large"><input type="checkbox" checked={profile?.agreed_publication ?? false} onChange={(event) => setProfile((current) => current ? { ...current, agreed_publication: event.target.checked, visibility_public: event.target.checked ? current.visibility_public : false } : current)} /><span>Разрешаю показывать мой профиль работодателям</span></label><label className="consent-large"><input type="checkbox" checked={profile?.visibility_public ?? false} disabled={!profile?.agreed_publication} onChange={(event) => setProfile((current) => current ? { ...current, visibility_public: event.target.checked } : current)} /><span>Показывать профиль в поиске и подборке</span></label><label className="consent-large consent-large--mentor"><input type="checkbox" checked={profile?.mentor_available ?? false} disabled={!profile?.verified_grade} onChange={(event) => setProfile((current) => current ? { ...current, mentor_available: event.target.checked } : current)} /><span><strong>Готов(а) быть наставником</strong><small>Другие кандидаты смогут найти вас по навыкам и подтверждённому грейду. Контакты останутся скрыты до принятия запроса.</small></span></label><p className="feature-description feature-description--left">Для поиска ментора нужен подтверждённый грейд. Видимость профиля работодателям и участие в наставничестве настраиваются отдельно.</p><Button disabled={!profile || profileSaving} onClick={() => void saveCandidatePrivacy()}>{profileSaving ? "Сохраняем…" : "Сохранить настройки"}</Button></section>
         <section className="feature-card"><div className="feature-head"><div><span>ИНТЕГРАЦИИ</span><strong>Данные ФСП</strong></div></div><p className="feature-description feature-description--left">Пока доступны только тестовые записи. Совпадение ID не подтверждает личность и не влияет на грейд.</p><label className="field field--flush"><span>ФСП ID</span><input value={fspInput} onChange={(event) => setFspInput(event.target.value)} placeholder="Например, FSP-77-001" /></label><div className="integration-card"><div className="fsp-symbol">◆</div><div><strong>{profile?.fsp_verified ? "Тестовая запись найдена" : "Запись не найдена"}</strong><span>{profile?.fsp_id ?? "Не привязан"}</span></div><Button variant="outline" disabled={!fspInput.trim()} onClick={() => void linkFspId()}>Найти</Button></div></section>
       </div>
     </div>
@@ -2094,9 +3137,8 @@ function ResumeModal({
 
   if (candidate.backendId) {
     return (
-      <div className="modal-backdrop" onMouseDown={onClose}>
-        <div className="resume-modal" onMouseDown={(event) => event.stopPropagation()}>
-          <div className="resume-modal__top"><span>ПРОФИЛЬ ИЗ БАНКА КАНДИДАТОВ</span><button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть профиль"><Icon name="close" /></button></div>
+      <ModalFrame className="resume-modal" labelledBy="resume-dialog-title" onClose={onClose}>
+          <div className="resume-modal__top"><div><span>ПРОФИЛЬ ИЗ БАНКА КАНДИДАТОВ</span><strong id="resume-dialog-title">Профиль кандидата</strong></div><button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть профиль"><Icon name="close" /></button></div>
           <div className="resume-cover">
             <div className="resume-avatar">{candidate.initials}</div>
             <div className="resume-cover__main"><div className="resume-name">{candidate.name}</div><strong>{candidate.role} · {candidate.level}</strong><span>{candidate.location} · {candidate.format} · Ожидания: {candidate.salary}</span><span>Готов выйти: {candidate.availableFrom ? new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU") : "дата не указана"}</span></div>
@@ -2112,8 +3154,7 @@ function ResumeModal({
               <section className="resume-section"><span>ПОЧЕМУ В ПОДБОРКЕ</span><p>{candidate.summary}</p></section>
               <section className="resume-section"><span>ЗАРПЛАТНЫЕ ОЖИДАНИЯ</span><p>{candidate.salary}</p></section>
               <section className="resume-section"><span>СТЕК</span><div className="tags tags--large">{candidate.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></section>
-              <section className="resume-section"><span>СОВПАВШИЕ НАВЫКИ</span><p>{candidate.matchedSkills?.join(", ") || "Нет данных"}</p></section>
-              <section className="resume-section"><span>ТРЕБУЮТ УТОЧНЕНИЯ</span><p>{candidate.missingSkills?.join(", ") || "Нет данных"}</p></section>
+              <section className="resume-section"><span>СОПОСТАВЛЕНИЕ НАВЫКОВ</span><SkillComparison matched={candidate.matchedSkills ?? []} notListed={candidate.missingSkills ?? []} /></section>
             </div>
             <aside className="resume-side">
               <section className="resume-section true-score-panel">
@@ -2124,16 +3165,14 @@ function ResumeModal({
               <Button onClick={onInvite}>Пригласить кандидата <Icon name="send" /></Button>
             </aside>
           </div>
-        </div>
-      </div>
+      </ModalFrame>
     );
   }
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="resume-modal" onMouseDown={(event) => event.stopPropagation()}>
+    <ModalFrame className="resume-modal" labelledBy="resume-dialog-title" onClose={onClose}>
         <div className="resume-modal__top">
-          <span>ПОЛНОЕ РЕЗЮМЕ</span>
+          <div><span>ПОЛНОЕ РЕЗЮМЕ</span><strong id="resume-dialog-title">Профиль кандидата</strong></div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть резюме"><Icon name="close" /></button>
         </div>
         <div className="resume-cover">
@@ -2218,57 +3257,7 @@ function ResumeModal({
           <Button variant="outline">Скачать PDF</Button>
           <Button onClick={onInvite}>Пригласить кандидата <Icon name="send" /></Button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function CompareModal({
-  items,
-  onClose,
-  onOpen,
-}: {
-  items: Candidate[];
-  onClose: () => void;
-  onOpen: (candidate: Candidate) => void;
-}) {
-  return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="compare-modal" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="resume-modal__top">
-          <div><span>СРАВНЕНИЕ РЕЗЮМЕ</span><strong>{items.length} кандидата рядом</strong></div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть сравнение"><Icon name="close" /></button>
-        </div>
-        <div className="compare-grid" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(16rem, 1fr))` }}>
-          {items.map((candidate) => (
-            <article className="compare-column" key={candidate.id}>
-              <div className="compare-person">
-                <div className="avatar avatar--large">{candidate.initials}</div>
-                <div><strong>{candidate.name}</strong><span>{candidate.role}</span></div>
-              </div>
-              <div className="compare-score"><span>Балл подбора</span><strong>{candidate.score}</strong></div>
-              {candidate.backendId ? (
-                <div className="compare-match-details">
-                  <div><span>СОВПАЛО</span><strong>{candidate.matchedSkills?.join(", ") || "Нет данных"}</strong></div>
-                  <div><span>НЕ СОВПАЛО</span><strong>{candidate.missingSkills?.join(", ") || "Не указано"}</strong></div>
-                </div>
-              ) : <Radar values={candidate.radar} target={candidate.jobRadar} compact />}
-              <div className="compare-facts">
-                <div><span>Уровень</span><strong>{candidate.level}</strong></div>
-                <div><span>Опыт</span><strong>{candidate.backendId ? "Нет данных" : candidate.experience}</strong></div>
-                <div><span>Зарплата</span><strong>{candidate.backendId ? "Нет данных" : candidate.salary}</strong></div>
-                <div><span>Доверие</span><strong>{candidate.backendId ? "Нет данных" : candidate.trust.toFixed(2).replace(".", ",")}</strong></div>
-                <div><span>Город</span><strong>{candidate.location}</strong></div>
-                <div><span>Формат</span><strong>{candidate.format}</strong></div>
-              </div>
-              <div className="tags">{candidate.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
-              <div className="compare-summary"><span>ПОЧЕМУ В ПОДБОРКЕ</span><p>{candidate.summary}</p><b>{candidate.gap}</b></div>
-              <Button variant="outline" onClick={() => onOpen(candidate)}>{candidate.backendId ? "Выбрать кандидата" : "Открыть полное резюме"}</Button>
-            </article>
-          ))}
-        </div>
-      </div>
-    </div>
+    </ModalFrame>
   );
 }
 
@@ -2281,6 +3270,7 @@ function DemoTour({
 }) {
   const [step, setStep] = useState(0);
   const [targetTop, setTargetTop] = useState<number | null>(null);
+  const tourRef = useRef<HTMLElement>(null);
   const steps = role === "employer" ? [
     { target: "demo-navigation", title: "Рабочие разделы", text: "Переключайтесь между подборкой, потребностями, банком профилей и приглашениями." },
     { target: "active-need", title: "Потребность команды", text: "Здесь видны критерии и бюджет текущей роли. Нажмите карточку, чтобы открыть подбор." },
@@ -2292,6 +3282,7 @@ function DemoTour({
     { target: "demo-navigation", title: "Дальнейшие действия", text: "Откройте профиль, тест уровня, историю результатов и входящие приглашения." },
   ];
   const item = steps[step];
+  useDialogA11y(tourRef, onFinish);
 
   useEffect(() => {
     let measureTimer = 0;
@@ -2319,7 +3310,7 @@ function DemoTour({
   return (
     <>
       <div className="tour-shade tour-shade--full" />
-      <section className={`demo-tour-card ${cardAtBottom ? "demo-tour-card--bottom" : "demo-tour-card--top"}`} role="dialog" aria-modal="true" aria-labelledby="demo-tour-title">
+      <section ref={tourRef} className={`demo-tour-card ${cardAtBottom ? "demo-tour-card--bottom" : "demo-tour-card--top"}`} role="dialog" aria-modal="true" aria-labelledby="demo-tour-title" tabIndex={-1}>
         <div className="guide-progress">{steps.map((_, index) => <i key={index} className={index <= step ? "active" : ""} />)}</div>
         <span>{role === "employer" ? "ДЕМО · КОМПАНИЯ" : "ДЕМО · КАНДИДАТ"} · {step + 1}/{steps.length}</span>
         <strong id="demo-tour-title">{item.title}</strong>
@@ -2343,8 +3334,8 @@ function AuthScreen({
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [selectedRole, setSelectedRole] = useState<"employer" | "candidate">("candidate");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState<string>(DEMO_ACCOUNTS.candidate);
+  const [password, setPassword] = useState<string>(DEMO_PASSWORD);
   const [confirmed, setConfirmed] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [code, setCode] = useState("");
@@ -2394,6 +3385,14 @@ function AuthScreen({
     }
   };
 
+  const fillDemoCredentials = (role: "candidate" | "employer") => {
+    setEmail(DEMO_ACCOUNTS[role]);
+    setPassword(DEMO_PASSWORD);
+    setMode("login");
+    setEmailSent(false);
+    setError("");
+  };
+
   return (
     <div className="auth-page">
       <div className="auth-brand">
@@ -2418,8 +3417,8 @@ function AuthScreen({
         </div>}
         {!emailSent ? (
           <>
-            <label className="field field--flush"><span>EMAIL</span><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" /></label>
-            <label className="field field--flush"><span>ПАРОЛЬ</span><input value={password} onChange={(event) => setPassword(event.target.value)} type="password" /></label>
+            <label className="field field--flush"><span>EMAIL</span><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="username" /></label>
+            <label className="field field--flush"><span>ПАРОЛЬ</span><input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
             {mode === "register" && <label className="auth-consent"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span>Согласен на обработку персональных данных по 152-ФЗ</span></label>}
             <Button className={busy || !email || !password || (mode === "register" && !confirmed) ? "button--disabled" : ""} onClick={submitCredentials}>
               {busy ? "Подождите…" : mode === "login" ? "Войти в кабинет" : "Создать аккаунт"} <Icon name="chevron" />
@@ -2438,10 +3437,14 @@ function AuthScreen({
         )}
         {error && <div className="form-error" role="alert">{error}</div>}
         <div className="demo-access">
-          <span>ДЕМО-ДОСТУП</span>
+          <div className="demo-access__intro"><span>ДЕМО-ДОСТУП</span><small>Тестовый логин и пароль уже заполнены для кандидата.</small></div>
+          <div className="demo-access__fill">
+            <button type="button" onClick={() => fillDemoCredentials("candidate")}>Данные кандидата</button>
+            <button type="button" onClick={() => fillDemoCredentials("employer")}>Данные компании</button>
+          </div>
           <div>
-            <Button variant="outline" disabled={busy} onClick={() => void signInToDemo("candidate")}><Icon name="users" /> {busy ? "Подключаем…" : "Кандидат"}</Button>
-            <Button variant="outline" disabled={busy} onClick={() => void signInToDemo("employer")}><Icon name="briefcase" /> {busy ? "Подключаем…" : "Компания"}</Button>
+            <Button variant="outline" disabled={busy} onClick={() => void signInToDemo("candidate")}><Icon name="users" /> {busy ? "Подключаем…" : "Войти как кандидат"}</Button>
+            <Button variant="outline" disabled={busy} onClick={() => void signInToDemo("employer")}><Icon name="briefcase" /> {busy ? "Подключаем…" : "Войти как компания"}</Button>
           </div>
         </div>
       </div>
@@ -2520,38 +3523,101 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
 function SwipeDeck({
   items,
   onOpen,
-  onInvite,
+  onSelect,
   onNotify,
 }: {
   items: Candidate[];
   onOpen: (candidate: Candidate) => void;
-  onInvite: (candidate: Candidate) => void;
+  onSelect: (candidate: Candidate) => void;
   onNotify: (message: string) => void;
 }) {
-  const [index, setIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [dragStart, setDragStart] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
   const [entering, setEntering] = useState(false);
-  const candidate = items[index % items.length];
-  const nextCandidate = items[(index + 1) % items.length];
+  const candidate = items[activeIndex];
+  const nextCandidate = items[activeIndex + 1];
+  const itemIds = items.map(({ id }) => id).join(",");
+
+  useEffect(() => {
+    setActiveIndex(0);
+    setDragStart(null);
+    setDragOffset(0);
+    setDirection(null);
+  }, [itemIds]);
 
   const move = (nextDirection: "left" | "right") => {
-    if (direction) return;
+    if (direction || !candidate) return;
     setDirection(nextDirection);
+    setDragStart(null);
+    setDragOffset(0);
     window.setTimeout(() => {
-      if (nextDirection === "right") onNotify(`${candidate.name} добавлен в список интересных`);
-      setIndex((current) => current + 1);
+      if (nextDirection === "right") {
+        onSelect(candidate);
+        onNotify(`${candidate.name} добавлен в список сравнения`);
+      }
+      setActiveIndex((current) => current + 1);
       setDirection(null);
       setEntering(true);
       window.setTimeout(() => setEntering(false), 400);
     }, 340);
   };
 
+  const handlePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    setDragStart(event.clientX);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    if (dragStart === null || direction) return;
+    setDragOffset(event.clientX - dragStart);
+  };
+
+  const handlePointerUp = () => {
+    if (dragStart === null) return;
+    if (dragOffset > 90) move("right");
+    else if (dragOffset < -90) move("left");
+    else {
+      setDragStart(null);
+      setDragOffset(0);
+    }
+  };
+
+  const handlePointerCancel = () => {
+    setDragStart(null);
+    setDragOffset(0);
+  };
+
+  if (!candidate) {
+    return (
+      <div className="swipe-workspace">
+        <div className="swipe-complete">
+          <div className="swipe-complete__icon"><Icon name="check" size={28} /></div>
+          <span>ПРОСМОТР ЗАВЕРШЁН</span>
+          <strong>Вы просмотрели всех кандидатов</strong>
+          <p>Вернитесь к списку и измените фильтры, чтобы увидеть другие профили.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="swipe-workspace">
-      <div className="swipe-help"><Icon name="users" /><div><strong>Быстрый просмотр</strong><span>Смахните влево, чтобы пропустить, вправо — чтобы сохранить кандидата.</span></div></div>
+      <div className="swipe-help"><Icon name="sparkle" /><div><strong>Найдите подходящего человека</strong><span>Свайпните карточку или используйте кнопки: влево — пропустить, вправо — добавить в сравнение.</span></div></div>
       <div className="swipe-deck">
-        <article className="swipe-card swipe-card--under" aria-hidden="true"><span>СЛЕДУЮЩИЙ ПРОФИЛЬ</span><strong>{nextCandidate.name}</strong><small>{nextCandidate.role} · {nextCandidate.level} · {nextCandidate.score} баллов</small></article>
-        <article className={`swipe-card ${direction ? `swipe-card--leaving-${direction}` : entering ? "swipe-card--entering" : ""}`}>
+        {nextCandidate && <article className="swipe-card swipe-card--under" aria-hidden="true"><span>СЛЕДУЮЩИЙ ПРОФИЛЬ</span><strong>{nextCandidate.name}</strong><small>{nextCandidate.role} · {nextCandidate.level} · {nextCandidate.score} баллов</small></article>}
+        <article
+          className={`swipe-card ${direction ? `swipe-card--leaving-${direction}` : entering ? "swipe-card--entering" : ""}`}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+          style={dragStart !== null && !direction ? { transform: `translateX(${dragOffset}px) rotate(${dragOffset / 18}deg)` } : undefined}
+        >
+          {dragOffset < -36 && <div className="swipe-stamp swipe-stamp--skip">ПРОПУСТИТЬ</div>}
+          {dragOffset > 36 && <div className="swipe-stamp swipe-stamp--like">ИНТЕРЕСЕН</div>}
           <div className="swipe-card__cover">
             <div className="resume-avatar">{candidate.initials}</div>
             <div><span>ПОДТВЕРЖДЁННЫЙ ПРОФИЛЬ</span><strong>{candidate.name}</strong><p>{candidate.role} · уровень {candidate.level}</p></div>
@@ -2562,24 +3628,103 @@ function SwipeDeck({
             <div className="swipe-details">
               <p>{candidate.summary}</p>
               <div className="compare-facts">
-                <div><span>Опыт</span><strong>{candidate.experience}</strong></div>
-                <div><span>Ожидания</span><strong>{candidate.salary}</strong></div>
-                <div><span>Город</span><strong>{candidate.location}</strong></div>
-                <div><span>Формат</span><strong>{candidate.format}</strong></div>
+                <div><span><Icon name="clock" size={15} /> Опыт</span><strong>{candidate.experience}</strong></div>
+                <div><span><Icon name="money" size={15} /> Ожидания</span><strong>{candidate.salary}</strong></div>
+                <div><span><Icon name="pin" size={15} /> Город</span><strong>{candidate.location}</strong></div>
+                <div><span><Icon name="building" size={15} /> Формат</span><strong>{candidate.format}</strong></div>
               </div>
               <div className="tags">{candidate.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
-              {candidate.achievements[0] && <div className="swipe-achievement">◆ {candidate.achievements[0]}</div>}
-              <Button variant="ghost" onClick={() => onOpen(candidate)}>Открыть полное резюме</Button>
+              {candidate.achievements[0] && <div className="swipe-achievement"><Icon name="medal" size={17} /> {candidate.achievements[0]}</div>}
+              <Button variant="ghost" onClick={() => onOpen(candidate)}>Открыть полное резюме <Icon name="arrowUpRight" size={16} /></Button>
             </div>
           </div>
         </article>
         <div className="swipe-actions">
-          <button type="button" className="swipe-action swipe-action--skip" onClick={() => move("left")}><Icon name="close" /><span>Пропустить</span></button>
-          <button type="button" className="swipe-action swipe-action--open" onClick={() => onOpen(candidate)}><Icon name="users" /><span>Резюме</span></button>
-          <button type="button" className="swipe-action swipe-action--save" onClick={() => { move("right"); onInvite(candidate); }}><Icon name="check" /><span>Интересен</span></button>
+          <button type="button" className="swipe-action swipe-action--skip" onClick={() => move("left")} aria-label="Пропустить кандидата"><Icon name="close" /><span>Пропустить</span></button>
+          <button type="button" className="swipe-action swipe-action--open" onClick={() => onOpen(candidate)} aria-label="Открыть резюме"><Icon name="users" /><span>Резюме</span></button>
+          <button type="button" className="swipe-action swipe-action--save" onClick={() => move("right")} aria-label="Добавить кандидата в сравнение"><Icon name="check" /><span>Интересен</span></button>
         </div>
-        <div className="swipe-counter">{index + 1} из {items.length} · следующий профиль после действия</div>
+        <div className="swipe-counter">{activeIndex + 1} из {items.length} · перетащите карточку влево или вправо</div>
       </div>
+    </div>
+  );
+}
+
+function CompareModal({
+  items,
+  onClose,
+  onOpen,
+}: {
+  items: Candidate[];
+  onClose: () => void;
+  onOpen: (candidate: Candidate) => void;
+}) {
+  const factIcons: Record<string, string> = {
+    Уровень: "school",
+    Опыт: "clock",
+    Зарплата: "money",
+    Доверие: "shield",
+    Город: "pin",
+    Формат: "building",
+  };
+  return (
+    <ModalFrame className="compare-modal" labelledBy="compare-title" onClose={onClose}>
+        <div className="resume-modal__top compare-modal__top">
+          <div><span>СРАВНЕНИЕ РЕЗЮМЕ</span><strong id="compare-title">Сравните кандидатов рядом</strong><small>В сравнении: {items.length} · выберите сильнейшее совпадение для команды</small></div>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть сравнение"><Icon name="close" /></button>
+        </div>
+        <div className="compare-grid">
+          {items.map((candidate, index) => (
+            <article className="compare-column" key={candidate.id}>
+              <div className="compare-person">
+                <div className="avatar avatar--large">{candidate.initials}</div>
+                <div><span className="compare-candidate-index">КАНДИДАТ {String(index + 1).padStart(2, "0")}</span><strong>{candidate.name}</strong><span>{candidate.role}</span></div>
+              </div>
+              <div className="compare-score">
+                <div><span>СОВПАДЕНИЕ С ПОТРЕБНОСТЬЮ</span><small>Балл подбора</small></div>
+                <strong>{candidate.score}<small> / 100</small></strong>
+              </div>
+              <div className="compare-match-details">
+                <SkillComparison matched={candidate.matchedSkills ?? []} notListed={candidate.missingSkills ?? []} />
+              </div>
+              {candidate.radar.length > 0 && <div className="compare-radar"><Radar values={candidate.radar} target={candidate.jobRadar} compact /></div>}
+              <div className="compare-facts">
+                {[
+                  ["Уровень", candidate.level],
+                  ["Опыт", candidate.backendId ? "Нет данных" : candidate.experience],
+                  ["Зарплата", candidate.backendId ? "Нет данных" : candidate.salary],
+                  ["Доверие", candidate.backendId ? "Нет данных" : candidate.trust.toFixed(2).replace(".", ",")],
+                  ["Город", candidate.location],
+                  ["Формат", candidate.format],
+                ].map(([label, value]) => (
+                  <div key={label}><span><Icon name={factIcons[label]} size={15} />{label}</span><strong>{value}</strong></div>
+                ))}
+              </div>
+              <div className="compare-skills"><span>ТЕХНОЛОГИИ</span><div className="tags">{candidate.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></div>
+              <div className="compare-summary"><span><Icon name="sparkle" size={15} /> ПОЧЕМУ В ПОДБОРКЕ</span><p>{candidate.summary}</p></div>
+              <Button variant="outline" onClick={() => onOpen(candidate)}><Icon name="arrowUpRight" size={16} /> Открыть профиль</Button>
+            </article>
+          ))}
+        </div>
+      </ModalFrame>
+  );
+}
+
+function SkillComparison({ matched, notListed }: { matched: string[]; notListed: string[] }) {
+  if (!matched.length && !notListed.length) {
+    return <p className="compare-skill-note">Подробное сопоставление навыков не передано API.</p>;
+  }
+  return (
+    <div className="skill-comparison">
+      <div>
+        <strong><Icon name="check" size={15} /> Найдены в профиле</strong>
+        {matched.length ? <ul>{matched.map((skill) => <li key={skill}>{skill}</li>)}</ul> : <span>Совпадения не указаны</span>}
+      </div>
+      <div>
+        <strong><Icon name="arrowUpRight" size={15} /> Не указаны в профиле</strong>
+        {notListed.length ? <ul>{notListed.map((skill) => <li key={skill}>{skill}</li>)}</ul> : <span>Не найдено</span>}
+      </div>
+      <p>Список показывает наличие упоминаний в данных профиля, а не оценку уровня владения или процент совместимости.</p>
     </div>
   );
 }
@@ -2587,6 +3732,7 @@ function SwipeDeck({
 function App() {
   const [offlineDemo, setOfflineDemo] = useState(() => window.localStorage.getItem("fsp-offline-demo") === "true");
   const [authenticated, setAuthenticated] = useState(() => Boolean(window.localStorage.getItem("fsp-access-token")) || window.localStorage.getItem("fsp-offline-demo") === "true");
+  const [authLoading, setAuthLoading] = useState(() => Boolean(window.localStorage.getItem("fsp-access-token")) || window.localStorage.getItem("fsp-offline-demo") === "true");
   const [demoTourOpen, setDemoTourOpen] = useState(() => window.localStorage.getItem("fsp-offline-demo") === "true" && window.localStorage.getItem("fsp-demo-tour-complete") !== "true");
   const [onboarding, setOnboarding] = useState(false);
   const [role, setRole] = useState<"employer" | "candidate">(() =>
@@ -2598,11 +3744,15 @@ function App() {
   const [active, setActive] = useState(() =>
     window.localStorage.getItem("fsp-role") === "employer" ? "Подборка" : "Обзор",
   );
+  const [selectedDialogueTarget, setSelectedDialogueTarget] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(1);
   const [query, setQuery] = useState("");
   const [onlyFsp, setOnlyFsp] = useState(false);
   const [compare, setCompare] = useState<number[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteDirty, setInviteDirty] = useState(false);
+  const [inviteDiscardConfirm, setInviteDiscardConfirm] = useState(false);
   const [sent, setSent] = useState(false);
   const [offerDescription, setOfferDescription] = useState("Приглашаем в продуктовую команду. Будем рады обсудить задачи и ваш опыт.");
   const [inviteSalaryMin, setInviteSalaryMin] = useState("");
@@ -2627,22 +3777,34 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated) {
+      setAuthLoading(false);
+      return;
+    }
+    setAuthLoading(true);
     apiGet<{ role: "candidate" | "employer"; onboarding_completed: boolean }>("/auth/me")
       .then((user) => {
         setRole(user.role);
         window.localStorage.setItem("fsp-role", user.role);
+        setActive((current) => pageForRole(current, user.role));
         setOnboarding(user.role === "candidate" && !user.onboarding_completed);
         if (user.role === "employer" && !user.onboarding_completed) setActive("Настройки");
       })
       .catch(() => {
         clearSession();
         setAuthenticated(false);
+      })
+      .finally(() => {
+        setAuthLoading(false);
       });
   }, [authenticated, offlineDemo]);
 
   useEffect(() => {
-    if (!authenticated || role !== "employer") {
+    setActive((current) => pageForRole(current, role));
+  }, [role]);
+
+  useEffect(() => {
+    if (!authenticated || authLoading || role !== "employer") {
       setBackendCandidates([]);
       setEmployerNeeds([]);
       setActiveNeedId(null);
@@ -2672,10 +3834,10 @@ function App() {
         }
       });
     return () => { cancelled = true; };
-  }, [authenticated, role, onlyFsp, offlineDemo]);
+  }, [authenticated, authLoading, role, onlyFsp, offlineDemo]);
 
   useEffect(() => {
-    if (!authenticated || onboarding) return;
+    if (!authenticated || authLoading || onboarding) return;
     let cancelled = false;
     const refreshSidebar = () => {
       const profileRequest = role === "employer"
@@ -2704,7 +3866,7 @@ function App() {
       cancelled = true;
       window.removeEventListener("fsp-invitations-updated", refreshSidebar);
     };
-  }, [authenticated, onboarding, role, active]);
+  }, [authenticated, authLoading, onboarding, role, active]);
 
   const filtered = useMemo(
     () => backendCandidates.filter((candidate) =>
@@ -2717,10 +3879,26 @@ function App() {
     selectedCandidate ?? backendCandidates.find((candidate) => candidate.id === selectedId) ?? backendCandidates[0] ?? candidates[0];
   const activeNeed = employerNeeds.find((need) => need.id === activeNeedId);
   const openInvite = () => {
+    setOfferDescription("Приглашаем в продуктовую команду. Будем рады обсудить задачи и ваш опыт.");
     setInviteSalaryMin(activeNeed ? String(activeNeed.salary_min) : "");
     setInviteSalaryMax(activeNeed ? String(activeNeed.salary_max) : "");
     setInviteSalaryType(activeNeed?.salary_tax_type ?? "gross");
+    setInviteContact("");
+    setInviteDirty(false);
+    setInviteDiscardConfirm(false);
     setInviteOpen(true);
+  };
+  const requestCloseInvite = () => {
+    if (inviteDirty) {
+      setInviteDiscardConfirm(true);
+      return;
+    }
+    setInviteOpen(false);
+  };
+  const discardInvite = () => {
+    setInviteOpen(false);
+    setInviteDirty(false);
+    setInviteDiscardConfirm(false);
   };
 
   const nav =
@@ -2730,6 +3908,7 @@ function App() {
           ["users", "Подборка"],
           ["search", "Банк кандидатов"],
           ["briefcase", "Потребности"],
+          ["send", "Диалоги"],
           ["send", "Приглашения"],
           ["briefcase", "Вакансии компании"],
           ["chart", "Аналитика"],
@@ -2741,6 +3920,7 @@ function App() {
           ["chart", "Тестирование"],
           ["compare", "Мой грейд"],
           ["briefcase", "Задания"],
+          ["send", "Диалоги"],
           ["send", "Приглашения"],
           ["search", "Вакансии"],
           ["settings", "Настройки"],
@@ -2748,14 +3928,20 @@ function App() {
   const currentCopy = pageCopy[active] ?? pageCopy["Обзор"];
   const groupLabels: Record<string, string> =
     role === "employer"
-      ? { Обзор: "ГЛАВНОЕ", Потребности: "ПОДБОР", Приглашения: "ОБЩЕНИЕ", Аналитика: "ДАННЫЕ" }
-      : { Обзор: "ГЛАВНОЕ", Профиль: "ПРОФИЛЬ", Тестирование: "ОЦЕНКА", Приглашения: "РАБОТА" };
+      ? { Обзор: "ГЛАВНОЕ", Потребности: "ПОДБОР", Диалоги: "ОБЩЕНИЕ", Приглашения: "РАБОТА", Аналитика: "ДАННЫЕ" }
+      : { Обзор: "ГЛАВНОЕ", Профиль: "ПРОФИЛЬ", Тестирование: "ОЦЕНКА", Диалоги: "ОБЩЕНИЕ", Приглашения: "РАБОТА" };
 
   const showNotice = (message: string, type: "success" | "error" = "success") => {
     setNotice(message);
     setNoticeType(type);
     if (noticeTimer) window.clearTimeout(noticeTimer);
     setNoticeTimer(window.setTimeout(() => setNotice(""), 4200));
+  };
+
+  const navigateTo = (screen: string, target?: string) => {
+    if (screen === "Диалоги") setSelectedDialogueTarget(target ?? null);
+    setActive(screen);
+    setMobileNavOpen(false);
   };
 
   const enterWithSession = (response: AuthResponse) => {
@@ -2814,6 +4000,9 @@ function App() {
       if (refreshToken && !offlineDemo) await apiPost("/auth/logout", { refresh_token: refreshToken });
     } catch {
     } finally {
+      Object.keys(window.sessionStorage)
+        .filter((key) => key.startsWith("fsp-chat-draft:"))
+        .forEach((key) => window.sessionStorage.removeItem(key));
       clearSession();
       window.localStorage.removeItem("fsp-offline-demo");
       setOfflineDemo(false);
@@ -2856,6 +4045,8 @@ function App() {
         currency: "RUB",
       });
       setInviteOpen(false);
+      setInviteDirty(false);
+      setInviteDiscardConfirm(false);
       window.dispatchEvent(new Event("fsp-invitations-updated"));
       showNotice(`Приглашение для ${selected.name} отправлено`);
     } catch (requestError) {
@@ -2867,6 +4058,10 @@ function App() {
 
   if (!authenticated) {
     return <AuthScreen onLogin={login} onRegister={register} onVerify={verifyEmail} onDemoLogin={demoLogin} />;
+  }
+
+  if (authLoading) {
+    return <div className="auth-loading" role="status"><span className="auth-loading__mark" /><strong>Проверяем доступ</strong><span>Подготавливаем ваш кабинет</span></div>;
   }
 
   if (onboarding) {
@@ -2884,19 +4079,18 @@ function App() {
 
   return (
     <div className="app-shell" data-theme={theme}>
-      <aside className="sidebar" data-tour="demo-navigation">
+      <aside className={`sidebar ${mobileNavOpen ? "sidebar--mobile-open" : ""}`} data-tour="demo-navigation">
         <Logo />
         <div className="workspace-label">{role === "employer" ? "РАБОТОДАТЕЛЬ" : "СОИСКАТЕЛЬ"}</div>
-        <nav className="nav">
+        <nav className="nav" id="mobile-section-menu">
           {nav.map(([icon, item]) => (
             <div className="nav-group-wrap" key={item}>
               {groupLabels[item] && <div className="nav-group-label">{groupLabels[item]}</div>}
               <button
                 type="button"
-                data-tooltip={navHints[item] ?? "Откройте раздел, чтобы посмотреть связанные данные."}
-                aria-label={`${item}: ${navHints[item] ?? "Откройте раздел, чтобы посмотреть связанные данные."}`}
+                aria-label={item}
                 className={`nav__item ${active === item ? "nav__item--active" : ""}`}
-                onClick={() => setActive(item)}
+                onClick={() => navigateTo(item)}
               >
                 <Icon name={icon} />
                 <span>{item}</span>
@@ -2905,6 +4099,13 @@ function App() {
             </div>
           ))}
         </nav>
+        <div className="mobile-nav-shortcuts" aria-label="Быстрая навигация">
+          {["Обзор", "Диалоги", "Настройки"].map((item) => {
+            const itemIcon = item === "Обзор" ? "grid" : item === "Диалоги" ? "send" : "settings";
+            return <button key={item} type="button" className={active === item ? "active" : ""} onClick={() => navigateTo(item)}><Icon name={itemIcon} size={17} /><span>{item}</span></button>;
+          })}
+          <button type="button" className={mobileNavOpen ? "active" : ""} aria-expanded={mobileNavOpen} aria-controls="mobile-section-menu" onClick={() => setMobileNavOpen((value) => !value)}><Icon name={mobileNavOpen ? "close" : "menu"} size={17} /><span>{mobileNavOpen ? "Закрыть" : "Разделы"}</span></button>
+        </div>
         <div className="sidebar__bottom">
           <div className="company">
             <div className="company__avatar">{sidebarIdentity.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || (role === "employer" ? "К" : "С")}</div>
@@ -2914,13 +4115,13 @@ function App() {
             </div>
             <Icon name="chevron" size={15} />
           </div>
-          <button type="button" className="logout-button" onClick={logout}>Выйти</button>
+          <button type="button" className="logout-button" onClick={logout}><Icon name="logout" size={16} /><span>Выйти</span></button>
         </div>
       </aside>
 
       <main className="main">
         <header className="topbar">
-          <div>
+          <div className="topbar__heading">
             <div className="eyebrow">{currentCopy.eyebrow}</div>
             <div className="page-title">{currentCopy.title}</div>
           </div>
@@ -2938,8 +4139,11 @@ function App() {
               <span><Icon name={theme === "light" ? "moon" : "sun"} size={16} /></span>
               {theme === "light" ? "Тёмная" : "Светлая"}
             </button>
-            <button type="button" className="icon-button" aria-label="Открыть приглашения" title="Открыть приглашения" onClick={() => setActive("Приглашения")}>
+            <button type="button" className="icon-button" aria-label="Открыть диалоги" onClick={() => navigateTo("Диалоги")}>
               <Icon name="bell" />
+            </button>
+            <button type="button" className="logout-mobile" onClick={logout} aria-label="Выйти из аккаунта">
+              <Icon name="logout" />
             </button>
             {role === "employer" ? (
               <Button variant="outline" onClick={() => setActive("Потребности")}>
@@ -2951,7 +4155,14 @@ function App() {
           </div>
         </header>
 
-        {role === "employer" && active === "Подборка" ? (
+        {active === "Диалоги" ? (
+          <DialogsScreen
+            employer={role === "employer"}
+            initialTarget={selectedDialogueTarget}
+            onClearInitialTarget={() => setSelectedDialogueTarget(null)}
+            onNotify={showNotice}
+          />
+        ) : role === "employer" && active === "Подборка" ? (
           <>
         <section className="need-summary" data-tour="active-need">
           <div className="need-summary__icon">
@@ -3015,7 +4226,7 @@ function App() {
           <SwipeDeck
             items={filtered}
             onOpen={setResumeCandidate}
-            onInvite={(candidate) => {
+            onSelect={(candidate) => {
               if (!compare.includes(candidate.id)) setCompare((current) => [...current.slice(-2), candidate.id]);
             }}
             onNotify={showNotice}
@@ -3163,10 +4374,10 @@ function App() {
           <EmployerScreen
             active={active}
             demoMode={offlineDemo}
-            onOpenCandidates={() => setActive("Подборка")}
+            onOpenCandidates={() => navigateTo("Подборка")}
             onOpenResume={setResumeCandidate}
             onNotify={showNotice}
-            onNavigate={setActive}
+            onNavigate={navigateTo}
             onNeedCreated={(need) => {
               setEmployerNeeds((current) =>
                 current.some((item) => item.id === need.id)
@@ -3175,14 +4386,14 @@ function App() {
               );
               setActiveNeedId(need.id);
               setSelectedCandidate(null);
-              setActive("Подборка");
+              navigateTo("Подборка");
               apiGet<{ candidates: MatchingCandidate[] }>(`/matching/for-need/${need.id}`)
                 .then((response) => setBackendCandidates(response.candidates.map(mapMatchToCandidate)))
                 .catch((error: unknown) => showNotice(error instanceof Error ? error.message : "Не удалось сформировать подборку", "error"));
             }}
           />
         ) : (
-          <CandidateScreen active={active} onNotify={showNotice} onNavigate={setActive} demoMode={offlineDemo} />
+          <CandidateScreen active={active} onNotify={showNotice} onNavigate={navigateTo} demoMode={offlineDemo} />
         )}
       </main>
 
@@ -3210,14 +4421,20 @@ function App() {
       )}
 
       {role === "employer" && inviteOpen && (
-        <div className="modal-backdrop" onMouseDown={() => setInviteOpen(false)}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+        inviteDiscardConfirm ? (
+          <DiscardConfirmation
+            title="Закрыть приглашение?"
+            message="Черновик предложения не сохранён. Вернитесь к форме или закройте её без отправки."
+            onKeepEditing={() => setInviteDiscardConfirm(false)}
+            onDiscard={discardInvite}
+          />
+        ) : <ModalFrame className="modal" labelledBy="invite-dialog-title" onClose={requestCloseInvite}>
             <div className="modal__head">
               <div>
                 <span>НОВОЕ ПРИГЛАШЕНИЕ</span>
-                <strong>Пригласить {selected.name}</strong>
+                <strong id="invite-dialog-title">Пригласить {selected.name}</strong>
               </div>
-              <button type="button" onClick={() => setInviteOpen(false)}><Icon name="close" /></button>
+              <button type="button" aria-label="Закрыть приглашение" onClick={requestCloseInvite}><Icon name="close" /></button>
             </div>
             <div className="invite-person">
               <div className="avatar">{selected.initials}</div>
@@ -3225,40 +4442,39 @@ function App() {
             </div>
             <label className="field">
               <span>ОПИСАНИЕ ПРЕДЛОЖЕНИЯ</span>
-              <textarea value={offerDescription} onChange={(event) => setOfferDescription(event.target.value)} />
+              <textarea value={offerDescription} onChange={(event) => { setOfferDescription(event.target.value); setInviteDirty(true); }} />
             </label>
             <div className="field-row">
               <label className="field">
                 <span>ЗАРПЛАТА ОТ, ₽</span>
-                <input inputMode="numeric" value={inviteSalaryMin} onChange={(event) => setInviteSalaryMin(event.target.value)} />
+                <input inputMode="numeric" value={inviteSalaryMin} onChange={(event) => { setInviteSalaryMin(event.target.value); setInviteDirty(true); }} />
               </label>
               <label className="field">
                 <span>ЗАРПЛАТА ДО, ₽</span>
-                <input inputMode="numeric" value={inviteSalaryMax} onChange={(event) => setInviteSalaryMax(event.target.value)} />
+                <input inputMode="numeric" value={inviteSalaryMax} onChange={(event) => { setInviteSalaryMax(event.target.value); setInviteDirty(true); }} />
               </label>
             </div>
             <label className="field">
               <span>КАК УКАЗАНА ЗАРПЛАТА</span>
-              <select value={inviteSalaryType} onChange={(event) => setInviteSalaryType(event.target.value as "gross" | "net")}>
+              <select value={inviteSalaryType} onChange={(event) => { setInviteSalaryType(event.target.value as "gross" | "net"); setInviteDirty(true); }}>
                 <option value="gross">До вычета НДФЛ</option>
                 <option value="net">На руки</option>
               </select>
             </label>
             <label className="field">
               <span>СПОСОБ СВЯЗИ</span>
-              <input value={inviteContact} onChange={(event) => setInviteContact(event.target.value)} placeholder="Email или Telegram" />
+              <input value={inviteContact} onChange={(event) => { setInviteContact(event.target.value); setInviteDirty(true); }} placeholder="Email или Telegram" />
             </label>
             <div className="salary-note">
               Зарплатный диапазон и способ расчёта будут показаны кандидату до принятия приглашения.
             </div>
             <div className="modal__actions">
-              <Button variant="ghost" onClick={() => setInviteOpen(false)}>Отмена</Button>
-              <Button onClick={submitInvite}>
+              <Button variant="ghost" onClick={requestCloseInvite}>Отмена</Button>
+              <Button disabled={sent} onClick={submitInvite}>
                 {sent ? "Отправляем…" : "Отправить приглашение"} <Icon name="send" />
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalFrame>
       )}
 
       {role === "employer" && resumeCandidate && (
