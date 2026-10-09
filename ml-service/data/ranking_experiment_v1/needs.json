@@ -1,0 +1,1442 @@
+[
+  {
+    "city": "Казань",
+    "id": "73fdf803-6068-55c7-bea9-0d4e0b3f6809",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 130000,
+    "salary_min": 90000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-01",
+    "title": "Backend junior: вариант 1 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "id": "d2ca5979-eca9-5076-8cad-e7495058e7b9",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 180000,
+    "salary_min": 140000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-02",
+    "title": "Backend junior: вариант 2 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Казань",
+    "id": "c186f174-4adc-5e16-bc93-582752c91a99",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 190000,
+    "salary_min": 150000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-03",
+    "title": "Backend junior: вариант 3 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Казань",
+    "id": "9bf25d9e-b826-5674-8699-ae5139d35c64",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 190000,
+    "salary_min": 150000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-04",
+    "title": "Backend junior: вариант 4 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Казань",
+    "id": "5aa2405c-b56f-57ab-899e-0126742f2167",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 180000,
+    "salary_min": 140000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-05",
+    "title": "Backend junior: вариант 5 (train)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "012e3aa2-e94c-5700-bd9a-a19e01c50ea8",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 150000,
+    "salary_min": 110000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-06",
+    "title": "Backend junior: вариант 6 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "id": "76016a65-9151-584c-9780-4b47a6eabfad",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 150000,
+    "salary_min": 110000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-07",
+    "title": "Backend junior: вариант 7 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Москва",
+    "id": "15be22b3-f1c9-5f8d-b025-350c02a7631f",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 150000,
+    "salary_min": 110000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-08",
+    "title": "Backend junior: вариант 8 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "id": "4beaa9a2-5340-5fbf-a14a-b641dc27bb2e",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 190000,
+    "salary_min": 150000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-09",
+    "title": "Backend junior: вариант 9 (train)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "61e33003-49ee-5c17-87df-68fd3c48fbe9",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 170000,
+    "salary_min": 130000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "JU-TR-10",
+    "title": "Backend junior: вариант 10 (train)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "id": "cae7e75a-3583-517e-8911-682332b98c6f",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 130000,
+    "salary_min": 90000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "JU-VA-01",
+    "title": "Backend junior: вариант 1 (validation)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "58ef4c60-5ecd-59ea-96ea-978d0bad0d0b",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 140000,
+    "salary_min": 100000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "JU-VA-02",
+    "title": "Backend junior: вариант 2 (validation)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Казань",
+    "id": "0a23fc0e-b6c0-58b8-9cc0-52d95d3e1ec4",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 130000,
+    "salary_min": 90000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "JU-VA-03",
+    "title": "Backend junior: вариант 3 (validation)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "id": "184ff3c5-b00c-50dc-8b23-6966d70fa6a5",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 180000,
+    "salary_min": 140000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "JU-TE-01",
+    "title": "Backend junior: вариант 1 (test)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "id": "df140028-204a-544f-8d18-52b8233d7f9f",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 180000,
+    "salary_min": 140000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "JU-TE-02",
+    "title": "Backend junior: вариант 2 (test)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Казань",
+    "id": "5966e073-0b2c-5d49-a7d6-fd5d56eee0fd",
+    "required_grade": "junior",
+    "required_skills": [
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 190000,
+    "salary_min": 150000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "JU-TE-03",
+    "title": "Backend junior: вариант 3 (test)",
+    "work_format": "office"
+  },
+  {
+    "city": "Москва",
+    "id": "5eced2b5-c2ff-56c8-a9d6-37c454a3e839",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 210000,
+    "salary_min": 170000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-01",
+    "title": "Backend middle: вариант 1 (train)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "id": "f3a8062f-106c-5e0a-ac89-c5991ba44e33",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 220000,
+    "salary_min": 180000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-02",
+    "title": "Backend middle: вариант 2 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "id": "699de11d-ffc9-56a8-a86a-0e0d8292031c",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 250000,
+    "salary_min": 210000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-03",
+    "title": "Backend middle: вариант 3 (train)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "id": "c8f4296a-1999-5217-b350-b803e5a4ce95",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 270000,
+    "salary_min": 230000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-04",
+    "title": "Backend middle: вариант 4 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Москва",
+    "id": "88ff5fdf-43fc-5453-9dfe-f2b03f5befec",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 260000,
+    "salary_min": 220000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-05",
+    "title": "Backend middle: вариант 5 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "id": "0e87ced6-dfa8-5fe9-85db-1bdaeba00bf3",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 270000,
+    "salary_min": 230000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-06",
+    "title": "Backend middle: вариант 6 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "06b22219-7ce6-5f61-87b4-b4177f3d4f2b",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 220000,
+    "salary_min": 180000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-07",
+    "title": "Backend middle: вариант 7 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "id": "77248b77-75d5-52a7-ac07-ebbc30c51fb8",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 270000,
+    "salary_min": 230000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-08",
+    "title": "Backend middle: вариант 8 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Казань",
+    "id": "a4f93cac-25a1-5574-8b83-81f9652c861a",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 240000,
+    "salary_min": 200000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-09",
+    "title": "Backend middle: вариант 9 (train)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "f20a0338-f521-5fd5-8450-37f4fe57e5d5",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 230000,
+    "salary_min": 190000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "MI-TR-10",
+    "title": "Backend middle: вариант 10 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "id": "886bb67e-692d-522c-8fd6-6c418cd6f44f",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 260000,
+    "salary_min": 220000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "MI-VA-01",
+    "title": "Backend middle: вариант 1 (validation)",
+    "work_format": "office"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "718e8ffa-c34c-5629-ae4d-6e248f0689b8",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 210000,
+    "salary_min": 170000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "MI-VA-02",
+    "title": "Backend middle: вариант 2 (validation)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "d4444815-86c6-5237-910d-c4bf936fc452",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 210000,
+    "salary_min": 170000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "MI-VA-03",
+    "title": "Backend middle: вариант 3 (validation)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "id": "f71315e1-e622-5dc8-8574-41f3d9cfee34",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 260000,
+    "salary_min": 220000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "MI-TE-01",
+    "title": "Backend middle: вариант 1 (test)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "id": "59abf49e-93ce-55b8-a07f-414b93c711f5",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 210000,
+    "salary_min": 170000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "MI-TE-02",
+    "title": "Backend middle: вариант 2 (test)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Казань",
+    "id": "9b048d23-9fea-5cb1-9524-4d29c74fce04",
+    "required_grade": "middle",
+    "required_skills": [
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 230000,
+    "salary_min": 190000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "MI-TE-03",
+    "title": "Backend middle: вариант 3 (test)",
+    "work_format": "office"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "id": "0b66a4b8-2e6c-503c-81d9-258d0b765052",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 310000,
+    "salary_min": 270000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-01",
+    "title": "Backend senior: вариант 1 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "09620ec0-7530-56cd-b5f7-523fe1151060",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 370000,
+    "salary_min": 330000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-02",
+    "title": "Backend senior: вариант 2 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Казань",
+    "id": "6461404e-ce93-5a4b-9a1f-eca60f643003",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 310000,
+    "salary_min": 270000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-03",
+    "title": "Backend senior: вариант 3 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "b3bb042a-c91c-50bb-8b3e-54bc77cf493b",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 350000,
+    "salary_min": 310000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-04",
+    "title": "Backend senior: вариант 4 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "id": "01ffc49b-5ac4-5514-ae3f-fc9a140bccdf",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 330000,
+    "salary_min": 290000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-05",
+    "title": "Backend senior: вариант 5 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Санкт-Петербург",
+    "id": "4f19ea01-d5b2-540e-8a4b-53d5c797e38b",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 330000,
+    "salary_min": 290000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-06",
+    "title": "Backend senior: вариант 6 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Казань",
+    "id": "9c70c295-fbd8-51bf-95ba-6e65995fbf59",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 350000,
+    "salary_min": 310000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-07",
+    "title": "Backend senior: вариант 7 (train)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "id": "4c3272d1-1e65-5a65-bba2-6b48b7769d16",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 330000,
+    "salary_min": 290000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-08",
+    "title": "Backend senior: вариант 8 (train)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Новосибирск",
+    "id": "2ed4d12a-c818-5153-b598-a410bf1f3cc7",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 310000,
+    "salary_min": 270000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-09",
+    "title": "Backend senior: вариант 9 (train)",
+    "work_format": "office"
+  },
+  {
+    "city": "Новосибирск",
+    "id": "495793a5-a4b7-5e28-96c5-4bf60a16a3b1",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Docker",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 350000,
+    "salary_min": 310000,
+    "specialization": "Backend",
+    "split": "train",
+    "synthetic_code": "SE-TR-10",
+    "title": "Backend senior: вариант 10 (train)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "id": "46915270-6dca-5780-a1a3-b289592194ed",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 370000,
+    "salary_min": 330000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "SE-VA-01",
+    "title": "Backend senior: вариант 1 (validation)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Казань",
+    "id": "123073e1-84f5-564a-b62e-f70890d2160d",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 350000,
+    "salary_min": 310000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "SE-VA-02",
+    "title": "Backend senior: вариант 2 (validation)",
+    "work_format": "office"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "1af7db86-8d7c-558e-8761-07f52f2e24c8",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Тестирование API",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 370000,
+    "salary_min": 330000,
+    "specialization": "Backend",
+    "split": "validation",
+    "synthetic_code": "SE-VA-03",
+    "title": "Backend senior: вариант 3 (validation)",
+    "work_format": "remote"
+  },
+  {
+    "city": "Казань",
+    "id": "cb7f7844-f384-5b24-acf6-79faff7bce32",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "FastAPI",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Kafka",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 350000,
+    "salary_min": 310000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "SE-TE-01",
+    "title": "Backend senior: вариант 1 (test)",
+    "work_format": "office"
+  },
+  {
+    "city": "Москва",
+    "id": "5815e105-9e02-5aa0-954f-879ae1fbc4f3",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 370000,
+    "salary_min": 330000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "SE-TE-02",
+    "title": "Backend senior: вариант 2 (test)",
+    "work_format": "hybrid"
+  },
+  {
+    "city": "Екатеринбург",
+    "id": "58ff039c-8339-5c77-9b44-7194b40949e9",
+    "required_grade": "senior",
+    "required_skills": [
+      {
+        "name": "PostgreSQL",
+        "required": true,
+        "weight": 3.0
+      },
+      {
+        "name": "Python",
+        "required": true,
+        "weight": 1.0
+      },
+      {
+        "name": "Redis",
+        "required": true,
+        "weight": 1.0
+      }
+    ],
+    "salary_basis": "gross",
+    "salary_max": 330000,
+    "salary_min": 290000,
+    "specialization": "Backend",
+    "split": "test",
+    "synthetic_code": "SE-TE-03",
+    "title": "Backend senior: вариант 3 (test)",
+    "work_format": "remote"
+  }
+]

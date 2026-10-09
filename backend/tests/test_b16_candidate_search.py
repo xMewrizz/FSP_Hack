@@ -1,5 +1,9 @@
+import uuid
 import pytest
 from httpx import AsyncClient
+import app.models  # noqa: F401
+from app.models.candidate import CandidateProfile
+from conftest import TestingSessionLocal
 
 
 async def register_user(client: AsyncClient, email: str, role: str) -> dict[str, str]:
@@ -16,15 +20,26 @@ async def register_user(client: AsyncClient, email: str, role: str) -> dict[str,
     return {"Authorization": f"Bearer {verified.json()['access_token']}"}
 
 
+async def set_verified_grade(candidate_id: str, verified_grade: str | None, fsp_verified: bool = False):
+    async with TestingSessionLocal() as session:
+        cand = await session.get(CandidateProfile, uuid.UUID(candidate_id))
+        assert cand is not None
+        cand.verified_grade = verified_grade
+        cand.fsp_verified = fsp_verified
+        await session.commit()
+
+
 @pytest.mark.asyncio
 async def test_search_declared_grade_does_not_open_profile_b16(client: AsyncClient):
     """
     Task B-16:
     Заявленный грейд не открывает профиль работодателю.
-    Поиск по банку кандидатов с фильтром грейда (например, ?grade=senior)
-    выдаёт ТОЛЬКО кандидатов с подтверждённым грейдом (verified_grade),
-    а кандидат, у которого грейд только заявлен (declared_grade=senior, verified_grade=None),
-    в выдачу по этому грейду не попадает.
+    1. Кандидат с неподтверждённым грейдом (verified_grade is None) вообще не попадает
+       в поисковую выдачу банка кандидатов работодателю.
+    2. Поиск по банку кандидатов с фильтром грейда (например, ?grade=senior)
+       выдаёт ТОЛЬКО кандидатов с подтверждённым грейдом senior.
+    3. Кандидат, у которого грейд заявлен как senior, но подтверждён как middle,
+       не открывается работодателю при поиске по грейду senior.
     """
     emp_headers = await register_user(client, "emp_b16_grade@fsp.ru", "employer")
     await client.post(
@@ -33,7 +48,7 @@ async def test_search_declared_grade_does_not_open_profile_b16(client: AsyncClie
         json={"company_name": "ООО СберТех", "contact_person": "HR Анна"},
     )
 
-    # 1. Регистрация кандидата с заявленным грейдом senior, без прохождения теста
+    # 1. Регистрация кандидата с заявленным грейдом senior, без подтверждения грейда
     cand_headers = await register_user(client, "cand_unverified_sr@fsp.ru", "candidate")
     cand_resp = await client.post(
         "/api/v1/candidates/onboarding",
@@ -71,79 +86,66 @@ async def test_search_declared_grade_does_not_open_profile_b16(client: AsyncClie
     )
     assert search_sr.status_code == 200
     sr_ids = [item["candidate_id"] for item in search_sr.json()]
-    assert cand_id not in sr_ids, "Кандидат с неподтверждённым грейдом не должен находиться по фильтру grade=senior"
+    assert cand_id not in sr_ids, "Кандидат без подтверждённого грейда не должен открываться работодателю"
 
-    # 3. В общей выдаче без указания грейда кандидат виден, но с verified_grade=None
+    # 3. Общий поиск по банку кандидатов — выдача ограничена подтверждёнными профилями
     search_all = await client.get(
         "/api/v1/matching/search?specialization=Backend",
         headers=emp_headers,
     )
     assert search_all.status_code == 200
-    all_items = {item["candidate_id"]: item for item in search_all.json()}
-    assert cand_id in all_items
-    assert all_items[cand_id]["verified_grade"] is None
-    assert all_items[cand_id]["declared_grade"] == "senior"
-    assert all_items[cand_id]["match_explanation"]["grade_match"] is False
+    all_ids = [item["candidate_id"] for item in search_all.json()]
+    assert cand_id not in all_ids, "Неподтверждённый профиль не должен открываться работодателю в банке кандидатов"
 
-    # 4. Проходим тест на грейд senior успешно (набираем 100%)
-    start_test = await client.post(
-        "/api/v1/testing/start",
-        headers=cand_headers,
-        json={"specialization": "Backend", "target_grade": "senior"},
+    # 4. Кандидат Сергей: заявлен senior, но подтверждён middle
+    sergey_headers = await register_user(client, "cand_sergey_b16@fsp.ru", "candidate")
+    sergey_resp = await client.post(
+        "/api/v1/candidates/onboarding",
+        headers=sergey_headers,
+        json={
+            "first_name": "Сергей",
+            "last_name": "Мидл",
+            "specialization": "Backend",
+            "declared_grade": "senior",
+            "work_format": "remote",
+            "city": "Москва",
+            "skills": ["Python", "Django"],
+            "agreed_152_fz": True,
+            "agreed_publication": True,
+            "visibility_public": True,
+        },
     )
-    assert start_test.status_code == 201
-    sess_id = start_test.json()["session_id"]
-    questions = start_test.json()["questions"]
+    assert sergey_resp.status_code == 200
+    sergey_id = sergey_resp.json()["id"]
+    await set_verified_grade(sergey_id, "middle")
 
-    # Отправляем правильные ответы для подтверждения грейда
-    # Получаем правильные ответы из снимка/вариантов вопроса
-    correct_answers = []
-    for q in questions:
-        # Для закрытых вопросов выбираем первый вариант (в сессии сохраняется правильный ключ)
-        # Получаем данные сессии через прохождение
-        correct_answers.append({"question_id": q["id"], "selected_answers": [q["options"][0]["id"]]})
-
-    # Чтобы гарантированно подтвердить грейд senior:
-    # Используем правильные ключи из question_variants
-    from app.core.question_variants import prepared_variants
-    answers_payload = []
-    for q in questions:
-        family = q["code"].split("-V")[0]
-        # Находим вариант по code
-        variants = prepared_variants(family)
-        matching_var = next((v for v in variants if v["code"] == q["code"]), variants[0])
-        answers_payload.append({
-            "question_id": q["id"],
-            "selected_answers": matching_var["correct_answers"],
-        })
-
-    submit_resp = await client.post(
-        f"/api/v1/testing/{sess_id}/submit",
-        headers=cand_headers,
-        json={"answers": answers_payload},
-    )
-    assert submit_resp.status_code == 200
-    assert submit_resp.json()["passed"] is True
-    assert submit_resp.json()["verified_grade"] == "senior"
-
-    # 5. Теперь, когда грейд подтверждён, поиск grade=senior ОБЯЗАН найти кандидата!
-    search_sr_after = await client.get(
+    # Поиск grade=senior не должен открывать Сергея, несмотря на declared_grade=senior!
+    search_sr2 = await client.get(
         "/api/v1/matching/search?specialization=Backend&grade=senior",
         headers=emp_headers,
     )
-    assert search_sr_after.status_code == 200
-    sr_ids_after = [item["candidate_id"] for item in search_sr_after.json()]
-    assert cand_id in sr_ids_after
-    found_item = next(item for item in search_sr_after.json() if item["candidate_id"] == cand_id)
-    assert found_item["verified_grade"] == "senior"
-    assert found_item["match_explanation"]["grade_match"] is True
+    assert search_sr2.status_code == 200
+    sr2_ids = [item["candidate_id"] for item in search_sr2.json()]
+    assert sergey_id not in sr2_ids, "Заявленный senior не должен открывать профиль при фильтре grade=senior"
+
+    # Поиск grade=middle ДОЛЖЕН открыть Сергея, так как verified_grade=middle
+    search_mid = await client.get(
+        "/api/v1/matching/search?specialization=Backend&grade=middle",
+        headers=emp_headers,
+    )
+    assert search_mid.status_code == 200
+    mid_ids = [item["candidate_id"] for item in search_mid.json()]
+    assert sergey_id in mid_ids
+    found_item = next(item for item in search_mid.json() if item["candidate_id"] == sergey_id)
+    assert found_item["verified_grade"] == "middle"
+    assert found_item["declared_grade"] == "senior"
 
 
 @pytest.mark.asyncio
 async def test_search_stack_filtering_b16(client: AsyncClient):
     """
     Task B-16:
-    Поиск по банку кандидатов с фильтрацией по стеку технологий (stack).
+    Поиск по банку кандидатов с фильтрацией по стеку технологий (stack/skill).
     """
     emp_headers = await register_user(client, "emp_b16_stack@fsp.ru", "employer")
     await client.post(
@@ -171,6 +173,7 @@ async def test_search_stack_filtering_b16(client: AsyncClient):
     )
     assert c1.status_code == 200
     c1_id = c1.json()["id"]
+    await set_verified_grade(c1_id, "middle")
 
     # Кандидат 2: Golang, gRPC, Docker, Kubernetes
     c2_headers = await register_user(client, "cand_go_b16@fsp.ru", "candidate")
@@ -191,6 +194,7 @@ async def test_search_stack_filtering_b16(client: AsyncClient):
     )
     assert c2.status_code == 200
     c2_id = c2.json()["id"]
+    await set_verified_grade(c2_id, "middle")
 
     # 1. Поиск по стеку "PostgreSQL"
     res_pg = await client.get("/api/v1/matching/search?stack=PostgreSQL", headers=emp_headers)
@@ -213,7 +217,14 @@ async def test_search_stack_filtering_b16(client: AsyncClient):
     assert c1_id in ids_multi
     assert c2_id not in ids_multi
 
-    # 4. Поиск по несуществующему стеку
+    # 4. Поиск через параметр skill
+    res_skill = await client.get("/api/v1/matching/search?skill=Kubernetes", headers=emp_headers)
+    assert res_skill.status_code == 200
+    ids_skill = [item["candidate_id"] for item in res_skill.json()]
+    assert c2_id in ids_skill
+    assert c1_id not in ids_skill
+
+    # 5. Поиск по несуществующему стеку
     res_none = await client.get("/api/v1/matching/search?stack=Rust,Blockchain", headers=emp_headers)
     assert res_none.status_code == 200
     ids_none = [item["candidate_id"] for item in res_none.json()]
@@ -222,89 +233,80 @@ async def test_search_stack_filtering_b16(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_search_verified_only_and_ordering_b16(client: AsyncClient):
+async def test_search_fsp_only_and_parameters_b16(client: AsyncClient):
     """
     Task B-16:
-    - verified_only=True возвращает только кандидатов с подтверждённым грейдом.
-    - В общем поиске подтверждённые кандидаты всегда идут первыми.
+    - Фильтр достижений ФСП (fsp_only=True)
+    - Фильтры по городу, формату работы и специализации
     """
-    emp_headers = await register_user(client, "emp_b16_verified_only@fsp.ru", "employer")
+    emp_headers = await register_user(client, "emp_b16_fsp@fsp.ru", "employer")
     await client.post(
         "/api/v1/employers/onboarding",
         headers=emp_headers,
         json={"company_name": "ООО ВК", "contact_person": "HR Ольга"},
     )
 
-    # Неподтверждённый кандидат
-    unver_headers = await register_user(client, "cand_unver_order@fsp.ru", "candidate")
-    unver_resp = await client.post(
+    # Кандидат с ФСП верификацией
+    fsp_headers = await register_user(client, "cand_fsp_b16@fsp.ru", "candidate")
+    fsp_resp = await client.post(
         "/api/v1/candidates/onboarding",
-        headers=unver_headers,
-        json={
-            "first_name": "Дмитрий",
-            "last_name": "Несдавший",
-            "city": "Казань",
-            "specialization": "Backend",
-            "declared_grade": "junior",
-            "skills": ["Python"],
-            "agreed_152_fz": True,
-            "agreed_publication": True,
-            "visibility_public": True,
-        },
-    )
-    assert unver_resp.status_code == 200
-    unver_id = unver_resp.json()["id"]
-
-    # Подтверждённый кандидат
-    ver_headers = await register_user(client, "cand_ver_order@fsp.ru", "candidate")
-    ver_resp = await client.post(
-        "/api/v1/candidates/onboarding",
-        headers=ver_headers,
+        headers=fsp_headers,
         json={
             "first_name": "Елена",
-            "last_name": "Сдавшая",
-            "city": "Новосибирск",
+            "last_name": "ФСП",
+            "city": "Москва",
             "specialization": "Backend",
-            "declared_grade": "junior",
+            "declared_grade": "middle",
+            "work_format": "remote",
             "skills": ["Python", "FastAPI"],
             "agreed_152_fz": True,
             "agreed_publication": True,
             "visibility_public": True,
         },
     )
-    assert ver_resp.status_code == 200
-    ver_id = ver_resp.json()["id"]
+    assert fsp_resp.status_code == 200
+    fsp_id = fsp_resp.json()["id"]
+    await set_verified_grade(fsp_id, "middle", fsp_verified=True)
 
-    # Сдаём Junior тест для Елены
-    from app.core.question_variants import prepared_variants
-    t_start = await client.post(
-        "/api/v1/testing/start",
-        headers=ver_headers,
-        json={"specialization": "Backend", "target_grade": "junior"},
+    # Обычный кандидат без ФСП
+    norm_headers = await register_user(client, "cand_norm_b16@fsp.ru", "candidate")
+    norm_resp = await client.post(
+        "/api/v1/candidates/onboarding",
+        headers=norm_headers,
+        json={
+            "first_name": "Иван",
+            "last_name": "Обычный",
+            "city": "Санкт-Петербург",
+            "specialization": "Backend",
+            "declared_grade": "middle",
+            "work_format": "office",
+            "skills": ["Python", "Django"],
+            "agreed_152_fz": True,
+            "agreed_publication": True,
+            "visibility_public": True,
+        },
     )
-    assert t_start.status_code == 201
-    sess = t_start.json()
-    ans = []
-    for q in sess["questions"]:
-        family = q["code"].split("-V")[0]
-        variants = prepared_variants(family)
-        matching_var = next((v for v in variants if v["code"] == q["code"]), variants[0])
-        ans.append({"question_id": q["id"], "selected_answers": matching_var["correct_answers"]})
-    sub = await client.post(f"/api/v1/testing/{sess['session_id']}/submit", headers=ver_headers, json={"answers": ans})
-    assert sub.status_code == 200
-    assert sub.json()["verified_grade"] == "junior"
+    assert norm_resp.status_code == 200
+    norm_id = norm_resp.json()["id"]
+    await set_verified_grade(norm_id, "middle", fsp_verified=False)
 
-    # 1. Поиск с verified_only=True
-    resp_ver_only = await client.get("/api/v1/matching/search?verified_only=true", headers=emp_headers)
-    assert resp_ver_only.status_code == 200
-    ids_ver_only = [item["candidate_id"] for item in resp_ver_only.json()]
-    assert ver_id in ids_ver_only
-    assert unver_id not in ids_ver_only
+    # 1. Поиск с fsp_only=True
+    res_fsp = await client.get("/api/v1/matching/search?fsp_only=true", headers=emp_headers)
+    assert res_fsp.status_code == 200
+    ids_fsp = [item["candidate_id"] for item in res_fsp.json()]
+    assert fsp_id in ids_fsp
+    assert norm_id not in ids_fsp
 
-    # 2. В общем поиске подтверждённая Елена идёт раньше неподтверждённого Дмитрия
-    resp_all = await client.get("/api/v1/matching/search?specialization=Backend", headers=emp_headers)
-    assert resp_all.status_code == 200
-    items = resp_all.json()
-    pos_ver = next(i for i, item in enumerate(items) if item["candidate_id"] == ver_id)
-    pos_unver = next(i for i, item in enumerate(items) if item["candidate_id"] == unver_id)
-    assert pos_ver < pos_unver, "Подтверждённые кандидаты должны располагаться выше неподтверждённых"
+    # 2. Поиск по городу Москва
+    res_city = await client.get("/api/v1/matching/search?city=Москва", headers=emp_headers)
+    assert res_city.status_code == 200
+    ids_city = [item["candidate_id"] for item in res_city.json()]
+    assert fsp_id in ids_city
+    assert norm_id not in ids_city
+
+    # 3. Поиск по формату работы office
+    res_fmt = await client.get("/api/v1/matching/search?work_format=office", headers=emp_headers)
+    assert res_fmt.status_code == 200
+    ids_fmt = [item["candidate_id"] for item in res_fmt.json()]
+    assert norm_id in ids_fmt
+    assert fsp_id not in ids_fmt

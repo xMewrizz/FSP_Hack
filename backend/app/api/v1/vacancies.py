@@ -148,6 +148,8 @@ async def get_vacancy(
     db: AsyncSession = Depends(get_db),
 ):
     vacancy = await VacancyService.get_vacancy_by_id(db, vacancy_id)
+    if not vacancy.is_published:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Вакансия не найдена")
     return to_vacancy_response(vacancy)
 
 

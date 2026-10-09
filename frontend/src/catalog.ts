@@ -32,7 +32,7 @@ export const TESTABLE_SPECIALIZATIONS: string[] = ["Backend"];
 export const TESTABLE_GRADES: string[] = ["junior", "middle", "senior"];
 
 export const TEST_AVAILABILITY_HINT =
-  "Сейчас тест доступен для Backend (Junior / Middle / Senior).";
+  "Сейчас тест доступен для Backend (Junior / Middle / Senior): по десять вопросов на каждый обязательный навык. Пороги и сложность вопросов пока проверяются.";
 
 export function normalizeGrade(value: string | null | undefined): string | null {
   if (!value) return null;

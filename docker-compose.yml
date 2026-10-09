@@ -14,13 +14,13 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
 
   backend:
     build: ./backend
@@ -42,14 +42,13 @@ services:
   ml-service:
     build: ./ml-service
     restart: unless-stopped
-    # Локальный Qwen 14B крутится у сокомандника (Ollama/vLLM).
-    # В compose — только API-обертка; веса не коммитим.
+    # Модель запускается отдельно в Ollama; в Compose — только API-обёртка.
     environment:
-      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:14b}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
     ports:
-      - "8001:8001"
+      - "${ML_PORT:-8001}:8001"
 
   frontend:
     build:

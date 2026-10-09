@@ -1,0 +1,31 @@
+{
+  "candidate_count": 90,
+  "files_sha256": {
+    "candidates.json": "eaa88eec61787bca84188e52c7d0285b0744653c6554187026c2fc69bef1bff6",
+    "needs.json": "c58f13e94ce0d70b4f8125fddc21787a82409ec5458bdf9dfe536f3bdc6cd2a1",
+    "pairs.jsonl": "c809a4ea554f870fc05ac9cf16f63f8017ea3b56f3f6fbb35cd7a4be887ed9b6"
+  },
+  "label_source": "synthetic_rule_v1",
+  "labels_by_split": {
+    "test": {
+      "0": 22,
+      "1": 21,
+      "2": 11
+    },
+    "train": {
+      "0": 238,
+      "1": 259,
+      "2": 43
+    },
+    "validation": {
+      "0": 18,
+      "1": 27,
+      "2": 9
+    }
+  },
+  "need_count": 48,
+  "note": "Метки получены из вымышленных признаков отдельным правилом. Это набор для разработки кода, не проверка качества на реальных людях.",
+  "pair_count": 648,
+  "seed": 2027,
+  "version": "ranking_experiment_v1"
+}

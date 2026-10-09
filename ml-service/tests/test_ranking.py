@@ -58,12 +58,12 @@ class RankingTests(unittest.TestCase):
         self.assertIsNone(score_candidate(NEED, candidate(verified_grade="senior")))
         self.assertIsNone(score_candidate(NEED, candidate(verified_grade=None, declared_grade="junior")))
 
-    def test_unconfirmed_is_separate_even_with_more_points(self):
+    def test_declared_grade_is_not_admitted(self):
         confirmed = candidate(id="1", skills=["Python"], test_percentage=70)
-        unconfirmed = candidate(id="2", verified_grade=None, test_percentage=None)
-        groups = rank_candidates(NEED, [unconfirmed, confirmed])
-        self.assertEqual([item["candidate_id"] for item in groups["confirmed"]], ["1"])
-        self.assertEqual([item["candidate_id"] for item in groups["unconfirmed"]], ["2"])
+        declared_only = candidate(id="2", verified_grade=None, skills=["Python", "PostgreSQL"], test_percentage=None)
+        self.assertIsNone(score_candidate(NEED, declared_only))
+        ranked = rank_candidates(NEED, [declared_only, confirmed])
+        self.assertEqual([item["candidate_id"] for item in ranked], ["1"])
 
     def test_required_skill_outweighs_fsp_bonus(self):
         full = score_candidate(NEED, candidate())
@@ -95,12 +95,34 @@ class RankingTests(unittest.TestCase):
         high = score_candidate(NEED, candidate(test_percentage=90))
         self.assertGreater(high["parts"]["test"], low["parts"]["test"])
 
-    def test_report_uses_all_five_needs_without_quality_claim(self):
+    def test_skill_test_evidence_outweighs_self_reported_skills(self):
+        self_reported = candidate(id="1", skills=["Python", "PostgreSQL"])
+        measured = candidate(
+            id="2", skills=[], requested_skill_tests=[
+                {"name": "Python", "percentage": 80},
+                {"name": "PostgreSQL", "percentage": 80},
+            ],
+        )
+        ranked = rank_candidates(NEED, [self_reported, measured])
+        self.assertEqual([item["candidate_id"] for item in ranked], ["2", "1"])
+        self.assertEqual(ranked[1]["parts"]["tested_skills"], 0)
+        self.assertEqual(ranked[1]["tested_skill_count"], 0)
+
+    def test_missing_result_is_not_treated_as_zero_test(self):
+        partial = score_candidate(NEED, candidate(requested_skill_tests=[
+            {"name": "Python", "percentage": 80},
+            {"name": "PostgreSQL", "percentage": None},
+        ]))
+        self.assertEqual(partial["tested_skill_count"], 1)
+        self.assertGreater(partial["parts"]["tested_skills"], 0)
+
+    def test_report_compares_only_eligible_backend_needs_without_quality_claim(self):
         text = report.build_report()
         self.assertEqual(text.count("| Backend "), 3)
-        self.assertIn("| Frontend Middle |", text)
-        self.assertIn("| DevOps Junior |", text)
-        self.assertIn("Независимых оценок релевантности пока нет", text)
+        self.assertNotIn("| Frontend Middle |", text)
+        self.assertNotIn("| DevOps Junior |", text)
+        self.assertIn("Лучший порядок на этом наборе дала B-14", text)
+        self.assertIn("не доказывает, что формула лучше на реальных кандидатах", text)
 
 
 if __name__ == "__main__":

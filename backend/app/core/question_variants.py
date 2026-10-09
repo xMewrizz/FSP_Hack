@@ -7,6 +7,9 @@
 from typing import Any
 
 from app.core.question_bank import PREDEFINED_QUESTIONS
+from app.core.question_bank_expansion import EXTRA_FAMILIES, extra_prepared_variants
+from app.core.question_bank_curriculum import CURRICULUM_FAMILIES, curriculum_prepared_variants
+from app.core.question_bank_sources import SOURCE_FAMILIES, source_prepared_variants
 
 
 # В каждой семье базовый вопрос из question_bank.py и два варианта с разными
@@ -96,7 +99,7 @@ BACKEND_FAMILIES: dict[str, dict[str, Any]] = {
         "skill": "Идемпотентность денежной операции",
         "rubric": "Учитывает атомарную запись ключа и результата, потерянный ответ и конфликт при повторе с другим телом.",
         "template": "По контракту API один ключ идемпотентности допускает только одинаковые параметры перевода. Клиент повторил запрос с тем же ключом. {situation} Как должен ответить сервис?",
-        "options": ["Повторить списание и вернуть новый результат", "Вернуть сохранённый результат без нового списания", "Отклонить как конфликт параметров", "Считать таймаут доказательством отмены"],
+        "options": ["Повторить списание и вернуть новый результат", "Вернуть сохранённый результат без нового списания", "Отклонить как конфликт параметров", "Зафиксировать ключ со статусом ошибки и отклонить повтор с кодом 409 Conflict"],
         "cases": [
             {"params": {"situation": "Первый перевод зафиксирован, но ответ потерялся; сумма и получатель не изменились."}, "answer": 1, "explanation": "Для того же ключа и параметров возвращают прежний результат; повторное списание запрещено."},
             {"params": {"situation": "Первый перевод зафиксирован, а во втором запросе с тем же ключом указана другая сумма."}, "answer": 2, "explanation": "Тот же ключ с изменёнными параметрами — конфликт, а не новая операция и не старый успешный результат."},
@@ -107,15 +110,15 @@ BACKEND_FAMILIES: dict[str, dict[str, Any]] = {
         "rubric": "При предположении равномерного распределения оценивает долю ключей нового узла как 1/(N+1).",
         "template": "Позиции узлов и ключей независимо и равномерно хешируются на кольцо. Было {nodes} узла; добавляют ещё один. Какую долю ключей ожидаемо перенесут на новый узел?",
         "cases": [
-            {"params": {"nodes": 3}, "options": ["Примерно 1/4", "Примерно 1/3", "Почти все", "Ни одного"], "answer": 0, "explanation": "После добавления четвёртого узла его ожидаемая доля при случайном равномерном размещении — четверть ключей."},
-            {"params": {"nodes": 4}, "options": ["Примерно 1/4", "Почти все", "Примерно 1/5", "Ни одного"], "answer": 2, "explanation": "После добавления пятого узла его ожидаемая доля при случайном равномерном размещении — пятая часть ключей."},
+            {"params": {"nodes": 3}, "options": ["Примерно 1/4", "Примерно 1/3", "Примерно 1/12", "Примерно 1/2"], "answer": 0, "explanation": "После добавления четвёртого узла его ожидаемая доля при случайном равномерном размещении — четверть ключей."},
+            {"params": {"nodes": 4}, "options": ["Примерно 1/4", "Примерно 1/20", "Примерно 1/5", "Примерно 1/2"], "answer": 2, "explanation": "После добавления пятого узла его ожидаемая доля при случайном равномерном размещении — пятая часть ключей."},
         ],
     },
     "BE-SR-03": {
         "skill": "Переходы состояний circuit breaker",
         "rubric": "По заданному порогу и последовательности событий определяет состояние; успех сбрасывает счётчик ошибок, по окончании паузы Open переходит в Half-open.",
         "template": "Circuit breaker открывается после трёх ошибок подряд; успех сбрасывает счётчик. После паузы Open переходит в Half-open и пропускает пробный вызов. {events} Каково состояние в конце?",
-        "options": ["Closed", "Open", "Half-open", "Состояние нельзя определить"],
+        "options": ["Closed", "Open", "Half-open", "Degraded"],
         "cases": [
             {"params": {"events": "Начальное состояние Closed; затем ошибка, ошибка, успех, ошибка."}, "answer": 0, "explanation": "Успех сбросил счётчик. После последней ошибки подряд есть только одна ошибка, цепь остаётся Closed."},
             {"params": {"events": "Начальное состояние Closed; три ошибки подряд открыли цепь, пауза закончилась, пробный вызов ещё не выполнен."}, "answer": 2, "explanation": "После указанной паузы Open перешёл в Half-open; результата пробного вызова ещё нет."},
@@ -132,9 +135,23 @@ BACKEND_FAMILIES: dict[str, dict[str, Any]] = {
     },
 }
 
+BACKEND_FAMILIES.update(EXTRA_FAMILIES)
+BACKEND_FAMILIES.update(CURRICULUM_FAMILIES)
+BACKEND_FAMILIES.update(SOURCE_FAMILIES)
+
 
 def prepared_variants(base_code: str) -> list[dict[str, Any]]:
     """Три проверяемых варианта семьи: текущий вопрос и два параметрических."""
+    from app.core.question_bank_ds import DS_FAMILIES, ds_prepared_variants
+
+    if base_code in SOURCE_FAMILIES:
+        return source_prepared_variants(base_code)
+    if base_code in CURRICULUM_FAMILIES:
+        return curriculum_prepared_variants(base_code)
+    if base_code in EXTRA_FAMILIES:
+        return extra_prepared_variants(base_code)
+    if base_code in DS_FAMILIES:
+        return ds_prepared_variants(base_code)
     family = BACKEND_FAMILIES[base_code]
     base = next(q for q in PREDEFINED_QUESTIONS if q["code"] == base_code)
     result = [{**base, "family_code": base_code, "variant_id": "v1", "skill": family["skill"], "rubric": family["rubric"]}]

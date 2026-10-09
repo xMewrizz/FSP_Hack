@@ -42,12 +42,15 @@ class CandidateProfile(Base, TimestampMixin):
     resume_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     specialization: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
+    programming_language: Mapped[str | None] = mapped_column(String(50), nullable=True)
     declared_grade: Mapped[str | None] = mapped_column(String(50), index=True, nullable=True)
     verified_grade: Mapped[str | None] = mapped_column(String(50), index=True, nullable=True)
+    verified_specialization: Mapped[str | None] = mapped_column(String(100), nullable=True)
     verified_grade_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     work_format: Mapped[str | None] = mapped_column(String(50), default="remote", nullable=True)
     salary_expectation: Mapped[float | None] = mapped_column(Float, nullable=True)
+    salary_tax_type: Mapped[str] = mapped_column(String(20), default="gross", nullable=False)
     skills: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
 
     fsp_id: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
@@ -61,6 +64,7 @@ class CandidateProfile(Base, TimestampMixin):
     agreed_osint_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     visibility_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    mentor_available: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="candidate_profile")

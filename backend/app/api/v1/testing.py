@@ -1,26 +1,116 @@
 import uuid
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_current_candidate, get_db
+from app.api.deps import get_current_candidate, get_current_reviewer, get_db
 from app.models.user import User
 from app.schemas.testing import (
+    GradeAssessmentResponse,
+    AdditionalSkillTestResponse,
+    OpenQuestionResponse,
+    OpenQuestionReviewRequest,
+    OpenQuestionSubmissionResponse,
+    OpenQuestionSubmitRequest,
     TestResultResponse,
     TestSessionHistoryItem,
     TestStartRequest,
     TestStartResponse,
     TestSubmitRequest,
-    TestingStatusResponse,
 )
+from app.services.open_question_service import (
+    get_candidate_submissions,
+    get_pending_open_submissions,
+    get_public_open_questions,
+    review_open_submission,
+    submit_open_question_answer,
+)
+from app.core.open_question_bank import get_open_question_by_code
+from app.services.roadmap_service import roadmap_service
 from app.services.testing_service import testing_service
 
 router = APIRouter(prefix="/testing", tags=["Testing & Skill Verification"])
+
+
+
+@router.get("/additional", response_model=list[AdditionalSkillTestResponse])
+async def available_additional_tests(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await roadmap_service.available_additional(db, current_user)
+
+
+@router.post(
+    "/additional/{skill_code}/start",
+    response_model=TestStartResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_additional_test(
+    skill_code: str,
+    data: TestStartRequest,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    if data.target_grade is None:
+        raise HTTPException(400, "Укажите уровень дополнительного теста")
+    return await roadmap_service.start_additional(
+        db, current_user, skill_code, data.target_grade.value,
+    )
+
+
+@router.post("/roadmap", response_model=GradeAssessmentResponse, status_code=status.HTTP_201_CREATED)
+async def start_roadmap(
+    data: TestStartRequest = TestStartRequest(),
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await roadmap_service.start(db, current_user, data)
+
+
+@router.get("/roadmap/current", response_model=GradeAssessmentResponse | None)
+async def current_roadmap(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await roadmap_service.latest(db, current_user)
+
+
+@router.get("/roadmap/{assessment_id}", response_model=GradeAssessmentResponse)
+async def get_roadmap(
+    assessment_id: uuid.UUID,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await roadmap_service.get(db, current_user, assessment_id)
+
+
+@router.post("/roadmap/{assessment_id}/stop", response_model=GradeAssessmentResponse)
+async def stop_roadmap(
+    assessment_id: uuid.UUID,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await roadmap_service.stop(db, current_user, assessment_id)
+
+
+@router.post(
+    "/roadmap/{assessment_id}/skills/{skill_code}/start",
+    response_model=TestStartResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_roadmap_skill(
+    assessment_id: uuid.UUID,
+    skill_code: str,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await roadmap_service.start_skill(db, current_user, assessment_id, skill_code)
 
 
 @router.post(
     "/start",
     response_model=TestStartResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Начать тестирование для подтверждения грейда",
+    summary="Начать общий тест прежнего формата без присвоения грейда",
 )
 async def start_test(
     data: TestStartRequest = TestStartRequest(),
@@ -30,22 +120,10 @@ async def start_test(
     return await testing_service.start_test(db, current_user, data)
 
 
-@router.get(
-    "/status",
-    response_model=TestingStatusResponse,
-    summary="Текущий статус подтверждения грейда, кулдаун 90 дней и доступные тесты",
-)
-async def get_testing_status(
-    current_user: User = Depends(get_current_candidate),
-    db: AsyncSession = Depends(get_db),
-):
-    return await testing_service.get_status(db, current_user)
-
-
 @router.post(
     "/{session_id}/submit",
     response_model=TestResultResponse,
-    summary="Отправить ответы на тест и получить подтвержденный грейд",
+    summary="Отправить ответы на тест и получить результат",
 )
 async def submit_test(
     session_id: uuid.UUID,
@@ -69,6 +147,114 @@ async def get_test_history(
 
 
 @router.get(
+    "/open-questions",
+    response_model=list[OpenQuestionResponse],
+    summary="Список доступных открытых вопросов и заданий с кодом",
+)
+async def list_open_questions(specialization: str | None = None):
+    return get_public_open_questions(specialization)
+
+
+@router.get(
+    "/open-questions/{code}",
+    response_model=OpenQuestionResponse,
+    summary="Получить открытый вопрос по коду",
+)
+async def get_open_question(code: str):
+    q = get_open_question_by_code(code)
+    if not q:
+        raise HTTPException(status_code=404, detail="Открытый вопрос не найден")
+    return {
+        "code": q["code"],
+        "title": q["title"],
+        "specialization": q["specialization"],
+        "grade": q["grade"],
+        "question_type": q["question_type"],
+        "question_text": q["question_text"],
+        "rubric_criteria": q["rubric_criteria"],
+    }
+
+
+@router.post(
+    "/open-questions/{code}/submit",
+    response_model=OpenQuestionSubmissionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Отправить решение открытого вопроса на проверку",
+)
+async def submit_open_question(
+    code: str,
+    data: OpenQuestionSubmitRequest,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = current_user.candidate_profile
+    if not profile:
+        raise HTTPException(status_code=400, detail="Профиль кандидата не найден")
+    try:
+        return await submit_open_question_answer(
+            db=db,
+            user=current_user,
+            profile=profile,
+            question_code=code,
+            answer_text=data.answer_text,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get(
+    "/open-submissions",
+    response_model=list[OpenQuestionSubmissionResponse],
+    summary="Список отправленных кандидатом решений открытых вопросов",
+)
+async def list_candidate_open_submissions(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = current_user.candidate_profile
+    if not profile:
+        raise HTTPException(status_code=400, detail="Профиль кандидата не найден")
+    return await get_candidate_submissions(db, profile.id)
+
+
+@router.get(
+    "/open-submissions/pending-review",
+    response_model=list[OpenQuestionSubmissionResponse],
+    summary="Очередь открытых решений, требующих проверки экспертом (B-27)",
+)
+async def list_pending_open_submissions(
+    current_user: User = Depends(get_current_reviewer),
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_pending_open_submissions(db)
+
+
+@router.post(
+    "/open-submissions/{submission_id}/review",
+    response_model=OpenQuestionSubmissionResponse,
+    summary="Экспертная проверка и утверждение оценки открытого задания (B-27)",
+)
+async def review_submission(
+    submission_id: uuid.UUID,
+    data: OpenQuestionReviewRequest,
+    current_user: User = Depends(get_current_reviewer),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await review_open_submission(
+            db=db,
+            submission_id=submission_id,
+            reviewer_id=current_user.id,
+            score=data.score,
+            passed=data.passed,
+            notes=data.notes,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+
+@router.get(
     "/{session_id}",
     response_model=TestResultResponse,
     summary="Детальные результаты сессии тестирования",
@@ -79,3 +265,4 @@ async def get_test_session(
     db: AsyncSession = Depends(get_db),
 ):
     return await testing_service.get_session(db, current_user, session_id)
+

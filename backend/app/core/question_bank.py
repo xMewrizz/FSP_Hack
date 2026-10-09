@@ -127,7 +127,7 @@ PREDEFINED_QUESTIONS: list[dict[str, Any]] = [
         "code": "BE-MID-04",
         "specialization": "Backend",
         "grade": "middle",
-        "topic": "Архитектура & Паттерны",
+        "topic": "SQLAlchemy & транзакции",
         "question_type": "single_choice",
         "question_text": "После добавления новой строки вызывают `Session.rollback()`. Что верно сразу после успешного вызова?",
         "options": [
@@ -146,14 +146,14 @@ PREDEFINED_QUESTIONS: list[dict[str, Any]] = [
         "code": "BE-SR-01",
         "specialization": "Backend",
         "grade": "senior",
-        "topic": "Распределённые системы & CAP",
+        "topic": "Распределённые системы & идемпотентность",
         "question_type": "single_choice",
         "question_text": "Первый перевод с ключом идемпотентности откатился до сохранения ключа и денег. Клиент повторил запрос с теми же параметрами. Что должен сделать сервис?",
         "options": [
             {"id": "A", "text": "Вернуть результат первого перевода как успешный"},
             {"id": "B", "text": "Отклонить любой повтор ключа, даже если первая операция откатилась"},
             {"id": "C", "text": "Выполнить перевод с тем же ключом и атомарно сохранить ключ вместе с результатом"},
-            {"id": "D", "text": "Списать деньги без записи ключа, чтобы ускорить повтор"},
+            {"id": "D", "text": "Зафиксировать ключ со статусом ошибки и отклонить повтор с кодом 409 Conflict"},
         ],
         "correct_answers": ["C"],
         "explanation": "После полного отката сохранённого результата и ключа нет. Повтор можно выполнить, но перевод, ключ и результат нужно зафиксировать атомарно, чтобы следующий повтор не списал деньги снова.",
@@ -168,9 +168,9 @@ PREDEFINED_QUESTIONS: list[dict[str, Any]] = [
         "question_text": "Позиции узлов и ключей независимо и равномерно хешируются на кольцо. Было 5 узлов, добавляют шестой. Какую долю ключей ожидаемо перенесут на новый узел?",
         "options": [
             {"id": "A", "text": "Примерно 1/5"},
-            {"id": "B", "text": "Почти все"},
+            {"id": "B", "text": "Примерно 1/2"},
             {"id": "C", "text": "Примерно 1/6"},
-            {"id": "D", "text": "Ни одного"},
+            {"id": "D", "text": "Примерно 1/30"},
         ],
         "correct_answers": ["C"],
         "explanation": "При случайном равномерном размещении ожидаемая доля нового узла — 1/(N+1). После добавления к пяти узлам это около 1/6 ключей. Реальная доля зависит от распределения и виртуальных узлов.",
@@ -187,7 +187,7 @@ PREDEFINED_QUESTIONS: list[dict[str, Any]] = [
             {"id": "A", "text": "Closed"},
             {"id": "B", "text": "Open"},
             {"id": "C", "text": "Half-open"},
-            {"id": "D", "text": "Состояние нельзя определить"},
+            {"id": "D", "text": "Degraded"},
         ],
         "correct_answers": ["B"],
         "explanation": "Три ошибки подряд достигли указанного порога, поэтому цепь переходит в Open и последующие вызовы временно не идут во внешний сервис.",
@@ -317,3 +317,15 @@ PREDEFINED_QUESTIONS: list[dict[str, Any]] = [
         "weight": 2.0,
     },
 ]
+
+from app.core.question_bank_expansion import extra_base_questions
+
+PREDEFINED_QUESTIONS.extend(extra_base_questions())
+
+from app.core.question_bank_curriculum import curriculum_base_questions
+
+PREDEFINED_QUESTIONS.extend(curriculum_base_questions())
+
+from app.core.question_bank_sources import source_base_questions
+
+PREDEFINED_QUESTIONS.extend(source_base_questions())

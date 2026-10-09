@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Any
 import uuid
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.core.constants import Grade, WorkFormat
 
 
@@ -9,7 +10,18 @@ class MatchExplanation(BaseModel):
     matched_skills: list[str]
     missing_skills: list[str]
     fsp_bonus: bool
+    salary_match: bool | None = None
+    salary_note: str | None = None
     summary: str
+
+
+class RequestedSkillTestResult(BaseModel):
+    name: str
+    weight: float
+    percentage: float | None = None
+    test_grade: str | None = None
+    test_kind: str | None = None
+    completed_at: datetime | None = None
 
 
 class CandidateMatchItem(BaseModel):
@@ -27,9 +39,12 @@ class CandidateMatchItem(BaseModel):
     fsp_rating: float | None
     achievements_count: int
     skills: list[str]
+    salary_expectation: float | None = None
+    salary_tax_type: str | None = None
     test_percentage: float | None
     match_score: float
     match_explanation: MatchExplanation
+    requested_skill_tests: list[RequestedSkillTestResult] = Field(default_factory=list)
 
 
 class MatchingCandidatesResponse(BaseModel):

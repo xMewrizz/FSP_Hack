@@ -1,8 +1,8 @@
 # API и локальный запуск
 
-Ниже перечислены API, которые есть в коде. На 8 октября 2026 года прошли 28 backend-тестов; отдельный бенчмарк B-31 не уложился в свой порог времени ответа. Основной сценарий проверен на запущенном Compose с PostgreSQL.
+Ниже перечислены API, которые есть в коде. Основной сценарий проверен на запущенном Compose с PostgreSQL. Отдельный бенчмарк B-31 пока не уложился в свой порог времени ответа.
 
-Рядом с зарплатой в потребности, вакансии и приглашении надо писать: **«до вычета НДФЛ»** или **«на руки»**. Сейчас в API есть только сумма и валюта; пометку ещё нужно добавить. Жюри должно суметь пройти тест самостоятельно. Для запуска на их стенде не должны требоваться GPU и работающая LLM.
+Рядом с зарплатой в потребности, вакансии и приглашении показано: **«до вычета НДФЛ»** или **«на руки»**. Поле `salary_tax_type` хранится в соответствующих API. Интерфейсы публикации вакансий и откликов подключены к API; ручная проверка production-сценария с отдельными авторизованными ролями всё ещё нужна. На показе жюри должно суметь пройти тест самостоятельно. Для основного запуска не требуются GPU и работающая LLM.
 
 ## Интерактивная документация (Swagger / ReDoc)
 
@@ -33,6 +33,26 @@ docker compose up --build -d
 
 Адрес `VITE_API_URL` встраивается при сборке frontend. После его изменения нужна повторная сборка. Для проверки сценария на работающем backend запустите из `backend/` команду `uv run python smoke_compose.py` (при другом порте сначала задайте `$env:FSP_API_BASE_URL = "http://localhost:18000/api/v1"`). Скрипт создаёт две тестовые учётные записи.
 
+Режим «Описать задачу для LLM» использует локальную Ollama. На компьютере, где она запущена, загрузите модель командой `ollama pull qwen3:8b`. По умолчанию ML-сервис в Compose обращается к `http://host.docker.internal:11434` (`OLLAMA_BASE_URL`), модель — `qwen3:8b` (`OLLAMA_MODEL`). Для Qwen3 запрос отключает режим размышления и использует контекст 4096 токенов. Адрес `OLLAMA_BASE_URL` — настройка клиента внутри Compose; `OLLAMA_HOST` — настройка самого сервера Ollama. Не задавайте серверный `OLLAMA_HOST` в `.env` проекта вместо адреса клиента.
+
+Если Ollama работает в Windows, а контейнер не видит её, задайте для приложения Ollama `OLLAMA_HOST=0.0.0.0:11434` и перезапустите его ([инструкция Ollama для Windows](https://docs.ollama.com/faq)). Порт 11434 должен быть доступен контейнеру; публиковать его в интернет не требуется. Проверить связь можно из корня репозитория: `docker compose exec ml-service python -c "import httpx; print(httpx.get('http://host.docker.internal:11434/api/tags').status_code)"` — ожидается `200`. После первого запроса `ollama ps` покажет, загружена ли модель на GPU. Ответ модели запрашивается в JSON по схеме и проверяется сервисом ([документация Ollama](https://docs.ollama.com/capabilities/structured-outputs)). Если Ollama не запущена или модель не установлена, ручное заполнение потребности остаётся доступным.
+
+После запуска модели можно выполнить `uv run --project backend python ml-service/check_need_suggestions.py` из корня репозитория. Скрипт выводит предложенные навыки, веса и время ответа для восьми вымышленных потребностей; результаты нужно просмотреть вручную, прежде чем считать B-26 проверенной.
+
+Если обычные порты заняты, можно запустить отдельный Compose-проект с пустой базой:
+
+```powershell
+$env:DB_PORT = "15432"
+$env:REDIS_PORT = "16379"
+$env:ML_PORT = "18001"
+$env:BACKEND_PORT = "18010"
+$env:FRONTEND_PORT = "15173"
+$env:VITE_API_URL = "http://localhost:18010/api/v1"
+docker compose -p fsp-check up --build -d
+```
+
+Интерфейс будет на `http://localhost:15173`. Для проверки API задайте `$env:FSP_API_BASE_URL = "http://localhost:18010/api/v1"` и запустите `uv run python smoke_compose.py` из `backend/`. По окончании остановите проверочный проект командой `docker compose -p fsp-check down`; его база остаётся в отдельном томе Docker.
+
 ### Быстрый запуск через UV
 Из корня репозитория в PowerShell:
 
@@ -49,11 +69,15 @@ uv run pytest -v
 
 Замер B-31 запускается отдельно: `uv run pytest tests/benchmark_performance_b31.py -q -s`. Он использует SQLite внутри процесса, поэтому его цифры не заменяют проверку работающего стенда с PostgreSQL.
 
-Заполнение базы реалистичными демонстрационными данными (5 кандидатов, 2 работодателя, потребности, приглашения):
+Для замера работающего Compose с PostgreSQL после заполнения демо-данных запустите из `backend/`: `uv run python benchmark_live_b31.py --concurrency 50 --rounds 3`. Скрипт измеряет чтение истории теста, поиск и подбор по потребности. Он не создаёт новые тестовые попытки. Результат зависит от нагрузки на компьютер, поэтому сравнивать изменения нужно повторными прогонами на одном стенде.
+
+Заполнение базы демонстрационными данными (14 кандидатов, 2 работодателя, потребности, приглашения):
 ```powershell
 # Можно вызвать через Swagger POST /api/v1/system/seed или curl:
 curl -X POST http://localhost:8000/api/v1/system/seed
 ```
+
+Среди них девять вымышленных профилей Data Science / ML: по три Junior, Middle и Senior. У каждого свой стек и дополнительные навыки. Их грейды и общие результаты теста сгенерированы для показа подборки; это не реальные прохождения и не доказательство готовности теста Data Science. Повторный вызов не создаёт дублей.
 
 ---
 
@@ -77,26 +101,34 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 ### 2. Профиль и онбординг кандидата (`/api/v1/candidate` и `/api/v1/candidates`)
 
+Загрузка PDF только разбирает файл и возвращает предпросмотр; сервер не сохраняет извлечённые поля автоматически. Кандидат проверяет/редактирует их в профиле и отдельно вызывает `PUT /candidates/profile`.
+
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/candidates/onboarding` | Заполнение профиля и выбор согласий | `Bearer JWT` (Candidate) | `{ "first_name": "Иван", "last_name": "Иванов", "specialization": "Backend", "declared_grade": "junior" \| "middle" \| "senior" \| "lead", "work_format": "remote" \| "office" \| "hybrid", "city": "Москва", "fsp_id": "FSP-77-001", "agreed_152_fz": true, "agreed_publication": false, "visibility_public": false, "agreed_osint": false }` | `200 OK`: `CandidateProfileResponse` (включая достижения ФСП и настройки видимости) |
 | `GET` | `/candidates/profile` | Получить профиль текущего кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `CandidateProfileResponse` |
 | `PUT` | `/candidates/profile` | Частичное обновление данных и настроек видимости | `Bearer JWT` (Candidate) | Поля для обновления (город, стек, резюме, грейд, `agreed_publication`, `visibility_public` и др.) | `200 OK`: `CandidateProfileResponse` |
 | `POST` | `/candidates/link-fsp` | Привязать или обновить ФСП ID | `Bearer JWT` (Candidate) | `{ "fsp_id": "FSP-78-042" }` | `200 OK`: `CandidateProfileResponse` с обновленными достижениями |
-| `DELETE` | `/candidates/link-fsp` | Отвязать ФСП ID от профиля и удалить достижения | `Bearer JWT` (Candidate) | — | `200 OK`: `CandidateProfileResponse` |
 | `POST` | `/candidates/resume/upload` | Загрузить PDF-резюме и извлечь данные (парсинг `pypdf`) | `Bearer JWT` (Candidate) | Multipart Form (`file: UploadFile`) | `200 OK`: `ResumeParsedData` (email, телефон, контакты, стек, предложенный грейд) |
-| `GET` | `/candidates/profile/pdf` | Скачать стандартизированный PDF-профиль текущего кандидата (`reportlab` с поддержкой кириллицы) | `Bearer JWT` (Candidate) | `include_contacts: bool = True` | `200 OK`: PDF-файл (`application/pdf`) с подтвержденными навыками и статусом ФСП |
-| `GET` | `/candidates/{candidate_id}/pdf` | Скачать стандартизированный PDF-профиль кандидата (Работодатель, 152-ФЗ) | `Bearer JWT` (Employer) | `candidate_id: UUID` | `200 OK`: PDF-файл (контакты скрыты до принятия приглашения, 152-ФЗ) |
+| `GET` | `/candidates/profile/pdf` | Скачать PDF-профиль после согласия на публикацию | `Bearer JWT` (Candidate) | — | `200 OK`: PDF без контактов; `403`, если согласия нет. Самостоятельно указанные навыки не помечаются как подтверждённые, данные ФСП обозначены как демонстрационные. |
 
 ---
 
 ### 3. Тестирование и подтверждение категории (`/api/v1/testing`)
 
+Новый сценарий Backend использует `/testing/roadmap`: набор обязательных навыков можно проходить по частям в течение трёх дней. В ответе есть `expires_at` и `retake_used`; после неудачной пересдачи Junior — `retry_available_at`. После завершения первого набора повторный `POST /testing/roadmap` с тем же грейдом открывает одну пересдачу всех навыков с новым трёхдневным сроком. После второй неудачи Middle/Senior предлагается грейд ниже; Junior может открыть новый цикл через неделю. Прежний `/testing/start` остался для совместимости и не присваивает грейд. Правила — в [описании тестирования](02-testing-matching.md).
+
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/testing/start` | Начать тест на заявленный грейд и специализацию (проверка правила 90 дней и разблокировки по рекомендации) | `Bearer JWT` (Candidate) | `{ "specialization": "Backend", "target_grade": "senior" }` | `201 Created`: `TestStartResponse` (сессия, вопросы без ответов, варианты, темы) |
-| `GET` | `/testing/status` | Текущий статус подтверждения грейда, кулдаун 90 дней, рекомендации и доступные тесты (B-12) | `Bearer JWT` (Candidate) | — | `200 OK`: `TestingStatusResponse` (`verified_grade`, `cooldown_active`, `cooldown_days_remaining`, `recommended_action`, `available_grades`) |
-| `POST` | `/testing/{session_id}/submit` | Отправить ответы на тест и получить подтвержденный грейд | `Bearer JWT` (Candidate) | `{ "answers": [ { "question_id": "...", "selected_answers": ["B"] } ] }` | `200 OK`: `TestResultResponse` (баллы, процент, статус сдачи, разбивка по навыкам, присвоенный грейд, рекомендации) |
+| `POST` | `/testing/roadmap` | Открыть или продолжить набор обязательных навыков выбранного Backend-грейда | `Bearer JWT` (Candidate) | `{ "specialization": "Backend", "target_grade": "junior" }` либо `{}` для данных профиля | `201 Created`: прогресс набора и четыре навыка |
+| `GET` | `/testing/roadmap/current` | Последний набор кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: набор или `null` |
+| `GET` | `/testing/roadmap/{assessment_id}` | Прогресс конкретного набора | `Bearer JWT` (Candidate) | — | `200 OK`: результаты навыков и итог, если набор завершён |
+| `POST` | `/testing/roadmap/{assessment_id}/stop` | Прервать текущий набор перед переходом на уровень ниже | `Bearer JWT` (Candidate) | `{}` | `200 OK`: набор со статусом `cancelled` |
+| `POST` | `/testing/roadmap/{assessment_id}/skills/{skill_code}/start` | Начать или продолжить обязательный навык | `Bearer JWT` (Candidate) | — | `201 Created`: задания навыка без ключей; завершённый навык или истёкший набор даёт `409` |
+| `GET` | `/testing/additional` | Доступные дополнительные тесты текущего подтверждённого грейда | `Bearer JWT` (Candidate) | — | `200 OK`: навыки и последние результаты |
+| `POST` | `/testing/additional/{skill_code}/start` | Начать дополнительный тест | `Bearer JWT` (Candidate) | `{ "target_grade": "junior" }` — текущий подтверждённый грейд | `201 Created`: вопросы навыка; неподдерживаемая пара даёт `400` |
+| `POST` | `/testing/start` | Прежний общий тест, только для совместимости; грейд не присваивает | `Bearer JWT` (Candidate) | `{ "specialization": "Backend", "target_grade": "senior" }` | `201 Created`: 12 заданий без ключей |
+| `POST` | `/testing/{session_id}/submit` | Отправить ответы на тест навыка или прежний общий тест | `Bearer JWT` (Candidate) | `{ "answers": [ { "question_id": "...", "selected_answers": ["B"] } ] }` | `200 OK`: результат навыка; после последнего обязательного навыка — решение о грейде |
 | `GET` | `/testing/history` | История попыток тестирования кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: Список пройденных сессий |
 | `GET` | `/testing/{session_id}` | Детальные результаты конкретной сессии | `Bearer JWT` (Candidate) | — | `200 OK`: `TestResultResponse` |
 
@@ -116,9 +148,10 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/needs` | Создать потребность в кандидате (с валидацией `min_salary <= max_salary`) | `Bearer JWT` (Employer) | `{ "title": "Senior Python Backend", "specialization": "Backend", "required_grade": "senior", "required_skills": [{"name": "PostgreSQL", "weight": 1.0}], "salary_min": 250000, "salary_max": 350000, "currency": "RUB", "work_format": "remote", "city": "Москва", "description": "..." }` | `201 Created`: `EmployerNeedResponse` |
+| `POST` | `/needs/parse` | Через Ollama предложить навыки и их веса по описанию; ничего не сохраняет | `Bearer JWT` (Employer) | `{ "text": "Нужен специалист для API и работы с данными..." }` (20–5000 символов) | `200 OK`: предложения модели и явно найденные грейд, зарплата, тип зарплаты, формат. Если модель недоступна или ответ некорректен — `503`; ручная форма работает |
+| `POST` | `/needs` | Создать потребность в кандидате (с проверкой `salary_min <= salary_max`) | `Bearer JWT` (Employer) | `{ "title": "Senior Python Backend", "specialization": "Backend", "required_grade": "senior", "required_skills": [{"name": "PostgreSQL", "weight": 3}], "salary_min": 250000, "salary_max": 350000, "salary_tax_type": "gross", "currency": "RUB", "work_format": "remote", "city": "Москва", "description": "..." }` | `201 Created`: `EmployerNeedResponse` |
 | `GET` | `/needs` | Список потребностей текущей компании | `Bearer JWT` (Employer) | — | `200 OK`: Массив `EmployerNeedResponse` |
-| `GET` | `/needs/{id}` | Детали потребности | Любая авторизация | — | `200 OK`: `EmployerNeedResponse` |
+| `GET` | `/needs/{id}` | Детали потребности своей компании | `Bearer JWT` (Employer) | — | `200 OK`: `EmployerNeedResponse` |
 | `PUT` | `/needs/{id}` | Обновить параметры потребности | `Bearer JWT` (Employer) | Поля для обновления | `200 OK`: `EmployerNeedResponse` |
 | `DELETE` | `/needs/{id}` | Удалить потребность | `Bearer JWT` (Employer) | — | `200 OK`: `{ "message": "Потребность успешно удалена" }` |
 
@@ -135,9 +168,35 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 ### 7. Прямые приглашения / Офферы (`/api/v1/invitations`)
 
+#### Чат принятого приглашения
+
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/invitations` | Отправить прямое приглашение кандидату (контакты скрыты до принятия) | `Bearer JWT` (Employer) | `{ "candidate_id": "...", "need_id": "...", "offer_description": "...", "contact_method": "...", "salary_min": 250000, "salary_max": 350000, "currency": "RUB" }` | `201 Created`: `InvitationResponse` (`status="sent"`, `candidate_contacts=None`) |
+| `GET` | `/invitations/messages/unread-count` | Счётчик непрочитанных сообщений и значения по ID приглашения | Участник | — | `{ "unread_count": 1, "by_invitation": { "<id>": 1 } }` |
+| `GET` | `/invitations/{id}/messages` | История чата; помечает входящие сообщения прочитанными | Участник принятого приглашения | — | Список сообщений и `unread_count` |
+| `POST` | `/invitations/{id}/messages` | Отправить текстовое сообщение длиной 1–4000 символов | Участник принятого приглашения | `{ "body": "Здравствуйте!" }` | Сообщение с временем и признаком `is_mine` |
+
+До принятия приглашения чат недоступен. Для production запустить [миграцию 005](../backend/alembic/versions/005_invitation_conversations.py); участники и статус проверяются backend для каждого запроса. Frontend обновляет открытую историю с интервалом 5 секунд, без WebSocket.
+
+#### Наставничество и профессиональная сеть
+
+Наставники — кандидаты, которые сами включили `mentor_available` в настройках и имеют подтверждённый грейд выше пользователя, выполняющего поиск. Карточка поиска не раскрывает контакты. Для принятия новых запросов и переписки используйте [миграцию 006](../backend/alembic/versions/006_mentorship_network.py).
+
+| Метод | URL | Описание | Авторизация | Параметры / тело | Ответ |
+|---|---|---|---|---|---|
+| `GET` | `/network/mentors` | Поиск наставников по навыку и специализации | Кандидат | `skill`, `specialization` | Профили с подтверждённым более высоким грейдом, без контактных данных |
+| `POST` | `/network/mentorship-requests` | Запросить наставничество с сообщением и фокусом навыка | Кандидат | `mentor_user_id`, `skill_focus`, `message` (до 4000 символов) | Созданный диалог со статусом `pending` |
+| `GET` | `/network/conversations` | Диалоги наставничества, входящие запросы и статусы | Кандидат | — | Список диалогов; `can_accept` выставлен только наставнику |
+| `POST` | `/network/conversations/{id}/accept` | Принять входящий запрос | Приглашённый наставник | — | Диалог со статусом `accepted` |
+| `POST` | `/network/conversations/{id}/decline` | Отклонить входящий запрос | Приглашённый наставник | — | `204 No Content` |
+| `GET` | `/network/conversations/{id}/messages` | Читать историю запроса или принятого диалога | Участник | — | Сообщения с `is_mine` и временем |
+| `POST` | `/network/conversations/{id}/messages` | Отправить текст в принятом диалоге | Участник принятого диалога | `{ "body": "..." }` | `201 Created`; до принятия — `409` |
+
+В поиске не показываются кандидаты без подтверждённого собственного грейда: система не может достоверно определить, кто выше. Повторный активный запрос между той же парой пользователей отклоняется с `409`.
+
+| Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/invitations` | Отправить приглашение кандидату; `need_id`, если указан, должен принадлежать компании. Контакты скрыты до принятия. | `Bearer JWT` (Employer) | `{ "candidate_id": "...", "need_id": "...", "offer_description": "...", "contact_method": "...", "salary_min": 250000, "salary_max": 350000, "salary_tax_type": "gross", "currency": "RUB" }` (`gross` — до вычета НДФЛ, `net` — на руки) | `201 Created`: `InvitationResponse` (`status="sent"`, `candidate_contacts=None`) |
 | `GET` | `/invitations/sent` | Список отправленных компанией приглашений | `Bearer JWT` (Employer) | — | `200 OK`: Список приглашений (контакты раскрываются только если `status="accepted"`) |
 | `GET` | `/invitations/my` | Входящие приглашения кандидата (автоматически переводит статус в `viewed`) | `Bearer JWT` (Candidate) | — | `200 OK`: Список входящих офферов |
 | `POST` | `/invitations/{id}/accept` | Принять приглашение (раскрывает контакты работодателю) | `Bearer JWT` (Candidate) | `{ "reply": "Спасибо, согласен!" }` | `200 OK`: `InvitationResponse` (`status="accepted"`) |
@@ -145,14 +204,14 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 ---
 
-### 8. Реестр ФСП и Keycloak OIDC Mock (`/api/v1/fsp`)
+### 8. Демонстрационные данные ФСП (`/api/v1/fsp`)
 
 | Метод | URL | Описание | Параметры | Ответ |
 | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/fsp/athletes` | Список спортсменов демонстрационного реестра | — | `200 OK`: Массив спортсменов с рейтингом и разрядами |
-| `GET` | `/fsp/verify/{fsp_id}` | Проверка ФСП ID и подтягивание турниров | `fsp_id` (например, `FSP-77-001`, `FSP-78-042`) | `200 OK`: `FSPVerificationResult` (`found`, `athlete_name`, `sport_category`, `achievements`) |
-| `GET` | `/fsp/keycloak/userinfo` | OIDC Keycloak UserInfo эндпоинт | `fsp_id` | `200 OK`: JSON профиля спортсмена для OAuth2 SSO |
-| `POST` | `/fsp/login-by-fsp-id` | Быстрый вход (SSO) в 1 клик по ФСП ID | `fsp_id` в Query | `200 OK`: `TokenResponse` (автоматическая регистрация и авторизация) |
+| `GET` | `/fsp/athletes` | Тестовые записи ФСП | — | `200 OK`: вымышленные участники и достижения |
+| `GET` | `/fsp/verify/{fsp_id}` | Поиск ID в демонстрационных данных | `fsp_id` (например, `FSP-77-001`) | `200 OK`: найденная тестовая запись или пустой результат; совпадение не подтверждает личность |
+
+Вход по одному ФСП ID отключён: известный ID из демо-набора не доказывает владение учётной записью. Путь `/fsp/keycloak/userinfo` также удалён; настоящую интеграцию OIDC можно добавить после настройки доверенного провайдера и проверки токена. Поле `fsp_verified` в текущем API означает совпадение ID с записью, а не проверку личности. В демо достижения не меняют подтверждённый грейд.
 
 ---
 

@@ -5,17 +5,24 @@ from pypdf import PdfReader
 
 
 @pytest.mark.asyncio
-async def test_b08_fsp_sso_and_achievements_do_not_grant_grade(client: AsyncClient):
-    """
-    B-08: Проверка входа по ФСП ID.
-    Тестовые достижения явно обозначены и НЕ меняют/не подтверждают профессиональный грейд (ТЗ).
-    """
-    # 1. Логин по FSP ID через mock Keycloak
-    login_resp = await client.post("/api/v1/fsp/login-by-fsp-id", params={"fsp_id": "FSP-77-001"})
-    assert login_resp.status_code == 200
-    token_data = login_resp.json()
-    token = token_data["access_token"]
+async def test_b08_demo_achievements_do_not_grant_grade(client: AsyncClient):
+    """Привязка демо ID не подтверждает профессиональный грейд."""
+    # Демо ID привязывается к уже зарегистрированному кандидату.
+    reg = await client.post("/api/v1/auth/register", json={
+        "email": "fsp-demo-test@example.com", "password": "Password123!", "role": "candidate",
+    })
+    verified = await client.post("/api/v1/auth/verify-email", json={
+        "email": "fsp-demo-test@example.com", "code": reg.json()["verification_code"],
+    })
+    token = verified.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+    onboard = await client.post("/api/v1/candidate/onboarding", headers=headers, json={
+        "first_name": "Тест", "last_name": "Кандидат", "specialization": "Backend",
+        "declared_grade": "senior", "city": "Москва", "agreed_152_fz": True,
+    })
+    assert onboard.status_code == 200
+    linked = await client.post("/api/v1/candidate/link-fsp", headers=headers, json={"fsp_id": "FSP-77-001"})
+    assert linked.status_code == 200
 
     # 2. Проверяем профиль кандидата
     profile_resp = await client.get("/api/v1/candidate/profile", headers=headers)
@@ -33,6 +40,7 @@ async def test_b08_fsp_sso_and_achievements_do_not_grant_grade(client: AsyncClie
     for ach in profile["achievements"]:
         assert ach["is_demo"] is True
         assert "Демонстрационные данные" in ach["disclaimer"]
+        assert ach["verified"] is False
 
     # 4. Отвязка ФСП ID (DELETE /api/v1/candidate/link-fsp)
     unlink_resp = await client.delete("/api/v1/candidate/link-fsp", headers=headers)
@@ -77,14 +85,16 @@ async def test_b06_standardized_pdf_profile_cyrillic_and_152fz_masking(client: A
             "bio": "Ведущий инженер бэкенд систем.",
             "fsp_id": "FSP-77-001",
             "agreed_152_fz": True,
+            "agreed_publication": True,
+            "visibility_public": True,
             "agreed_osint": True,
         },
     )
     assert onb_resp.status_code == 200
     candidate_id = onb_resp.json()["id"]
 
-    # 2. Кандидат скачивает свой PDF с контактами
-    pdf_resp = await client.get("/api/v1/candidates/profile/pdf?include_contacts=true", headers=cand_headers)
+    # Контакты не входят в опубликованный PDF.
+    pdf_resp = await client.get("/api/v1/candidates/profile/pdf", headers=cand_headers)
     assert pdf_resp.status_code == 200
     assert pdf_resp.headers["content-type"] == "application/pdf"
     reader = PdfReader(io.BytesIO(pdf_resp.content))
@@ -94,19 +104,11 @@ async def test_b06_standardized_pdf_profile_cyrillic_and_152fz_masking(client: A
     assert "Султан" in extracted_text
     assert "Багиров" in extracted_text
     assert "Backend" in extracted_text
-    assert "sultan_dev" in extracted_text
-    assert "152-ФЗ" in extracted_text
-    assert "ТЕСТ НЕ ПРОЙДЕН" in extracted_text  # грейд заявленный, тест еще не сдан
+    assert "sultan_dev" not in extracted_text
+    assert "+7 999 111-22-33" not in extracted_text
+    assert "заявленный" in extracted_text
 
-    # 3. Кандидат скачивает PDF без контактов
-    pdf_resp_masked = await client.get("/api/v1/candidates/profile/pdf?include_contacts=false", headers=cand_headers)
-    assert pdf_resp_masked.status_code == 200
-    reader_masked = PdfReader(io.BytesIO(pdf_resp_masked.content))
-    masked_text = reader_masked.pages[0].extract_text()
-    assert "s***e@fsp.ru" in masked_text or "***" in masked_text
-    assert "Скрыто" in masked_text
-
-    # 4. Работодатель скачивает PDF кандидата по ID до приглашения
+    # Работодатель скачивает опубликованный PDF без контактов.
     emp_reg = await client.post(
         "/api/v1/auth/register",
         json={"email": "recruiter@corp.ru", "password": "Password123!", "role": "employer"},
@@ -129,8 +131,12 @@ async def test_b06_standardized_pdf_profile_cyrillic_and_152fz_masking(client: A
     emp_pdf_reader = PdfReader(io.BytesIO(emp_pdf_resp.content))
     emp_extracted_text = emp_pdf_reader.pages[0].extract_text()
     # Контакты должны быть скрыты от работодателя до принятия оффера (152-ФЗ)
-    assert "Скрыто" in emp_extracted_text
     assert "+7 999 111-22-33" not in emp_extracted_text
+    revoked = await client.put("/api/v1/candidate/profile", headers=cand_headers,
+                               json={"agreed_publication": False})
+    assert revoked.status_code == 200
+    assert (await client.get(f"/api/v1/candidates/{candidate_id}/pdf", headers=emp_headers)).status_code == 404
+    assert (await client.get("/api/v1/candidates/profile/pdf", headers=cand_headers)).status_code == 403
 
 
 @pytest.mark.asyncio
@@ -160,12 +166,13 @@ async def test_b22_resume_upload_and_parse(client: AsyncClient):
             "specialization": "Backend",
             "declared_grade": "middle",
             "agreed_152_fz": True,
+            "agreed_publication": True,
             "agreed_osint": True,
         },
     )
 
     # 1. Скачиваем собственный PDF как тестовый документ с текстом
-    pdf_resp = await client.get("/api/v1/candidates/profile/pdf?include_contacts=true", headers=cand_headers)
+    pdf_resp = await client.get("/api/v1/candidates/profile/pdf", headers=cand_headers)
     assert pdf_resp.status_code == 200
     pdf_bytes = pdf_resp.content
 
@@ -180,4 +187,6 @@ async def test_b22_resume_upload_and_parse(client: AsyncClient):
     assert "text_preview" in data
     assert len(data["text_preview"]) > 0
     assert data["specialization"] == "Backend"
-
+    unchanged = await client.get("/api/v1/candidate/profile", headers=cand_headers)
+    assert unchanged.status_code == 200
+    assert unchanged.json()["skills"] == []

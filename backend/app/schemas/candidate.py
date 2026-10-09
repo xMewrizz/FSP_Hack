@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Any, Literal
 import uuid
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from app.core.constants import Grade, WorkFormat
 from app.schemas.fsp import FSPAchievementSchema
 
@@ -15,11 +16,28 @@ class CandidateOnboardingRequest(BaseModel):
     
     # IT-специализация и грейд
     specialization: str = Field(..., description="IT-специализация (Backend, Frontend, etc.)")
+    programming_language: str | None = Field(None, description="Язык программирования для базового теста")
     declared_grade: Grade = Field(..., description="Предполагаемый грейд (junior, middle, senior, lead)")
     
     # Формат работы и город
     work_format: WorkFormat = Field(WorkFormat.REMOTE, description="Формат работы (remote, office, hybrid)")
     city: str = Field(..., description="Город проживания/работы")
+
+    # Зарплатные ожидания и навыки
+    salary_expectation: float | None = Field(None, gt=0, description="Ожидания по зарплате (в рублях)")
+    salary_tax_type: Literal["gross", "net"] = Field("gross", description="«до вычета НДФЛ» (gross) или «на руки» (net)")
+    skills: list[str] = Field(default_factory=list, description="Навыки соискателя")
+
+    @field_validator("salary_tax_type", mode="before")
+    @classmethod
+    def normalize_tax_type(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            clean = v.strip().lower()
+            if clean in ("gross", "до вычета", "до вычета ндфл", "до вычета ндфл (gross)"):
+                return "gross"
+            if clean in ("net", "на руки", "на руки (net)"):
+                return "net"
+        return v
 
     # ФСП ID (опционально)
     fsp_id: str | None = Field(None, description="ID участника ФСП (если есть)")
@@ -47,10 +65,26 @@ class CandidateProfileUpdateRequest(BaseModel):
     skills: list[str] | None = None
     work_format: WorkFormat | None = None
     specialization: str | None = None
+    programming_language: str | None = None
     declared_grade: Grade | None = None
+    salary_expectation: float | None = Field(default=None, gt=0)
+    salary_tax_type: Literal["gross", "net"] | None = None
+    skills: list[str] | None = None
     fsp_id: str | None = None
     agreed_publication: bool | None = None
     visibility_public: bool | None = None
+    mentor_available: bool | None = None
+
+    @field_validator("salary_tax_type", mode="before")
+    @classmethod
+    def normalize_tax_type(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            clean = v.strip().lower()
+            if clean in ("gross", "до вычета", "до вычета ндфл", "до вычета ндфл (gross)"):
+                return "gross"
+            if clean in ("net", "на руки", "на руки (net)"):
+                return "net"
+        return v
 
 
 class CandidateProfileResponse(BaseModel):
@@ -68,15 +102,21 @@ class CandidateProfileResponse(BaseModel):
     resume_url: str | None = None
 
     specialization: str | None = None
+    programming_language: str | None = None
     declared_grade: str | None = None
     verified_grade: str | None = None
+    verified_specialization: str | None = None
     work_format: str | None = None
+    salary_expectation: float | None = None
+    salary_tax_type: str = "gross"
+    skills: list[str] = []
 
     fsp_id: str | None = None
     fsp_verified: bool = False
     agreed_152_fz: bool
     agreed_publication: bool
     visibility_public: bool
+    mentor_available: bool = False
     agreed_osint: bool
     onboarding_completed: bool
 

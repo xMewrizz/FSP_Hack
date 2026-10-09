@@ -12,7 +12,7 @@ class InvitationCreate(BaseModel):
     salary_min: float = Field(..., gt=0)
     salary_max: float = Field(..., gt=0)
     salary_tax_type: Literal["gross", "net"] = "gross"
-    currency: str = "RUB"
+    currency: Literal["RUB"] = "RUB"
 
     @model_validator(mode="after")
     def validate_salary(self):

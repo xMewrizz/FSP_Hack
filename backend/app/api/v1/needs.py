@@ -1,16 +1,42 @@
 import uuid
-from fastapi import APIRouter, Depends, status
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_employer, get_db
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.need import (
     EmployerNeedCreate,
     EmployerNeedResponse,
     EmployerNeedUpdate,
+    NeedDraftResponse,
+    NeedTextRequest,
 )
 from app.services.need_service import need_service
 
 router = APIRouter(prefix="/needs", tags=["Employer Needs & Requirements"])
+
+
+@router.post(
+    "/parse",
+    response_model=NeedDraftResponse,
+    summary="Предложить поля потребности по свободному описанию",
+)
+async def parse_need_draft(
+    data: NeedTextRequest,
+    current_user: User = Depends(get_current_employer),
+):
+    try:
+        async with httpx.AsyncClient(timeout=95.0) as client:
+            response = await client.post(f"{settings.ML_SERVICE_URL.rstrip('/')}/parse-need", json={"text": data.text})
+            response.raise_for_status()
+        return NeedDraftResponse.model_validate(response.json())
+    except (httpx.HTTPError, ValueError, ValidationError):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Не удалось получить предложения от модели. Заполните поля вручную.",
+        ) from None
 
 
 @router.post(

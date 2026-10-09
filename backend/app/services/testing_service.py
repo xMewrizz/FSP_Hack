@@ -7,28 +7,55 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.catalog import (
     CatalogError,
     assert_no_substitution,
-    suggest_upshift_grade,
     validate_test_pair,
 )
-from app.core.constants import Grade
 from app.core.question_bank import PREDEFINED_QUESTIONS
 from app.core.question_variants import variant_for_attempt
 from app.models.candidate import CandidateProfile
-from app.models.test import Question, TestSession
+from app.models.test import GradeAssessment, Question, TestSession
 from app.models.user import User
 from app.schemas.testing import (
-    AnswerSubmission,
-    AvailableGradeInfo,
     QuestionInTest,
     QuestionOptionResponse,
+    QuestionReview,
     SkillScore,
     TestResultResponse,
     TestSessionHistoryItem,
     TestStartRequest,
     TestStartResponse,
     TestSubmitRequest,
-    TestingStatusResponse,
 )
+
+
+def build_question_review(
+    questions: list[dict[str, Any]], answers: list[dict[str, Any]]
+) -> list[QuestionReview]:
+    selected_by_id = {answer["question_id"]: answer["selected_answers"] for answer in answers}
+    review = []
+    for question in questions:
+        option_text = {option["id"]: option["text"] for option in question["options"]}
+        selected = selected_by_id.get(question["id"], [])
+        correct = question.get("correct_answers", [])
+        review.append(QuestionReview(
+            code=question["code"],
+            topic=question["topic"],
+            question_text=question["question_text"],
+            selected_answers=[option_text[choice] for choice in selected],
+            correct_answers=[option_text[choice] for choice in correct],
+            is_correct=bool(correct) and set(selected) == set(correct),
+            explanation=question.get("explanation", ""),
+        ))
+    return review
+
+
+def required_correct_answers(question_count: int) -> int:
+    """Предварительный порог: 9 из 12, для старых попыток — та же доля 3/4."""
+    return (3 * question_count + 3) // 4
+
+
+def grade_confirmed_by_session(session: TestSession) -> bool:
+    # Грейд подтверждает полный GradeAssessment, а не отдельная сессия.
+    return False
 
 
 class TestingService:
@@ -66,7 +93,7 @@ class TestingService:
                     value = q_data[field]
                     if getattr(question, field) != value:
                         setattr(question, field, value)
-        await db.commit()
+        await db.flush()
 
     @staticmethod
     async def start_test(
@@ -99,50 +126,17 @@ class TestingService:
             )
 
         # Check 90 days rule if candidate is trying to change an already verified grade
-        if profile.verified_grade and profile.verified_grade_updated_at and profile.verified_grade != grade:
+        if profile.verified_grade and profile.verified_grade_updated_at:
             updated_at = profile.verified_grade_updated_at
             if updated_at.tzinfo is None:
                 updated_at = updated_at.replace(tzinfo=timezone.utc)
             delta = datetime.now(timezone.utc) - updated_at
-            if delta < timedelta(days=90):
-                # Query last completed test session to see if this change was unlocked by recommendation
-                stmt_last = (
-                    select(TestSession)
-                    .where(
-                        TestSession.user_id == user.id,
-                        TestSession.status == "completed",
-                    )
-                    .order_by(TestSession.completed_at.desc())
-                    .limit(1)
+            if delta < timedelta(days=90) and profile.verified_grade != grade and grade != "senior":
+                days_left = 90 - delta.days
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Изменение подтвержденного грейда ограничено правилом 90 дней (ТЗ). Осталось {days_left} дн.",
                 )
-                res_last = await db.execute(stmt_last)
-                last_session = res_last.scalar_one_or_none()
-
-                is_allowed_recommendation = False
-                if last_session:
-                    # Confident score (>= 90%) allows recommended upgrade
-                    if (
-                        last_session.passed
-                        and (last_session.percentage or 0.0) >= 90.0
-                        and last_session.suggested_grade == grade
-                    ):
-                        is_allowed_recommendation = True
-                    # Failed attempt allows taking recommended lower grade without cooldown block
-                    elif not last_session.passed and last_session.suggested_grade == grade:
-                        is_allowed_recommendation = True
-
-                if not is_allowed_recommendation:
-                    days_left = max(1, 90 - delta.days)
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=(
-                            f"Изменение подтвержденного грейда ограничено правилом 90 дней (ТЗ). "
-                            f"Осталось {days_left} дн., либо пройдите тест по рекомендации (результат >= 90%)."
-                        ),
-                    )
-
-
-
 
         await TestingService.ensure_questions_seeded(db)
 
@@ -150,6 +144,12 @@ class TestingService:
         stmt_q = select(Question).where(
             Question.specialization == spec,
             Question.grade == grade,
+            Question.code.in_([
+                question["code"] for question in PREDEFINED_QUESTIONS
+                if question["specialization"] == spec
+                and question["grade"] == grade
+                and int(question["code"].split("-")[-1]) <= 12
+            ]),
         )
         res_q = await db.execute(stmt_q)
         questions = list(res_q.scalars().all())
@@ -286,10 +286,14 @@ class TestingService:
 
         # Map answers
         user_answers_map = {ans.question_id: set(ans.selected_answers) for ans in data.answers}
+        review = build_question_review(
+            session.questions_snapshot,
+            [answer.model_dump() for answer in data.answers],
+        )
 
         total_score = 0.0
         max_score = 0.0
-        topic_scores: dict[str, dict[str, float]] = {}
+        topic_scores: dict[str, dict[str, float | int]] = {}
 
         for q in session.questions_snapshot:
             q_id = q["id"]
@@ -298,18 +302,28 @@ class TestingService:
             correct_set = set(q.get("correct_answers", []))
 
             if topic not in topic_scores:
-                topic_scores[topic] = {"score": 0.0, "max": 0.0}
+                topic_scores[topic] = {"score": 0.0, "max": 0.0, "correct": 0, "count": 0}
 
             max_score += weight
             topic_scores[topic]["max"] += weight
+            topic_scores[topic]["count"] += 1
 
             user_set = user_answers_map.get(q_id, set())
             if user_set == correct_set and len(correct_set) > 0:
                 total_score += weight
                 topic_scores[topic]["score"] += weight
+                topic_scores[topic]["correct"] += 1
 
         percentage = round((total_score / max_score * 100.0) if max_score > 0 else 0.0, 1)
-        passed = percentage >= 70.0
+        correct_count = sum(item.is_correct for item in review)
+        required_correct = (
+            (len(review) + 1) // 2 if session.assessment_id
+            else 0 if session.skill_code else required_correct_answers(len(review))
+        )
+        passed = bool(review) and (
+            total_score / max_score >= 0.50 if session.assessment_id
+            else False if session.skill_code else correct_count >= required_correct
+        )
 
         # Build skill breakdown
         skill_breakdown = [
@@ -318,6 +332,8 @@ class TestingService:
                 score=round(val["score"], 1),
                 max_score=round(val["max"], 1),
                 percentage=round((val["score"] / val["max"] * 100.0) if val["max"] > 0 else 0.0, 1),
+                correct_count=int(val["correct"]),
+                total_questions=int(val["count"]),
             )
             for top, val in topic_scores.items()
         ]
@@ -345,47 +361,70 @@ class TestingService:
         res_prof = await db.execute(stmt_prof)
         profile = res_prof.scalar_one()
 
-        suggested_grade = None
-        if passed:
-            profile.verified_grade = session.target_grade
-            profile.verified_grade_updated_at = now
-            if percentage >= 90.0:
-                # B-01: следующий грейд предлагаем только если тест по нему
-                # доступен (senior -> lead сейчас даёт None, lead не предлагаем).
-                suggested_grade = suggest_upshift_grade(session.specialization, session.target_grade)
-                if suggested_grade:
-                    session.feedback = (
-                        f"Поздравляем! Вы набрали {percentage}% и уверенно подтвердили квалификацию {session.target_grade}. "
-                        f"При таком высоком результате вам открыт отдельный тест на повышение ({suggested_grade})."
-                    )
-                else:
-                    session.feedback = (
-                        f"Поздравляем! Вы набрали {percentage}% и успешно подтвердили квалификацию {session.target_grade}."
-                    )
-            else:
-                session.feedback = (
-                    f"Поздравляем! Вы набрали {percentage}% и успешно подтвердили квалификацию {session.target_grade}."
-                )
-        else:
-            if session.target_grade == "senior":
-                suggested_grade = "middle"
-            elif session.target_grade == "middle":
-                suggested_grade = "junior"
-
-            session.feedback = (
-                f"Вы набрали {percentage}%. Для подтверждения грейда {session.target_grade} "
-                f"необходимо минимум 70%. Согласно ТЗ, грейд не снижается принудительно"
-                + (f" — рекомендуем пройти тест на уровень ниже ({suggested_grade})." if suggested_grade else ".")
+        if session.assessment_id:
+            from app.services.roadmap_service import roadmap_service
+            await db.flush()
+            grade_confirmed, suggested_grade, feedback = await roadmap_service.finish_skill(db, session, profile)
+            session.feedback = feedback
+            session.suggested_grade = suggested_grade
+            await db.commit()
+            await db.refresh(session)
+            return TestResultResponse(
+                session_id=session.id,
+                specialization=session.specialization,
+                target_grade=session.target_grade,
+                score=session.score,
+                max_score=session.max_score,
+                percentage=session.percentage,
+                correct_count=correct_count,
+                total_questions=len(review),
+                required_correct=required_correct,
+                passed=session.passed,
+                grade_confirmed=grade_confirmed,
+                verified_grade=profile.verified_grade,
+                skill_breakdown=skill_breakdown,
+                question_review=review,
+                feedback=feedback,
+                suggested_grade=suggested_grade,
+                completed_at=session.completed_at,
+                skill_code=session.skill_code,
+                assessment_id=session.assessment_id,
             )
 
-        session.suggested_grade = suggested_grade
+        if session.skill_code:
+            session.feedback = (
+                f"Результат навыка сохранён: {percentage}% на уровне {session.target_grade}. "
+                "Дополнительный тест не влияет на грейд."
+            )
+            await db.commit()
+            await db.refresh(session)
+            return TestResultResponse(
+                session_id=session.id,
+                specialization=session.specialization,
+                target_grade=session.target_grade,
+                score=session.score,
+                max_score=session.max_score,
+                percentage=session.percentage,
+                correct_count=correct_count,
+                total_questions=len(review),
+                required_correct=0,
+                passed=None,
+                grade_confirmed=False,
+                verified_grade=profile.verified_grade,
+                skill_breakdown=skill_breakdown,
+                question_review=review,
+                feedback=session.feedback,
+                suggested_grade=None,
+                completed_at=session.completed_at,
+                skill_code=session.skill_code,
+                assessment_id=None,
+            )
 
-        # Collect verified skills into profile
-        current_skills = set(profile.skills or [])
-        for item in skill_breakdown:
-            if item.percentage >= 70.0:
-                current_skills.add(item.topic)
-        profile.skills = list(current_skills)
+        session.feedback = (
+            f"Верно {correct_count} из {len(review)} заданий. Это старый общий формат: "
+            "он не присваивает грейд. Откройте набор обязательных навыков."
+        )
+        session.suggested_grade = None
 
         await db.commit()
         await db.refresh(session)
@@ -397,12 +436,19 @@ class TestingService:
             score=session.score,
             max_score=session.max_score,
             percentage=session.percentage,
+            correct_count=correct_count,
+            total_questions=len(review),
+            required_correct=required_correct,
             passed=session.passed,
+            grade_confirmed=grade_confirmed_by_session(session),
             verified_grade=profile.verified_grade,
             skill_breakdown=skill_breakdown,
+            question_review=review,
             feedback=session.feedback or "",
             suggested_grade=session.suggested_grade,
             completed_at=session.completed_at,
+            skill_code=session.skill_code,
+            assessment_id=session.assessment_id,
         )
 
     @staticmethod
@@ -427,6 +473,8 @@ class TestingService:
         profile = res_prof.scalar_one()
 
         breakdown = [SkillScore(**item) for item in session.skill_breakdown]
+        review = build_question_review(session.questions_snapshot, session.answers_data) if session.status == "completed" else []
+        assessment = await db.get(GradeAssessment, session.assessment_id) if session.assessment_id else None
 
         return TestResultResponse(
             session_id=session.id,
@@ -435,12 +483,22 @@ class TestingService:
             score=session.score,
             max_score=session.max_score,
             percentage=session.percentage,
-            passed=session.passed,
+            correct_count=sum(item.is_correct for item in review),
+            total_questions=len(session.questions_snapshot),
+            required_correct=(
+                (len(session.questions_snapshot) + 1) // 2 if session.assessment_id
+                else 0 if session.skill_code else required_correct_answers(len(session.questions_snapshot))
+            ),
+            passed=None if session.skill_code and not session.assessment_id else session.passed,
+            grade_confirmed=bool(assessment and assessment.status == "completed" and assessment.passed),
             verified_grade=profile.verified_grade,
             skill_breakdown=breakdown,
+            question_review=review,
             feedback=session.feedback or "",
             suggested_grade=session.suggested_grade,
             completed_at=session.completed_at,
+            skill_code=session.skill_code,
+            assessment_id=session.assessment_id,
         )
 
     @staticmethod
@@ -452,6 +510,12 @@ class TestingService:
         )
         res = await db.execute(stmt)
         sessions = res.scalars().all()
+        assessment_ids = {s.assessment_id for s in sessions if s.assessment_id}
+        assessments = {
+            item.id: item for item in (await db.execute(
+                select(GradeAssessment).where(GradeAssessment.id.in_(assessment_ids))
+            )).scalars().all()
+        } if assessment_ids else {}
 
         return [
             TestSessionHistoryItem(
@@ -459,159 +523,20 @@ class TestingService:
                 specialization=s.specialization,
                 target_grade=s.target_grade,
                 percentage=s.percentage,
-                passed=s.passed,
+                passed=None if s.skill_code and not s.assessment_id else s.passed,
+                grade_confirmed=bool(
+                    s.assessment_id in assessments
+                    and assessments[s.assessment_id].status == "completed"
+                    and assessments[s.assessment_id].passed
+                ),
                 status=s.status,
-                suggested_grade=s.suggested_grade,
                 created_at=s.created_at,
                 completed_at=s.completed_at,
+                skill_code=s.skill_code,
+                assessment_id=s.assessment_id,
             )
             for s in sessions
         ]
 
-    @staticmethod
-    async def get_status(db: AsyncSession, user: User) -> TestingStatusResponse:
-        stmt_prof = select(CandidateProfile).where(CandidateProfile.user_id == user.id)
-        res_prof = await db.execute(stmt_prof)
-        profile = res_prof.scalar_one_or_none()
-
-        if not profile:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Профиль кандидата не найден. Сначала завершите онбординг.",
-            )
-
-        stmt_last = (
-            select(TestSession)
-            .where(
-                TestSession.user_id == user.id,
-                TestSession.status == "completed",
-            )
-            .order_by(TestSession.completed_at.desc())
-            .limit(1)
-        )
-        res_last = await db.execute(stmt_last)
-        last_session = res_last.scalar_one_or_none()
-
-        cooldown_active = False
-        cooldown_days_remaining = 0
-        cooldown_expires_at = None
-
-        if profile.verified_grade and profile.verified_grade_updated_at:
-            updated_at = profile.verified_grade_updated_at
-            if updated_at.tzinfo is None:
-                updated_at = updated_at.replace(tzinfo=timezone.utc)
-            delta = datetime.now(timezone.utc) - updated_at
-            if delta < timedelta(days=90):
-                cooldown_active = True
-                cooldown_days_remaining = max(1, 90 - delta.days)
-                cooldown_expires_at = updated_at + timedelta(days=90)
-
-        last_test_item = None
-        suggested_grade = None
-        if last_session:
-            suggested_grade = last_session.suggested_grade
-            last_test_item = TestSessionHistoryItem(
-                id=last_session.id,
-                specialization=last_session.specialization,
-                target_grade=last_session.target_grade,
-                percentage=last_session.percentage,
-                passed=last_session.passed,
-                status=last_session.status,
-                suggested_grade=last_session.suggested_grade,
-                created_at=last_session.created_at,
-                completed_at=last_session.completed_at,
-            )
-
-        # Formulate recommended action description
-        if not profile.verified_grade:
-            if last_session and not last_session.passed:
-                if suggested_grade:
-                    recommended_action = (
-                        f"Предыдущий тест на {last_session.target_grade} не сдан ({last_session.percentage}%). "
-                        f"Рекомендуем пройти тест на уровень ниже: {suggested_grade.capitalize()}."
-                    )
-                else:
-                    recommended_action = (
-                        f"Предыдущий тест на {last_session.target_grade} не сдан ({last_session.percentage}%). "
-                        f"Рекомендуем повторить попытку."
-                    )
-            else:
-                recommended_action = (
-                    f"Пройдите тестирование по специализации {profile.specialization or 'Backend'} "
-                    f"для подтверждения грейда {profile.declared_grade or 'junior'}."
-                )
-        else:
-            if last_session and last_session.passed and (last_session.percentage or 0.0) >= 90.0 and suggested_grade:
-                recommended_action = (
-                    f"Уверенный результат ({last_session.percentage}%)! "
-                    f"Вам открыт отдельный тест на повышение до {suggested_grade.capitalize()}."
-                )
-            elif last_session and not last_session.passed and suggested_grade:
-                recommended_action = (
-                    f"Текущий подтвержденный грейд ({profile.verified_grade.capitalize()}) сохранен. "
-                    f"Рекомендуем пройти тест на {suggested_grade.capitalize()}."
-                )
-            elif cooldown_active:
-                recommended_action = (
-                    f"Грейд {profile.verified_grade.capitalize()} подтвержден. "
-                    f"Плановая смена грейда доступна через {cooldown_days_remaining} дн."
-                )
-            else:
-                recommended_action = (
-                    f"Грейд {profile.verified_grade.capitalize()} подтвержден. "
-                    f"Срок 90 дней истек — доступна аттестация на любой грейд."
-                )
-
-        # Grades available to start
-        available_grades = []
-        for g in ["junior", "middle", "senior"]:
-            is_current = (profile.verified_grade == g)
-            is_rec = (suggested_grade == g)
-
-            if not profile.verified_grade:
-                is_avail = True
-                if is_rec:
-                    reason = "Рекомендован системой по результатам предыдущего теста"
-                else:
-                    reason = "Доступно для подтверждения грейда"
-            else:
-                if is_current:
-                    is_avail = True
-                    reason = "Текущий подтвержденный грейд (можно повторить тест)"
-                elif is_rec:
-                    is_avail = True
-                    reason = "Разблокирован отдельный тест по рекомендации системы"
-                elif not cooldown_active:
-                    is_avail = True
-                    reason = "Доступно (срок 90 дней истек)"
-                else:
-                    is_avail = False
-                    reason = f"Заблокировано правилом 90 дней (осталось {cooldown_days_remaining} дн.)"
-
-            available_grades.append(
-                AvailableGradeInfo(
-                    grade=g,
-                    is_available=is_avail,
-                    is_recommended=is_rec,
-                    is_current_verified=is_current,
-                    reason=reason,
-                )
-            )
-
-        return TestingStatusResponse(
-            specialization=profile.specialization,
-            declared_grade=profile.declared_grade,
-            verified_grade=profile.verified_grade,
-            verified_grade_updated_at=profile.verified_grade_updated_at,
-            cooldown_active=cooldown_active,
-            cooldown_days_remaining=cooldown_days_remaining,
-            cooldown_expires_at=cooldown_expires_at,
-            last_completed_test=last_test_item,
-            suggested_grade=suggested_grade,
-            recommended_action=recommended_action,
-            available_grades=available_grades,
-        )
-
 
 testing_service = TestingService()
-

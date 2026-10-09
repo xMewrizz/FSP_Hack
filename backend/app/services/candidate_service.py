@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 import uuid
 from fastapi import HTTPException, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.models.candidate import CandidateProfile
 from app.models.fsp import FSPAchievement
+from app.models.test import GradeAssessment, TestSession
 from app.models.user import User
 from app.schemas.candidate import (
     CandidateOnboardingRequest,
@@ -49,9 +50,28 @@ class CandidateService:
         profile.bio = data.bio
         profile.github_url = data.github_url
 
+        new_language = data.programming_language or ("Python" if data.specialization == "Backend" else None)
+        if data.specialization == "Backend" and new_language != "Python":
+            raise HTTPException(400, "Для Backend пока подготовлен только базовый тест на Python")
+        if profile.specialization and (profile.specialization != data.specialization or profile.programming_language != new_language):
+            profile.verified_grade = None
+            profile.verified_specialization = None
+            profile.verified_grade_updated_at = None
+            await db.execute(update(GradeAssessment).where(
+                GradeAssessment.candidate_profile_id == profile.id,
+                GradeAssessment.status == "in_progress",
+            ).values(status="cancelled"))
+            await db.execute(update(TestSession).where(
+                TestSession.candidate_profile_id == profile.id,
+                TestSession.assessment_id.is_not(None),
+                TestSession.status == "in_progress",
+            ).values(status="cancelled"))
         profile.specialization = data.specialization
+        profile.programming_language = new_language
         profile.declared_grade = data.declared_grade.value
         profile.work_format = data.work_format.value
+        profile.salary_expectation = data.salary_expectation
+        profile.salary_tax_type = data.salary_tax_type
         if data.skills is not None:
             profile.skills = list(data.skills)
 
@@ -84,7 +104,7 @@ class CandidateService:
                         rank_or_place=ach.rank_or_place,
                         sport_category=ach.sport_category,
                         score_or_rating=ach.score_or_rating,
-                        verified=True,
+                        verified=ach.verified,
                     )
                     db.add(achievement)
             else:
@@ -144,6 +164,28 @@ class CandidateService:
             )
 
         update_dict = data.model_dump(exclude_unset=True)
+        target_specialization = update_dict.get("specialization", profile.specialization)
+        target_language = update_dict.get("programming_language", profile.programming_language)
+        if target_specialization != profile.specialization and "programming_language" not in update_dict:
+            target_language = None
+        if target_specialization == "Backend":
+            target_language = target_language or "Python"
+            if target_language != "Python":
+                raise HTTPException(400, "Для Backend пока подготовлен только базовый тест на Python")
+        if target_specialization != profile.specialization or target_language != profile.programming_language:
+            profile.verified_grade = None
+            profile.verified_specialization = None
+            profile.verified_grade_updated_at = None
+            await db.execute(update(GradeAssessment).where(
+                GradeAssessment.candidate_profile_id == profile.id,
+                GradeAssessment.status == "in_progress",
+            ).values(status="cancelled"))
+            await db.execute(update(TestSession).where(
+                TestSession.candidate_profile_id == profile.id,
+                TestSession.assessment_id.is_not(None),
+                TestSession.status == "in_progress",
+            ).values(status="cancelled"))
+        update_dict["programming_language"] = target_language
         publication = update_dict.get("agreed_publication", profile.agreed_publication)
         visibility = update_dict.get("visibility_public", profile.visibility_public)
         if visibility and not publication and update_dict.get("visibility_public") is True:
@@ -194,9 +236,7 @@ class CandidateService:
         profile.fsp_id = fsp_clean
         v_res = await fsp_service.verify_fsp_id(fsp_clean)
 
-        await db.execute(
-            delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id)
-        )
+        await db.execute(delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id))
         if v_res.found:
             profile.fsp_verified = True
             for ach in v_res.achievements:
@@ -208,7 +248,7 @@ class CandidateService:
                     rank_or_place=ach.rank_or_place,
                     sport_category=ach.sport_category,
                     score_or_rating=ach.score_or_rating,
-                    verified=True,
+                    verified=ach.verified,
                     is_demo=True,
                     disclaimer="Демонстрационные данные стенда. Не является официальной выпиской реестра ФСП",
                 )
@@ -217,41 +257,29 @@ class CandidateService:
             profile.fsp_verified = False
 
         await db.commit()
-        refetched = await db.execute(
+        refreshed = await db.execute(
             select(CandidateProfile)
             .options(selectinload(CandidateProfile.fsp_achievements))
             .where(CandidateProfile.id == profile.id)
+            .execution_options(populate_existing=True)
         )
-        profile = refetched.scalar_one()
-        return CandidateService._build_response(profile, user.email)
+        return CandidateService._build_response(refreshed.scalar_one(), user.email)
 
     @staticmethod
-    async def unlink_fsp_id(
-        db: AsyncSession, user: User
-    ) -> CandidateProfileResponse:
-        stmt = select(CandidateProfile).where(CandidateProfile.user_id == user.id)
-        res = await db.execute(stmt)
-        profile = res.scalar_one_or_none()
-
-        if not profile:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Профиль кандидата не найден",
-            )
-
+    async def unlink_fsp_id(db: AsyncSession, user: User) -> CandidateProfileResponse:
+        result = await db.execute(select(CandidateProfile).where(CandidateProfile.user_id == user.id))
+        profile = result.scalar_one_or_none()
+        if profile is None:
+            raise HTTPException(status_code=404, detail="Профиль кандидата не найден")
         profile.fsp_id = None
         profile.fsp_verified = False
-        await db.execute(
-            delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id)
-        )
+        await db.execute(delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id))
         await db.commit()
-        refetched = await db.execute(
-            select(CandidateProfile)
-            .options(selectinload(CandidateProfile.fsp_achievements))
-            .where(CandidateProfile.id == profile.id)
+        refreshed = await db.execute(
+            select(CandidateProfile).options(selectinload(CandidateProfile.fsp_achievements))
+            .where(CandidateProfile.id == profile.id).execution_options(populate_existing=True)
         )
-        profile = refetched.scalar_one()
-        return CandidateService._build_response(profile, user.email)
+        return CandidateService._build_response(refreshed.scalar_one(), user.email)
 
     @staticmethod
     def _build_response(profile: CandidateProfile, email: str) -> CandidateProfileResponse:
@@ -269,14 +297,20 @@ class CandidateService:
             github_url=profile.github_url,
             resume_url=profile.resume_url,
             specialization=profile.specialization,
+            programming_language=profile.programming_language,
             declared_grade=profile.declared_grade,
             verified_grade=profile.verified_grade,
+            verified_specialization=profile.verified_specialization,
             work_format=profile.work_format,
+            salary_expectation=profile.salary_expectation,
+            salary_tax_type=getattr(profile, "salary_tax_type", "gross") or "gross",
+            skills=profile.skills or [],
             fsp_id=profile.fsp_id,
             fsp_verified=profile.fsp_verified,
             agreed_152_fz=profile.agreed_152_fz,
             agreed_publication=profile.agreed_publication,
             visibility_public=profile.visibility_public,
+            mentor_available=profile.mentor_available,
             agreed_osint=profile.agreed_osint,
             onboarding_completed=profile.onboarding_completed,
             achievements=[

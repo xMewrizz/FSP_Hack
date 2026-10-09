@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 from app.core.constants import UserRole
 from app.core.database import get_db
 from app.core.security import decode_token
@@ -46,8 +46,8 @@ async def get_current_user(
     stmt = (
         select(User)
         .options(
-            selectinload(User.candidate_profile),
-            selectinload(User.employer_profile),
+            joinedload(User.candidate_profile),
+            joinedload(User.employer_profile),
         )
         .where(User.id == user_id)
     )
@@ -96,3 +96,15 @@ def require_role(required_role: UserRole) -> Callable:
 
 get_current_candidate = require_role(UserRole.CANDIDATE)
 get_current_employer = require_role(UserRole.EMPLOYER)
+
+
+async def get_current_reviewer(
+    current_user: User = Depends(get_current_verified_user),
+) -> User:
+    if current_user.role not in (UserRole.EMPLOYER, UserRole.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав. Требуется роль работодателя или администратора",
+        )
+    return current_user
+
