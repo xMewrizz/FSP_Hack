@@ -301,11 +301,45 @@ async def run_benchmark(
         model = resolve_ollama_model()
         print(f" Подключение к LLM: {base_url} (модель: {model})")
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    model_clean = resolve_ollama_model().replace(":", "_").replace("/", "_")
+    checkpoint_file = current_dir / f"checkpoint_{mode}_{model_clean}.jsonl"
+    cached_records: dict[str, dict[str, Any]] = {}
+    if checkpoint_file.exists():
+        try:
+            with open(checkpoint_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        data = json.loads(line)
+                        cached_records[data["id"]] = data
+            if cached_records:
+                print(f" Найдено {len(cached_records)} сохраненных результатов в кэше {checkpoint_file.name}")
+        except Exception:
+            cached_records = {}
+
+    async with httpx.AsyncClient(timeout=90.0) as client:
         for idx, case in enumerate(cases, 1):
             cid = case["id"]
             cat = case["category"]
             print(f"[{idx:02d}/{len(cases):02d}] {cid} ({cat})...", end="", flush=True)
+
+            # Если кейс уже успешно сохранен в кэше и не был аварийным таймаутом
+            if cid in cached_records and cached_records[cid]["prediction"]["evaluator"] != "fallback_heuristic":
+                c_data = cached_records[cid]
+                # Восстанавливаем OpenEvaluationResult
+                c_pred = OpenEvaluationResult(**c_data["prediction"])
+                rec = {
+                    "id": cid,
+                    "question_code": c_data["question_code"],
+                    "category": cat,
+                    "description": c_data["description"],
+                    "prediction": c_pred,
+                    "ground_truth": c_data["ground_truth"],
+                    "latency_ms": c_data["latency_ms"],
+                }
+                records.append(rec)
+                print(f" CACHED | Score: {c_pred.score:.2f} | Eval: {c_pred.evaluator}")
+                continue
+
             try:
                 rec = await evaluate_case(case, mode=mode, client=client)
                 records.append(rec)
@@ -316,6 +350,18 @@ async def run_benchmark(
                     f" {status} | Score: pred={pred.score:.2f} vs gt={gt['score']:.2f} "
                     f"| Eval: {pred.evaluator} | {rec['latency_ms']:.0f}ms"
                 )
+                # Мгновенно сохраняем в чекпоинт
+                with open(checkpoint_file, "a", encoding="utf-8") as f:
+                    rec_dump = {
+                        "id": cid,
+                        "question_code": rec["question_code"],
+                        "category": cat,
+                        "description": rec["description"],
+                        "prediction": pred.model_dump(),
+                        "ground_truth": gt,
+                        "latency_ms": rec["latency_ms"],
+                    }
+                    f.write(json.dumps(rec_dump, ensure_ascii=False) + "\n")
             except Exception as e:
                 print(f" ERROR: {e}")
 
