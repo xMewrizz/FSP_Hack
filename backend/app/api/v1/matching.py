@@ -32,10 +32,12 @@ async def match_candidates(
 )
 async def search_candidates(
     specialization: str | None = Query(None, description="Специализация"),
-    grade: str | None = Query(None, description="Грейд (junior, middle, senior, lead)"),
+    grade: str | None = Query(None, description="Подтвержденный грейд (junior, middle, senior, lead)"),
+    stack: str | None = Query(None, description="Фильтр по стеку или технологиям (например: Python, PostgreSQL)"),
     work_format: str | None = Query(None, description="Формат работы"),
     city: str | None = Query(None, description="Город"),
     fsp_only: bool = Query(False, description="Только спортсмены реестра ФСП"),
+    verified_only: bool = Query(False, description="Только кандидаты с подтвержденной категорией"),
     current_user: User = Depends(get_current_employer),
     db: AsyncSession = Depends(get_db),
 ):
@@ -43,7 +45,9 @@ async def search_candidates(
         db=db,
         specialization=specialization,
         grade=grade,
+        stack=stack,
         work_format=work_format,
         city=city,
         fsp_only=fsp_only,
+        verified_only=verified_only,
     )

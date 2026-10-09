@@ -811,12 +811,13 @@ function EmployerScreen({
     if (bankGrade) params.set("grade", bankGrade);
     if (bankFormat) params.set("work_format", bankFormat);
     if (bankCity.trim()) params.set("city", bankCity.trim());
+    if (bankQuery.trim()) params.set("stack", bankQuery.trim());
     setBankLoading(true);
     apiGet<MatchingCandidate[]>(`/matching/search?${params}`)
       .then((items) => setBankItems(items.map(mapMatchToCandidate)))
       .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось выполнить поиск", "error"))
       .finally(() => setBankLoading(false));
-  }, [active, bankSpecialization, bankGrade, bankFormat, bankCity, bankFspOnly]);
+  }, [active, bankSpecialization, bankGrade, bankFormat, bankCity, bankFspOnly, bankQuery]);
 
   const visibleBankItems = bankItems.filter((candidate) =>
     `${candidate.name} ${candidate.skills.join(" ")}`.toLowerCase().includes(bankQuery.toLowerCase()),

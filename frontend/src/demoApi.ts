@@ -438,16 +438,18 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
   if (route === "/matching/search" && method === "GET") {
     const specialization = url.searchParams.get("specialization");
     const grade = url.searchParams.get("grade");
+    const stack = url.searchParams.get("stack")?.toLowerCase();
     const workFormat = url.searchParams.get("work_format");
     const city = url.searchParams.get("city")?.toLowerCase();
     const fspOnly = url.searchParams.get("fsp_only") === "true";
     return candidates.filter((item) =>
       (!specialization || item.specialization === specialization) &&
-      (!grade || item.verified_grade === grade || item.declared_grade === grade) &&
+      (!grade || item.verified_grade === grade) &&
+      (!stack || item.skills.some((s) => s.toLowerCase().includes(stack))) &&
       (!workFormat || item.work_format === workFormat) &&
       (!city || item.city.toLowerCase().includes(city)) &&
       (!fspOnly || item.fsp_verified),
-    ) as T;
+    ).sort((a, b) => Number(Boolean(b.verified_grade)) - Number(Boolean(a.verified_grade))) as T;
   }
 
   if (route === "/invitations/sent" && method === "GET") return invitations as T;

@@ -52,6 +52,8 @@ class CandidateService:
         profile.specialization = data.specialization
         profile.declared_grade = data.declared_grade.value
         profile.work_format = data.work_format.value
+        if data.skills is not None:
+            profile.skills = list(data.skills)
 
         profile.agreed_152_fz = True
         profile.agreed_152_fz_at = now

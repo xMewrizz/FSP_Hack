@@ -196,9 +196,11 @@ class MatchingService:
         db: AsyncSession,
         specialization: str | None = None,
         grade: str | None = None,
+        stack: str | None = None,
         work_format: str | None = None,
         city: str | None = None,
         fsp_only: bool = False,
+        verified_only: bool = False,
     ) -> list[CandidateMatchItem]:
         stmt = (
             select(CandidateProfile)
@@ -216,10 +218,12 @@ class MatchingService:
         if specialization:
             stmt = stmt.where(CandidateProfile.specialization == specialization)
         if grade:
-            stmt = stmt.where(
-                (CandidateProfile.verified_grade == grade)
-                | (CandidateProfile.declared_grade == grade)
-            )
+            # B-16: Заявленный грейд не открывает профиль работодателю.
+            # Фильтр по грейду выдает ТОЛЬКО подтвержденные категории.
+            stmt = stmt.where(CandidateProfile.verified_grade == grade)
+        elif verified_only:
+            stmt = stmt.where(CandidateProfile.verified_grade.is_not(None))
+
         if work_format:
             stmt = stmt.where(CandidateProfile.work_format == work_format)
         if city:
@@ -230,10 +234,55 @@ class MatchingService:
         res = await db.execute(stmt)
         candidates = res.scalars().all()
 
+        # Parse stack filter if provided
+        stack_tokens: list[str] = []
+        if stack:
+            raw = stack.replace(";", ",")
+            if "," in raw:
+                parts = raw.split(",")
+            else:
+                parts = raw.split()
+            stack_tokens = [tok.strip().lower() for tok in parts if tok.strip()]
+
         results = []
         for cand in candidates:
+            cand_skills = cand.skills or []
+            cand_skills_lower = [s.lower() for s in cand_skills]
+
+            # If stack filter is active, candidate must match all specified stack tokens
+            if stack_tokens:
+                if not all(any(tok in s for s in cand_skills_lower) for tok in stack_tokens):
+                    continue
+
             test_perc = cand.test_sessions[0].percentage if cand.test_sessions else None
             top_ach = cand.fsp_achievements[0] if cand.fsp_achievements else None
+
+            matched_skills: list[str] = []
+            missing_skills: list[str] = []
+            if stack_tokens:
+                for tok in stack_tokens:
+                    found = [s for s in cand_skills if tok in s.lower()]
+                    if found:
+                        matched_skills.extend(found)
+                    else:
+                        missing_skills.append(tok)
+                # Deduplicate preserving order
+                matched_skills = list(dict.fromkeys(matched_skills))
+            else:
+                matched_skills = list(cand_skills)
+
+            # Summary explains verification status and match
+            if cand.verified_grade:
+                summary = f"Квалификация подтверждена тестированием ({cand.verified_grade})."
+            else:
+                summary = "Грейд не подтверждён тестированием."
+
+            if stack_tokens:
+                summary += f" Совпадение по стеку: {len(matched_skills)} из {len(stack_tokens)}."
+
+            match_score = test_perc if test_perc is not None else (80.0 if cand.verified_grade else 40.0)
+            if cand.fsp_verified:
+                match_score = min(100.0, match_score + 5.0)
 
             results.append(
                 CandidateMatchItem(
@@ -250,15 +299,15 @@ class MatchingService:
                     fsp_sport_category=top_ach.sport_category if top_ach else None,
                     fsp_rating=top_ach.score_or_rating if top_ach else None,
                     achievements_count=len(cand.fsp_achievements),
-                    skills=cand.skills or [],
+                    skills=cand_skills,
                     test_percentage=test_perc,
-                    match_score=test_perc or 80.0,
+                    match_score=match_score,
                     match_explanation=MatchExplanation(
-                        grade_match=bool(cand.verified_grade),
-                        matched_skills=cand.skills or [],
-                        missing_skills=[],
+                        grade_match=bool(cand.verified_grade == grade if grade else cand.verified_grade),
+                        matched_skills=matched_skills,
+                        missing_skills=missing_skills,
                         fsp_bonus=cand.fsp_verified,
-                        summary="Найдено в банке кандидатов по заданным фильтрам.",
+                        summary=summary,
                     ),
                 )
             )
