@@ -24,6 +24,11 @@ from app.services.open_question_service import (
     submit_open_question_answer,
 )
 from app.core.open_question_bank import get_open_question_by_code
+from app.core.code_sandbox.schemas import (
+    SandboxExecutionRequest,
+    SandboxExecutionResponse,
+)
+from app.services.code_sandbox_service import code_sandbox_service
 from app.services.roadmap_service import roadmap_service
 from app.services.testing_service import testing_service
 
@@ -265,4 +270,37 @@ async def get_test_session(
     db: AsyncSession = Depends(get_db),
 ):
     return await testing_service.get_session(db, current_user, session_id)
+
+
+@router.post(
+    "/code-sandbox/execute",
+    response_model=SandboxExecutionResponse,
+    summary="Безопасный запуск кода в изолированной песочнице (B-25)",
+)
+async def execute_code_sandbox(
+    data: SandboxExecutionRequest,
+    current_user: User = Depends(get_current_candidate),
+):
+    return code_sandbox_service.execute(data)
+
+
+@router.post(
+    "/open-questions/{code}/test-run",
+    response_model=SandboxExecutionResponse,
+    summary="Тестовый запуск решения задачи со скрытыми тестами (B-25)",
+)
+async def test_run_open_question_code(
+    code: str,
+    data: SandboxExecutionRequest,
+    current_user: User = Depends(get_current_candidate),
+):
+    q = get_open_question_by_code(code)
+    if not q:
+        raise HTTPException(status_code=404, detail="Открытый вопрос не найден")
+    return code_sandbox_service.evaluate_question_code(
+        question_code=code,
+        candidate_code=data.code,
+        timeout_seconds=data.timeout_seconds,
+    )
+
 
