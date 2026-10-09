@@ -95,6 +95,27 @@ class RankingTests(unittest.TestCase):
         high = score_candidate(NEED, candidate(test_percentage=90))
         self.assertGreater(high["parts"]["test"], low["parts"]["test"])
 
+    def test_skill_test_evidence_outweighs_self_reported_skills(self):
+        self_reported = candidate(id="1", skills=["Python", "PostgreSQL"])
+        measured = candidate(
+            id="2", skills=[], requested_skill_tests=[
+                {"name": "Python", "percentage": 80},
+                {"name": "PostgreSQL", "percentage": 80},
+            ],
+        )
+        ranked = rank_candidates(NEED, [self_reported, measured])
+        self.assertEqual([item["candidate_id"] for item in ranked], ["2", "1"])
+        self.assertEqual(ranked[1]["parts"]["tested_skills"], 0)
+        self.assertEqual(ranked[1]["tested_skill_count"], 0)
+
+    def test_missing_result_is_not_treated_as_zero_test(self):
+        partial = score_candidate(NEED, candidate(requested_skill_tests=[
+            {"name": "Python", "percentage": 80},
+            {"name": "PostgreSQL", "percentage": None},
+        ]))
+        self.assertEqual(partial["tested_skill_count"], 1)
+        self.assertGreater(partial["parts"]["tested_skills"], 0)
+
     def test_report_compares_only_eligible_backend_needs_without_quality_claim(self):
         text = report.build_report()
         self.assertEqual(text.count("| Backend "), 3)

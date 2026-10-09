@@ -112,7 +112,12 @@ async def test_matching_only_confirmed_and_order_matches_b14(client: AsyncClient
             [
                 {"id": profile.id, "specialization": "Backend", "verified_grade": "middle", "skills": profile.skills,
                  "test_percentage": percentage, "work_format": "remote", "salary_expectation": 220000,
-                 "salary_tax_type": "gross", "fsp_verified": False, "fsp_achievements": []}
+                 "salary_tax_type": "gross", "fsp_verified": False, "fsp_achievements": [],
+                 "requested_skill_tests": (
+                     [{"name": name, "percentage": result} for name, result in
+                      (("Python", 80), ("SQL", 60), ("HTTP API", 90), ("Git", 70))]
+                     if profile.id == profiles[0].id else []
+                 )}
                 for profile, percentage in ((profiles[0], 90.0), (profiles[1], 76.0))
             ],
         )
@@ -126,6 +131,8 @@ async def test_matching_only_confirmed_and_order_matches_b14(client: AsyncClient
     assert {item["candidate_id"] for item in data["candidates"]} == expected_ids
     assert [item["candidate_id"] for item in data["candidates"]] == [str(item["candidate_id"]) for item in expected]
     assert [item["match_score"] for item in data["candidates"]] == [item["points"] for item in expected]
+    assert data["candidates"][0]["candidate_id"] == str(profiles[0].id)
+    assert "Отдельные результаты тестов есть по 4 из 7" in data["candidates"][0]["match_explanation"]["summary"]
     assert all(item["match_explanation"]["grade_match"] for item in data["candidates"])
     assert all(item["match_explanation"]["summary"] for item in data["candidates"])
     skill_tests = next(item for item in data["candidates"] if item["candidate_id"] == str(profiles[0].id))["requested_skill_tests"]

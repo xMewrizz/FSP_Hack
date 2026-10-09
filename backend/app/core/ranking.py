@@ -53,7 +53,27 @@ def score_candidate(need: dict[str, Any], candidate: dict[str, Any]) -> dict[str
     missing = [name for name, _ in requirements if name not in candidate_skills]
     total_weight = sum(weight for _, weight in requirements)
     matched_weight = sum(weight for name, weight in requirements if name in candidate_skills)
-    skills_points = 55 * matched_weight / total_weight if total_weight else 0.0
+    # Анкета показывает заявленные навыки, отдельные тесты — измеренные.
+    profile_skill_points = 18 * matched_weight / total_weight if total_weight else 0.0
+    tested_weight = 0.0
+    tested_points = 0.0
+    tested_results = {
+        _norm(item.get("name")): item.get("percentage")
+        for item in candidate.get("requested_skill_tests") or []
+        if isinstance(item, dict)
+    }
+    for name, weight in requirements:
+        result = tested_results.get(name)
+        if result is None:
+            continue
+        try:
+            percentage = max(0.0, min(float(result), 100.0))
+        except (TypeError, ValueError):
+            continue
+        tested_weight += weight
+        tested_points += weight * percentage / 100
+    skill_test_points = 37 * tested_points / total_weight if total_weight else 0.0
+    skills_points = profile_skill_points + skill_test_points
 
     test_result = candidate.get("test_percentage")
     try:
@@ -103,6 +123,8 @@ def score_candidate(need: dict[str, Any], candidate: dict[str, Any]) -> dict[str
         "points": points,
         "parts": {
             "skills": round(skills_points, 2),
+            "profile_skills": round(profile_skill_points, 2),
+            "tested_skills": round(skill_test_points, 2),
             "test": round(test_points, 2),
             "work": round(work_points, 2),
             "salary": salary_points,
@@ -110,6 +132,8 @@ def score_candidate(need: dict[str, Any], candidate: dict[str, Any]) -> dict[str
         },
         "matched_skills": matched,
         "missing_skills": missing,
+        "tested_skill_count": sum(1 for name, _ in requirements if tested_results.get(name) is not None),
+        "requested_skill_count": len(requirements),
         "format_match": format_match,
         "city_match": city_match if need_format != "remote" else None,
         "salary_match": salary_match if salary_comparable else None,

@@ -1050,10 +1050,11 @@ function Radar({
   const maxR = compact ? 72 : 92;
   const visibleLabels = axisLabels ?? labels;
   const targetValues = target.length === values.length ? target : values.map(() => 10);
+  const polarPoint = (radius: number, angle: number) =>
+    `${center + Math.cos(angle) * radius},${center + Math.sin(angle) * radius}`;
   const point = (value: number, i: number) => {
     const angle = -Math.PI / 2 + (Math.PI * 2 * i) / values.length;
-    const radius = (value / 10) * maxR;
-    return `${center + Math.cos(angle) * radius},${center + Math.sin(angle) * radius}`;
+    return polarPoint((value / 10) * maxR, angle);
   };
   const ring = (level: number) =>
     values.map((_, i) => point(level, i)).join(" ");
@@ -1063,6 +1064,29 @@ function Radar({
       x: center + Math.cos(angle) * (maxR + 26),
       y: center + Math.sin(angle) * (maxR + 26),
     };
+  };
+  const missingIndex = values.findIndex((value) => value === null);
+  const measuredRuns: number[][] = [];
+  if (missingIndex >= 0) {
+    let run: number[] = [];
+    for (let step = 1; step <= values.length; step++) {
+      const index = (missingIndex + step) % values.length;
+      if (values[index] !== null) {
+        run.push(index);
+      } else if (run.length > 0) {
+        measuredRuns.push(run);
+        run = [];
+      }
+    }
+  }
+  const partialAreaPoints = (run: number[]) => {
+    const measuredPoints = run.map((index) => point(values[index]!, index));
+    if (run.length > 1) return `${center},${center} ${measuredPoints.join(" ")}`;
+    const index = run[0];
+    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / values.length;
+    const radius = (values[index]! / 10) * maxR * 0.65;
+    const halfWidth = Math.PI / (values.length * 2);
+    return `${center},${center} ${polarPoint(radius, angle - halfWidth)} ${measuredPoints[0]} ${polarPoint(radius, angle + halfWidth)}`;
   };
 
   return (
@@ -1089,16 +1113,23 @@ function Radar({
         points={targetValues.map((v, i) => point(v, i)).join(" ")}
         className="radar__target"
       />
-      {values.every((value) => value !== null) ? <polygon
+      {missingIndex < 0 ? <polygon
         points={values.map((value, i) => point(value!, i)).join(" ")}
         className="radar__value"
-      /> : values.map((value, i) => value === null ? null : <circle
-        key={i}
-        cx={point(value, i).split(",")[0]}
-        cy={point(value, i).split(",")[1]}
-        r={compact ? 3 : 4}
-        className="radar__measured-point"
-      />)}
+      /> : <>
+        {measuredRuns.map((run) => <polygon
+          key={run[0]}
+          points={partialAreaPoints(run)}
+          className="radar__value"
+        />)}
+        {values.map((value, i) => value === null ? null : <circle
+          key={i}
+          cx={point(value, i).split(",")[0]}
+          cy={point(value, i).split(",")[1]}
+          r={compact ? 3 : 4}
+          className="radar__measured-point"
+        />)}
+      </>}
       {!compact && showAxisLabels &&
         visibleLabels.map((label, i) => {
           const pos = labelPoint(i);
@@ -1315,6 +1346,13 @@ const DEFAULT_SKILLS_BY_SPEC: Record<string, Array<{ name: string; weight: numbe
   ],
 };
 
+const SKILL_SUGGESTIONS = [
+  "Python", "SQL", "HTTP API", "Надёжность сервиса", "Git", "Docker",
+  "FastAPI", "PostgreSQL", "Redis", "React", "TypeScript", "JavaScript",
+  "Node.js", "Java", "Spring", "Kubernetes", "Linux", "Pandas",
+  "Machine Learning", "CI/CD", "Terraform", "Postman", "C++", "C#",
+];
+
 function EmployerScreen({
   active,
   onOpenCandidates,
@@ -1372,12 +1410,17 @@ function EmployerScreen({
     { name: "CI/CD", weight: 3 },
   ]);
   const [newSkillName, setNewSkillName] = useState("");
+  const [skillSuggestionsOpen, setSkillSuggestionsOpen] = useState(false);
+  const skillSuggestions = SKILL_SUGGESTIONS.filter((name) =>
+    name.toLocaleLowerCase().startsWith(newSkillName.trim().toLocaleLowerCase())
+    && !skillItems.some((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase()),
+  );
   const [needEntryMode, setNeedEntryMode] = useState<"manual" | "llm">("manual");
   const [needDraft, setNeedDraft] = useState<NeedDraft | null>(null);
   const [needParsing, setNeedParsing] = useState(false);
 
-  const handleAddSkill = () => {
-    const trimmed = newSkillName.trim();
+  const handleAddSkill = (name = newSkillName) => {
+    const trimmed = name.trim();
     if (!trimmed) return;
     if (trimmed.length > 100) {
       onNotify("Название навыка не должно превышать 100 символов", "error");
@@ -1389,6 +1432,7 @@ function EmployerScreen({
     }
     setSkillItems((current) => [...current, { name: trimmed, weight: 3 }]);
     setNewSkillName("");
+    setSkillSuggestionsOpen(false);
   };
 
   const handleRemoveSkill = (indexToRemove: number) => {
@@ -1885,20 +1929,33 @@ function EmployerScreen({
                 ))}
               </div>
               <div className="skill-add-row">
-                <input
-                  type="text"
-                  placeholder="Добавить навык (например, Redis)..."
-                  aria-label="Новый навык"
-                  value={newSkillName}
-                  onChange={(e) => setNewSkillName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddSkill();
-                    }
-                  }}
-                />
-                <Button variant="outline" onClick={handleAddSkill}>+ Добавить</Button>
+                <div className="skill-add-autocomplete" onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setSkillSuggestionsOpen(false);
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Добавить навык (например, Redis)..."
+                    aria-label="Новый навык"
+                    role="combobox"
+                    aria-expanded={skillSuggestionsOpen && skillSuggestions.length > 0}
+                    aria-controls="skill-suggestions"
+                    aria-autocomplete="list"
+                    value={newSkillName}
+                    onFocus={() => setSkillSuggestionsOpen(true)}
+                    onChange={(e) => { setNewSkillName(e.target.value); setSkillSuggestionsOpen(true); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setSkillSuggestionsOpen(false);
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddSkill();
+                      }
+                    }}
+                  />
+                  {skillSuggestionsOpen && skillSuggestions.length > 0 && <div className="skill-suggestions" id="skill-suggestions" role="listbox" aria-label="Подходящие навыки">
+                    {skillSuggestions.map((name) => <button key={name} type="button" role="option" aria-selected={false} onClick={() => handleAddSkill(name)}>{name}</button>)}
+                  </div>}
+                </div>
+                <Button variant="outline" onClick={() => handleAddSkill()}>+ Добавить</Button>
               </div>
             </> : <>
               <p className="feature-description feature-description--left">Опишите задачи и стек в поле слева — мы предложим навыки и веса. Результат можно проверить и отредактировать перед сохранением.</p>
@@ -4203,7 +4260,7 @@ function RequestedSkillRadar({ skills, compact = false }: { skills: RequestedSki
       target={skills.map(() => 10)}
       axisLabels={skills.map((skill) => skill.name)}
       compact={compact}
-      showAxisLabels={!compact}
+      showAxisLabels={!compact && skills.length <= 6}
       description={`Результаты тестов по запрошенным навыкам: ${skills.map((skill) => `${skill.name} — ${skill.percentage === null ? "нет результата" : `${skill.percentage}%`}`).join(", ")}`}
     /> : null}
     {compact ? <>
@@ -4220,11 +4277,11 @@ function RequestedSkillRadar({ skills, compact = false }: { skills: RequestedSki
           {skill.test_kind === "additional" && <small>Дополнительный тест</small>}
         </div>)}
       </div>
-      <p>{measured === 0
+      <p>{skills.length > 6 && "Навыки расположены по часовой стрелке от верхней оси; их названия и результаты указаны выше. "}{measured === 0
         ? "По этим требованиям пока нет результатов тестов. Это не оценка знаний кандидата."
         : measured === skills.length
         ? "Каждая вершина показывает долю баллов за тест на подтверждённом грейде; внешний контур соответствует 100%."
-        : "Точки показывают результаты тестов на подтверждённом грейде. Фигура заполнится, когда будут результаты по всем навыкам; отсутствие результата не означает отсутствие навыка."}</p>
+        : "Закрашены участки по навыкам с результатами тестов на подтверждённом грейде. Пустая ось означает, что результата пока нет, а не нулевой уровень навыка."}</p>
     </>}
   </div>;
 }

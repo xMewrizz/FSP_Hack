@@ -16,7 +16,7 @@ from app.models.user import User
 from app.schemas.matching import CandidateMatchItem, MatchExplanation, MatchingCandidatesResponse, RequestedSkillTestResult
 
 
-def _candidate_data(candidate: CandidateProfile, percentage: float | None) -> dict:
+def _candidate_data(candidate: CandidateProfile, percentage: float | None, requested_skill_tests: list[RequestedSkillTestResult]) -> dict:
     return {
         "id": candidate.id,
         "specialization": candidate.verified_specialization or candidate.specialization,
@@ -24,6 +24,7 @@ def _candidate_data(candidate: CandidateProfile, percentage: float | None) -> di
         "declared_grade": candidate.declared_grade,
         "skills": candidate.skills or [],
         "test_percentage": percentage,
+        "requested_skill_tests": [item.model_dump() for item in requested_skill_tests],
         "work_format": candidate.work_format,
         "city": candidate.city,
         "salary_expectation": candidate.salary_expectation,
@@ -111,6 +112,11 @@ def _match_item(
         summary.append(f"Совпали навыки: {', '.join(matched)}.")
     if missing:
         summary.append(f"Не указаны навыки: {', '.join(missing)}.")
+    summary.append(
+        f"Отдельные результаты тестов есть по {score['tested_skill_count']} из "
+        f"{score['requested_skill_count']} запрошенных навыков. "
+        "Балл учитывает подтверждённые результаты и навыки из анкеты; отсутствие результата не означает отсутствие навыка."
+    )
     if score["salary_match"]:
         summary.append("Зарплатные ожидания соответствуют бюджету.")
     elif candidate.salary_expectation is not None and candidate.salary_tax_type != need.salary_tax_type:
@@ -217,11 +223,6 @@ class MatchingService:
             if legacy_result is not None:
                 confirmed_results[candidate.id] = legacy_result.percentage
 
-        ranked = rank_candidates(
-            _need_data(need),
-            [_candidate_data(item, confirmed_results.get(item.id)) for item in candidates],
-        )
-        ranked_ids = [item["candidate_id"] for item in ranked]
         aliases = BACKEND_MATCHING_SKILL_CODES if need.specialization.casefold() == "backend" else {}
         requested_codes = {
             aliases.get(str(item.get("name") or "").strip().casefold())
@@ -230,7 +231,7 @@ class MatchingService:
         sessions = (await db.scalars(
             select(TestSession)
             .where(
-                TestSession.candidate_profile_id.in_(ranked_ids),
+                TestSession.candidate_profile_id.in_([item.id for item in candidates]),
                 TestSession.status == "completed",
                 TestSession.skill_code.in_(requested_codes),
                 or_(
@@ -239,7 +240,7 @@ class MatchingService:
                 ),
             )
             .order_by(TestSession.completed_at.desc(), TestSession.created_at.desc())
-        )).all() if ranked_ids and requested_codes else []
+        )).all() if requested_codes else []
         base_by_candidate: dict[uuid.UUID, dict[str, TestSession]] = {}
         additional_by_candidate: dict[uuid.UUID, dict[str, TestSession]] = {}
         for session in sessions:
@@ -253,14 +254,22 @@ class MatchingService:
                 base_by_candidate.setdefault(candidate.id, {}).setdefault(session.skill_code, session)
             elif session.assessment_id is None:
                 additional_by_candidate.setdefault(candidate.id, {}).setdefault(session.skill_code, session)
+        skill_tests_by_candidate = {
+            candidate.id: _requested_skill_tests(
+                need,
+                base_by_candidate.get(candidate.id, {}),
+                additional_by_candidate.get(candidate.id, {}),
+            )
+            for candidate in candidates
+        }
+        ranked = rank_candidates(
+            _need_data(need),
+            [_candidate_data(item, confirmed_results.get(item.id), skill_tests_by_candidate[item.id]) for item in candidates],
+        )
         items = [
             _match_item(
                 by_id[result["candidate_id"]], result, confirmed_results.get(result["candidate_id"]), need,
-                _requested_skill_tests(
-                    need,
-                    base_by_candidate.get(result["candidate_id"], {}),
-                    additional_by_candidate.get(result["candidate_id"], {}),
-                ),
+                skill_tests_by_candidate[result["candidate_id"]],
             )
             for result in ranked
         ]
