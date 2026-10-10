@@ -235,8 +235,6 @@ class MatchingService:
             .options(
                 joinedload(CandidateProfile.fsp_achievements),
                 selectinload(CandidateProfile.test_sessions),
-                defer(CandidateProfile.resume_url),
-                defer(CandidateProfile.github_url),
                 defer(CandidateProfile.phone),
                 defer(CandidateProfile.telegram),
                 defer(CandidateProfile.middle_name),
@@ -410,8 +408,6 @@ class MatchingService:
             .options(
                 joinedload(CandidateProfile.fsp_achievements),
                 selectinload(CandidateProfile.test_sessions),
-                defer(CandidateProfile.resume_url),
-                defer(CandidateProfile.github_url),
                 defer(CandidateProfile.phone),
                 defer(CandidateProfile.telegram),
                 defer(CandidateProfile.middle_name),
