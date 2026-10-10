@@ -138,6 +138,7 @@ def _match_item(
     top_achievement = next((item for item in candidate.fsp_achievements if item.verified), None)
 
     from app.services.trust_score_service import calculate_trust_score
+    from app.services.resume_versions import labeled_work_entries
     trust_score_val, trust_flags_val = calculate_trust_score(candidate)
 
     return CandidateMatchItem(
@@ -163,6 +164,9 @@ def _match_item(
         photo_url=f"/candidate/{candidate.id}/photo" if candidate.photo_filename else None,
         github_url=candidate.github_url,
         resume_text=candidate.resume_text,
+        resume_employers=list(dict.fromkeys(
+            company for company, _role in labeled_work_entries(candidate.resume_text or "").values()
+        )),
         resume_url=candidate.resume_url,
         salary_expectation=candidate.salary_expectation,
         salary_tax_type=candidate.salary_tax_type,
@@ -460,6 +464,7 @@ class MatchingService:
                 ]
 
         from app.services.trust_score_service import calculate_trust_score
+        from app.services.resume_versions import labeled_work_entries
         additional_specializations = await _additional_specializations_by_candidate(db, candidates)
         items = []
         for candidate in candidates:
@@ -488,6 +493,9 @@ class MatchingService:
                     photo_url=f"/candidate/{candidate.id}/photo" if candidate.photo_filename else None,
                     github_url=candidate.github_url,
                     resume_text=candidate.resume_text,
+                    resume_employers=list(dict.fromkeys(
+                        company for company, _role in labeled_work_entries(candidate.resume_text or "").values()
+                    )),
                     resume_url=candidate.resume_url,
                     salary_expectation=candidate.salary_expectation,
                     salary_tax_type=candidate.salary_tax_type,

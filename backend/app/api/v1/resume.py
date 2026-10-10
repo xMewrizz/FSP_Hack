@@ -10,7 +10,7 @@ from app.models.candidate import CandidateProfile
 from app.models.user import User
 from app.schemas.resume import ResumeParsedData, ResumeVersionItem
 from app.models.resume_version import ResumeVersion
-from app.services.resume_versions import changed_work_lines
+from app.services.resume_versions import changed_roles, changed_work_lines
 from app.services.candidate_photo_service import MAX_PHOTO_SIZE, candidate_photo_service
 from app.services.candidate_service import candidate_service
 from app.services.pdf_service import pdf_service
@@ -26,20 +26,47 @@ async def list_resume_versions(
     profile = await db.scalar(select(CandidateProfile).where(CandidateProfile.user_id == current_user.id))
     if profile is None:
         raise HTTPException(status_code=404, detail="Профиль кандидата не найден")
+    return await _load_resume_versions(db, profile.id)
+
+
+async def _load_resume_versions(db: AsyncSession, profile_id: uuid.UUID) -> list[ResumeVersionItem]:
     versions = (await db.scalars(
-        select(ResumeVersion).where(ResumeVersion.candidate_profile_id == profile.id)
+        select(ResumeVersion).where(ResumeVersion.candidate_profile_id == profile_id)
         .order_by(ResumeVersion.created_at, ResumeVersion.id)
     )).all()
     result = []
     prior: list[str] = []
+    prior_text = ""
     for index, version in enumerate(versions):
         changes = changed_work_lines(prior, version.work_lines) if index else {"added": [], "removed": []}
         result.append(ResumeVersionItem(
             id=version.id, created_at=version.created_at,
-            work_lines=version.work_lines, **changes,
+            work_lines=version.work_lines,
+            role_changes=changed_roles(prior_text, version.text) if index else [],
+            **changes,
         ))
         prior = version.work_lines
+        prior_text = version.text
     return list(reversed(result))
+
+
+@router.get("/{candidate_id}/resume/versions", response_model=list[ResumeVersionItem], summary="История резюме опубликованного кандидата")
+async def list_published_resume_versions(
+    candidate_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.role != UserRole.EMPLOYER or not current_user.is_verified:
+        raise HTTPException(status_code=404, detail="Кандидат не найден")
+    profile = await db.scalar(select(CandidateProfile).where(
+        CandidateProfile.id == candidate_id,
+        CandidateProfile.agreed_publication.is_(True),
+        CandidateProfile.visibility_public.is_(True),
+        CandidateProfile.onboarding_completed.is_(True),
+    ))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Кандидат не найден")
+    return await _load_resume_versions(db, profile.id)
 
 
 @router.delete("/resume/versions", status_code=204, summary="Удалить сохранённые версии резюме")

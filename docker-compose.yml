@@ -35,7 +35,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-change-me}
       ML_SERVICE_URL: http://ml-service:8001
-      SANDBOX_SERVICE_URL: ${SANDBOX_SERVICE_URL:-}
+      SANDBOX_SERVICE_URL: ${SANDBOX_SERVICE_URL:-http://sandbox-controller:8002}
       FSP_MOCK_MODE: "true"
     networks:
       - default

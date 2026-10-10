@@ -10,6 +10,23 @@ from app.services.open_question_service import get_public_open_questions
 from app.core.question_variants import prepared_variants
 
 
+@pytest.fixture(autouse=True)
+def fake_functional_checks(monkeypatch):
+    """These API tests exercise grading flow; Docker cases have separate integration tests."""
+    from app.core.code_sandbox.schemas import SandboxExecutionResponse
+    from app.services.code_sandbox_service import code_sandbox_service
+
+    async def evaluate(_question_code, code, _timeout_seconds=3.0):
+        valid = "broken syntax" not in code
+        return SandboxExecutionResponse(
+            status="success" if valid else "syntax_error", is_safe=valid,
+            passed=valid, score=1.0 if valid else 0.0,
+            tests_total=12, tests_passed=12 if valid else 0,
+        )
+
+    monkeypatch.setattr(code_sandbox_service, "evaluate_question_code", evaluate)
+
+
 def test_open_questions_bank_structure():
     assert len(OPEN_QUESTIONS) >= 33
     codes = [q["code"] for q in OPEN_QUESTIONS]
@@ -325,23 +342,23 @@ async def test_manual_reviewer_workflow(client: AsyncClient):
     assert target_item is not None
     assert target_item["needs_manual_review"] is True
 
-    # 5. Администратор утверждает исправленный балл.
+    # 5. Ручная оценка не может отменить провал скрытых тестов.
     review_resp = await client.post(
         f"/api/v1/testing/open-submissions/{submission_id}/review",
         headers=emp_headers,
         json={
             "score": 0.85,
             "passed": True,
-            "notes": "Ручная проверка эксперта: опечатка в синтаксисе учтена, алгоритмическая основа верна.",
+            "notes": "Синтаксическая ошибка требует нового решения.",
         },
     )
     assert review_resp.status_code == 200
     reviewed_item = review_resp.json()
     assert reviewed_item["id"] == submission_id
-    assert reviewed_item["score"] == 0.85
-    assert reviewed_item["passed"] is True
+    assert reviewed_item["score"] == 0.0
+    assert reviewed_item["passed"] is False
     assert reviewed_item["needs_manual_review"] is False
-    assert reviewed_item["manual_reviewer_notes"] == "Ручная проверка эксперта: опечатка в синтаксисе учтена, алгоритмическая основа верна."
+    assert reviewed_item["manual_reviewer_notes"] == "Синтаксическая ошибка требует нового решения."
     assert reviewed_item["reviewed_at"] is not None
     assert reviewed_item["reviewed_by"] is not None
 
@@ -433,7 +450,7 @@ async def test_queued_answers_survive_navigation_and_grade_waits_for_evaluation(
             "criterion_scores": {}, "evaluator": "llm_test", "needs_manual_review": False,
         }
 
-    monkeypatch.setattr(open_question_queue, "_evaluate_with_ml", fake_evaluate)
+    monkeypatch.setattr(open_question_queue, "evaluate_open_answer", fake_evaluate)
     headers = await open_test_candidate_headers(client, "queued-open@example.com")
     created = (await client.post("/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"})).json()
     assessment_id = created["id"]
@@ -515,7 +532,7 @@ async def test_failed_background_check_keeps_answer_for_retry(client: AsyncClien
     async def unavailable(question, answer):
         return _local_fallback_eval(question, answer)
 
-    monkeypatch.setattr(open_question_queue, "_evaluate_with_ml", unavailable)
+    monkeypatch.setattr(open_question_queue, "evaluate_open_answer", unavailable)
     headers = await open_test_candidate_headers(client, "queued-fail@example.com")
     created = (await client.post("/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"})).json()
     code = created["open_questions"][0]["code"]
@@ -590,6 +607,42 @@ async def test_low_model_score_finishes_grade_without_manual_queue(client: Async
     assert complete["status"] == "completed"
     assert complete["verified_grade"] is None
     assert complete["passed"] is False
+
+
+@pytest.mark.asyncio
+async def test_failing_code_cannot_confirm_grade_even_if_model_gives_full_score(client: AsyncClient, monkeypatch):
+    from app.core.code_sandbox.schemas import SandboxExecutionResponse
+    from app.services import open_question_service
+    from app.services.code_sandbox_service import code_sandbox_service
+
+    async def fake_model(_question, _answer, _client=None):
+        return {"score": 1.0, "passed": True, "feedback": "Разбор ответа",
+                "criterion_scores": {}, "evaluator": "llm_test", "needs_manual_review": False}
+
+    async def failing_code(_code, _answer, _timeout_seconds=3.0):
+        return SandboxExecutionResponse(
+            status="test_failure", is_safe=True, passed=False, score=0.0,
+            tests_total=10, tests_passed=0,
+        )
+
+    monkeypatch.setattr(open_question_service, "_evaluate_with_ml", fake_model)
+    monkeypatch.setattr(code_sandbox_service, "evaluate_question_code", failing_code)
+    headers = await open_test_candidate_headers(client, "failing-code-grade@example.com")
+    created = (await client.post("/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"})).json()
+    assessment_id = created["id"]
+    await complete_choices(client, headers, assessment_id, created["skills"])
+    for item in created["open_questions"]:
+        response = await client.post(
+            f"/api/v1/testing/open-questions/{item['code']}/submit", headers=headers,
+            json={"assessment_id": assessment_id, "answer_text": "Решение кандидата"},
+        )
+        assert response.status_code == 201, response.text
+        if item["question_type"] == "code":
+            assert response.json()["score"] == 0.0
+    roadmap = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert roadmap["status"] == "completed"
+    assert roadmap["verified_grade"] is None
+    assert roadmap["passed"] is False
 
 
 @pytest.mark.asyncio

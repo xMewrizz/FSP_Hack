@@ -59,6 +59,7 @@ class CandidateMatchItem(BaseModel):
     photo_url: str | None = None
     github_url: str | None = None
     resume_text: str | None = None
+    resume_employers: list[str] = Field(default_factory=list)
     resume_url: str | None = None
     salary_expectation: float | None = None
     salary_tax_type: str | None = None

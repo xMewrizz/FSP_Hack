@@ -3,7 +3,7 @@
 import pytest
 from httpx import AsyncClient
 
-from app.services.resume_versions import changed_work_lines, work_history_lines
+from app.services.resume_versions import changed_roles, changed_work_lines, work_history_lines
 
 
 async def candidate_headers(client: AsyncClient, email: str) -> dict[str, str]:
@@ -32,6 +32,13 @@ def test_comparison_only_marks_changed_work_lines():
     }
 
 
+def test_labeled_role_change_is_shown_without_guessing_unlabeled_jobs():
+    before = "Компания: Север\nДолжность: разработчик\n2020-2022\n\nPython"
+    after = "Компания: Север\nДолжность: тимлид\n2020-2022\n\nPython"
+    assert changed_roles(before, after) == ["Север, 2020-2022: «разработчик» → «тимлид»"]
+    assert changed_roles("Север, разработчик 2020-2022", "Север, тимлид 2020-2022") == []
+
+
 @pytest.mark.asyncio
 async def test_confirmed_resume_history_is_private_and_deletable(client: AsyncClient):
     owner = await candidate_headers(client, "resume-owner@example.com")
@@ -50,6 +57,24 @@ async def test_confirmed_resume_history_is_private_and_deletable(client: AsyncCl
     assert versions[0]["removed"] == ["Компания Север, 2020-2022"]
     assert versions[1]["added"] == []
     assert (await client.get("/api/v1/candidate/resume/versions", headers=stranger)).json() == []
+
+    employer = await client.post("/api/v1/auth/register", json={
+        "email": "resume-employer@example.com", "password": "Password123!", "role": "employer",
+    })
+    assert employer.status_code == 201
+    verified_employer = await client.post("/api/v1/auth/verify-email", json={
+        "email": "resume-employer@example.com", "code": employer.json()["verification_code"],
+    })
+    employer_headers = {"Authorization": f"Bearer {verified_employer.json()['access_token']}"}
+    profile_id = (await client.get("/api/v1/candidate/profile", headers=owner)).json()["id"]
+    url = f"/api/v1/candidate/{profile_id}/resume/versions"
+    assert (await client.get(url, headers=employer_headers)).status_code == 404
+    published = await client.put("/api/v1/candidate/profile", headers=owner, json={
+        "agreed_publication": True, "visibility_public": True,
+    })
+    assert published.status_code == 200
+    assert len((await client.get(url, headers=employer_headers)).json()) == 2
+    assert (await client.get(url, headers=stranger)).status_code == 404
 
     deleted = await client.delete("/api/v1/candidate/resume/versions", headers=owner)
     assert deleted.status_code == 204

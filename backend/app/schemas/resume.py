@@ -25,3 +25,4 @@ class ResumeVersionItem(BaseModel):
     work_lines: list[str]
     added: list[str]
     removed: list[str]
+    role_changes: list[str] = []

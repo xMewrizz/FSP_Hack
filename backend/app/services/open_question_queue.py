@@ -13,7 +13,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.candidate import CandidateProfile
 from app.models.test import GradeAssessment, OpenQuestionSubmission, TestSession
 from app.core.open_question_bank import get_open_question_by_code
-from app.services.open_question_service import _evaluate_with_ml
+from app.services.open_question_service import evaluate_open_answer
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ async def process_queued_submission(submission_id: uuid.UUID) -> None:
         return
 
     try:
-        result = await _evaluate_with_ml(question, answer_text)
+        result = await evaluate_open_answer(question, answer_text)
         async with AsyncSessionLocal() as db:
             # All completions for one assessment serialize on its row.
             submission = await db.get(OpenQuestionSubmission, submission_id)

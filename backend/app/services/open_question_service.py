@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.code_sandbox.run_job import SUPPORTED_QUESTIONS
 from app.core.open_question_bank import (
     OPEN_QUESTIONS,
     get_open_question_by_code,
@@ -153,6 +154,37 @@ async def _evaluate_with_ml(
             await client.aclose()
 
 
+async def evaluate_open_answer(
+    question: dict[str, Any], answer_text: str, client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """Combine the rubric with functional tests when a code task has a runnable contract."""
+    if question["code"] not in SUPPORTED_QUESTIONS or question["question_type"] != "code":
+        return await _evaluate_with_ml(question, answer_text, client)
+
+    from app.services.code_sandbox_service import UnsupportedSandboxQuestion, code_sandbox_service
+
+    try:
+        sandbox = await code_sandbox_service.evaluate_question_code(question["code"], answer_text)
+    except UnsupportedSandboxQuestion as exc:
+        raise RuntimeError("Изолированная проверка не поддерживает это задание") from exc
+    if sandbox.tests_total <= 0:
+        raise RuntimeError("Изолированная проверка не вернула тесты")
+    model = await _evaluate_with_ml(question, answer_text, client)
+    score = round(min(float(model["score"]), sandbox.score), 2)
+    criteria = dict(model.get("criterion_scores", {}))
+    criteria["Функциональные тесты"] = sandbox.score
+    feedback = model.get("feedback", "").strip()
+    execution_feedback = f"Код прошёл {sandbox.tests_passed} из {sandbox.tests_total} проверок."
+    return {
+        **model,
+        "score": score,
+        "passed": score >= 0.7,
+        "feedback": f"{execution_feedback} {feedback}".strip(),
+        "criterion_scores": criteria,
+        "evaluator": f"{model['evaluator']}+code_sandbox_b25",
+    }
+
+
 async def submit_open_question_answer(
     db: AsyncSession,
     user: User,
@@ -186,7 +218,10 @@ async def submit_open_question_answer(
         if existing:
             raise HTTPException(409, "Ответ на это задание уже отправлен")
 
-    eval_result = await _evaluate_with_ml(question, answer_text, client)
+    try:
+        eval_result = await evaluate_open_answer(question, answer_text, client)
+    except RuntimeError as exc:
+        raise HTTPException(503, "Проверка кода сейчас недоступна. Ответ не отправлен; попробуйте позже.") from exc
 
     if assessment_id is not None and eval_result.get("evaluator") == "fallback_heuristic":
         raise HTTPException(
@@ -337,7 +372,10 @@ async def retry_open_submission_evaluation(
     question = get_open_question_by_code(submission.question_code)
     if question is None:
         raise HTTPException(404, "Задание больше не найдено")
-    result = await _evaluate_with_ml(question, submission.answer_text, client)
+    try:
+        result = await evaluate_open_answer(question, submission.answer_text, client)
+    except RuntimeError as exc:
+        raise HTTPException(503, "Проверка кода сейчас недоступна. Попробуйте позже.") from exc
     if result.get("needs_manual_review") or result.get("evaluator") == "fallback_heuristic":
         raise HTTPException(503, "Автоматическая проверка пока недоступна. Попробуйте позже.")
 
@@ -384,8 +422,14 @@ async def review_open_submission(
         if assessment is None or assessment.status not in ("in_progress", "pending_review"):
             raise ValueError("Набор уже завершён")
 
-    submission.score = round(max(0.0, min(1.0, score)), 2)
-    submission.passed = passed
+    bounded_score = round(max(0.0, min(1.0, score)), 2)
+    if submission.question_code in SUPPORTED_QUESTIONS:
+        functional_score = submission.criterion_scores.get("Функциональные тесты")
+        if functional_score is None:
+            raise ValueError("Результат проверки кода отсутствует; повторите автоматическую проверку")
+        bounded_score = min(bounded_score, float(functional_score))
+    submission.score = bounded_score
+    submission.passed = passed and bounded_score >= 0.7
     submission.manual_reviewer_notes = notes
     submission.reviewed_by = reviewer_id
     submission.reviewed_at = datetime.now(timezone.utc)

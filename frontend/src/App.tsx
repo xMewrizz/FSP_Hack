@@ -24,6 +24,7 @@ type Candidate = {
   trueScore?: number | null;
   trueScoreFlags?: Array<{ label: string; status: "verified" | "review" | "warning"; detail: string }>;
   resumeVersions?: Array<{ id: string; label: string; date: string; summary: string }>;
+  resumeEmployers?: string[];
   initials: string;
   avatarUrl?: string | null;
   name: string;
@@ -385,6 +386,7 @@ type MatchingCandidate = {
   trust_flags?: Array<{ label: string; status: "verified" | "review" | "warning"; detail: string }>;
   profile_updated_at?: string | null;
   resume_versions?: Array<{ id: string; label: string; date: string; summary: string }>;
+  resume_employers?: string[];
   achievements_count: number;
   skills: string[];
   bio?: string | null;
@@ -602,6 +604,7 @@ type ResumeVersionItem = {
   work_lines: string[];
   added: string[];
   removed: string[];
+  role_changes: string[];
 };
 
 type ResumeDraft = {
@@ -816,6 +819,7 @@ function mapMatchToCandidate(item: MatchingCandidate, index: number, demoMode = 
     trueScore: item.trust_score ?? null,
     trueScoreFlags: item.trust_flags,
     resumeVersions: item.resume_versions,
+    resumeEmployers: item.resume_employers,
     matchedSkills: item.match_explanation.matched_skills,
     missingSkills: item.match_explanation.missing_skills,
     requestedSkillTests: item.requested_skill_tests ?? [],
@@ -3940,12 +3944,13 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             </div>}
             {resumeVersions.length > 0 && <details className="resume-entry">
               <summary>Сохранённые версии резюме ({resumeVersions.length})</summary>
-              <p>Показаны изменения строк с диапазонами дат между вашими сохранёнными версиями. Среди них могут быть и другие сведения, не только опыт работы.</p>
+              <p>Показаны изменения строк с диапазонами дат и явно подписанных должностей между вашими сохранёнными версиями. Среди строк с датами могут быть и другие сведения, не только опыт работы.</p>
               {resumeVersions.map((version) => <div key={version.id}>
                 <strong>{new Date(version.created_at).toLocaleDateString("ru-RU")}</strong>
                 {version.added.map((line) => <p key={`add-${line}`}>Добавлено: {line}</p>)}
                 {version.removed.map((line) => <p key={`remove-${line}`}>Убрано: {line}</p>)}
-                {version.added.length === 0 && version.removed.length === 0 && <p>Изменений строк с датами работы нет.</p>}
+                {version.role_changes.map((line) => <p key={`role-${line}`}>Должность изменилась: {line}</p>)}
+                {version.added.length === 0 && version.removed.length === 0 && version.role_changes.length === 0 && <p>Изменений в распознанных строках нет.</p>}
               </div>)}
               <p>Название или ИНН компании можно сверить в <a href="https://egrul.nalog.ru/" target="_blank" rel="noopener noreferrer">официальном поиске ФНС</a>. Совпадение названия ещё не подтверждает работу кандидата в этой компании.</p>
               <Button variant="outline" onClick={() => void deleteSavedResumes()}>Удалить историю резюме</Button>
@@ -4315,6 +4320,15 @@ function ResumeModal({
   onInvite: () => void;
 }) {
   const [version, setVersion] = useState(candidate.resumeVersions?.[0]?.id ?? "current");
+  const [publishedResumeVersions, setPublishedResumeVersions] = useState<ResumeVersionItem[]>([]);
+  useEffect(() => {
+    if (!candidate.backendId) return;
+    let active = true;
+    apiGet<ResumeVersionItem[]>(`/candidate/${candidate.backendId}/resume/versions`)
+      .then((items) => { if (active) setPublishedResumeVersions(items); })
+      .catch(() => { if (active) setPublishedResumeVersions([]); });
+    return () => { active = false; };
+  }, [candidate.backendId]);
   const selectedVersion = candidate.resumeVersions?.find((item) => item.id === version);
   const versionNote = selectedVersion?.summary ?? (version === "current"
     ? candidate.about
@@ -4338,8 +4352,13 @@ function ResumeModal({
           </div>
           <div className="resume-versions resume-versions--backend">
             <span>ВЕРСИИ РЕЗЮМЕ</span>
-            {candidate.resumeVersions?.length ? candidate.resumeVersions.map((item) => <button type="button" key={item.id} className={version === item.id ? "active" : ""} onClick={() => setVersion(item.id)}>{item.label} · {new Date(`${item.date}T00:00:00`).toLocaleDateString("ru-RU")}</button>) : <small>История версий пока не передаётся backend.</small>}
-            <p>{versionNote}</p>
+            {publishedResumeVersions.length ? publishedResumeVersions.map((item) => <div key={item.id}>
+              <strong>{new Date(item.created_at).toLocaleDateString("ru-RU")}</strong>
+              {item.added.map((line) => <p key={`add-${line}`}>Добавлено: {line}</p>)}
+              {item.removed.map((line) => <p key={`remove-${line}`}>Убрано: {line}</p>)}
+              {item.role_changes.map((line) => <p key={`role-${line}`}>Должность изменилась: {line}</p>)}
+              {!item.added.length && !item.removed.length && !item.role_changes.length && <p>Изменений в распознанных строках нет.</p>}
+            </div>) : <small>Сохранённых версий резюме пока нет.</small>}
           </div>
           <div className="resume-layout">
             <div className="resume-main">
@@ -4354,6 +4373,11 @@ function ResumeModal({
                 <span>TRUE SCORE · ПРОВЕРКА РЕЗЮМЕ</span>
                 {candidate.trueScore != null ? <><strong>{candidate.trueScore.toFixed(2).replace(".", ",")} из 1,00</strong><p>Сводный сигнал доверия, не вероятность достоверности.</p><p>Профиль обновлён: {candidate.updated}</p>{candidate.trueScoreFlags?.map((flag) => <div className={`true-score-flag true-score-flag--${flag.status}`} key={flag.label}><i /><div><strong>{flag.label}</strong><span>{flag.detail}</span></div></div>)}</> : <p>True Score не передаётся matching API. Не интерпретируйте отсутствие значения как подозрение.</p>}
               </section>
+              {candidate.resumeEmployers?.length ? <section className="resume-section">
+                <span>РАБОТОДАТЕЛИ ИЗ РЕЗЮМЕ</span>
+                {candidate.resumeEmployers.map((company) => <p key={company}>{company}</p>)}
+                <p>Сведения о компании можно сверить в <a href="https://egrul.nalog.ru/" target="_blank" rel="noopener noreferrer">реестре ФНС</a>. Наличие компании не подтверждает работу кандидата в ней.</p>
+              </section> : null}
               <section className="resume-section"><span>ФСП</span><p>{candidate.fspVerified ? `Профиль подтверждён, достижений: ${candidate.achievementsCount ?? 0}` : "Подтверждённых достижений нет"}</p></section>
               <Button onClick={onInvite}>Пригласить кандидата <Icon name="send" /></Button>
             </aside>
