@@ -420,9 +420,10 @@ async def test_assigned_open_answers_gate_grade_and_reject_reuse(client: AsyncCl
 @pytest.mark.asyncio
 async def test_queued_answers_survive_navigation_and_grade_waits_for_evaluation(client: AsyncClient, monkeypatch):
     import uuid
+    from datetime import datetime, timedelta, timezone
     from app.services import open_question_queue
     from conftest import TestingSessionLocal
-    from app.models.test import OpenQuestionSubmission
+    from app.models.test import GradeAssessment, OpenQuestionSubmission
 
     monkeypatch.setattr(open_question_queue, "AsyncSessionLocal", TestingSessionLocal)
 
@@ -452,7 +453,17 @@ async def test_queued_answers_survive_navigation_and_grade_waits_for_evaluation(
     await complete_choices(client, headers, assessment_id, created["skills"])
     before = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
     assert before["verified_grade"] is None
+    assert before["status"] == "pending_review"
     assert all(item["status"] == "queued" for item in before["open_questions"])
+
+    # Evaluation can finish after the three-day window without discarding answers
+    # that the candidate submitted on time.
+    async with TestingSessionLocal() as db:
+        assessment = await db.get(GradeAssessment, uuid.UUID(assessment_id))
+        assessment.created_at = datetime.now(timezone.utc) - timedelta(days=4)
+        await db.commit()
+    waiting = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert waiting["status"] == "pending_review"
 
     for item in queued:
         async with TestingSessionLocal() as db:
@@ -466,11 +477,37 @@ async def test_queued_answers_survive_navigation_and_grade_waits_for_evaluation(
 
 
 @pytest.mark.asyncio
+async def test_assessment_waits_only_after_every_open_answer_is_submitted(client: AsyncClient):
+    headers = await open_test_candidate_headers(client, "open-after-choices@example.com")
+    created = (await client.post("/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"})).json()
+    assessment_id = created["id"]
+    await complete_choices(client, headers, assessment_id, created["skills"])
+    codes = [item["code"] for item in created["open_questions"]]
+
+    first = await client.post(
+        f"/api/v1/testing/open-questions/{codes[0]}/queue", headers=headers,
+        json={"assessment_id": assessment_id, "answer_text": "Первый ответ"},
+    )
+    assert first.status_code == 202
+    partial = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert partial["status"] == "in_progress"
+
+    second = await client.post(
+        f"/api/v1/testing/open-questions/{codes[1]}/queue", headers=headers,
+        json={"assessment_id": assessment_id, "answer_text": "Второй ответ"},
+    )
+    assert second.status_code == 202
+    complete = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert complete["status"] == "pending_review"
+
+
+@pytest.mark.asyncio
 async def test_failed_background_check_keeps_answer_for_retry(client: AsyncClient, monkeypatch):
     import uuid
+    from datetime import datetime, timedelta, timezone
     from app.services import open_question_queue
     from app.services.open_question_service import _local_fallback_eval
-    from app.models.test import OpenQuestionSubmission
+    from app.models.test import GradeAssessment, OpenQuestionSubmission
     from conftest import TestingSessionLocal
 
     monkeypatch.setattr(open_question_queue, "AsyncSessionLocal", TestingSessionLocal)
@@ -487,6 +524,13 @@ async def test_failed_background_check_keeps_answer_for_retry(client: AsyncClien
         json={"assessment_id": created["id"], "answer_text": "Мой сохранённый ответ"},
     )
     assert response.status_code == 202
+    for other in created["open_questions"][1:]:
+        queued = await client.post(
+            f"/api/v1/testing/open-questions/{other['code']}/queue", headers=headers,
+            json={"assessment_id": created["id"], "answer_text": "Второй ответ"},
+        )
+        assert queued.status_code == 202
+    await complete_choices(client, headers, created["id"], created["skills"])
     submission_id = uuid.UUID(response.json()["id"])
     async with TestingSessionLocal() as db:
         submission = await db.get(OpenQuestionSubmission, submission_id)
@@ -498,6 +542,11 @@ async def test_failed_background_check_keeps_answer_for_retry(client: AsyncClien
     assert saved["answer_text"] == "Мой сохранённый ответ"
     assert saved["evaluation_status"] == "failed"
     assert saved["score"] == 0
+    async with TestingSessionLocal() as db:
+        assessment = await db.get(GradeAssessment, uuid.UUID(created["id"]))
+        assert assessment.status == "pending_review"
+        assessment.created_at = datetime.now(timezone.utc) - timedelta(days=4)
+        await db.commit()
     retried = await client.post(
         f"/api/v1/testing/open-submissions/{submission_id}/queue-retry", headers=headers,
     )

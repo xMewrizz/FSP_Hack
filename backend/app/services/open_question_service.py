@@ -273,6 +273,14 @@ async def queue_open_question_answer(
         evaluation_status="queued",
     )
     db.add(submission)
+    await db.flush()
+    completed_sessions = (await db.execute(select(TestSession).where(
+        TestSession.assessment_id == assessment.id,
+        TestSession.status == "completed",
+    ).order_by(TestSession.created_at.desc()))).scalars().all()
+    if {item.skill_code for item in completed_sessions} >= set(assessment.required_skills):
+        from app.services.roadmap_service import roadmap_service
+        await roadmap_service.finish_skill(db, completed_sessions[0], profile)
     await db.commit()
     await db.refresh(submission)
     return submission

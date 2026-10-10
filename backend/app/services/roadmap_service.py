@@ -767,8 +767,12 @@ class RoadmapService:
                 ):
                     assessment.status = "pending_review"
                     return False, None, "Открытый ответ ждёт ручной проверки. Грейд пока не присвоен."
-                if any(open_by_code[code].evaluation_status in ("queued", "evaluating", "failed")
+                if all(code in open_by_code for code in open_codes) and any(
+                       open_by_code[code].evaluation_status in ("queued", "evaluating", "failed")
                        for code in open_codes if code in open_by_code):
+                    # All candidate work was submitted within the three-day window.
+                    # Waiting for the evaluator must not expire the finished attempt.
+                    assessment.status = "pending_review"
                     return False, None, "Развёрнутые ответы сохранены. Дождитесь автоматической проверки."
                 return False, None, "Обязательные навыки пройдены. Решите развёрнутые задания для итоговой оценки."
             return False, assessment.suggested_grade, "Результат навыка сохранён. Продолжите остальные обязательные шаги."
