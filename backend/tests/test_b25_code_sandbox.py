@@ -1,11 +1,11 @@
-"""Тестовый набор для безопасной проверки задач с кодом (Task B-25).
+"""Тесты прототипа B-25 и запрета пользовательского запуска через API.
 
 Проверяет:
 1. Статический анализ безопасности (AST Security Inspector): блокировка os, subprocess, open, eval, escape.
 2. Изолированный запуск со скрытыми тестами: задачи Backend и Data Science.
 3. Лимиты времени и ресурсов: прерывание бесконечных циклов (Time Limit Exceeded).
 4. Обработка синтаксических ошибок, исключений времени выполнения и частичных провалов тестов.
-5. Интеграция с API платформы и банком открытых вопросов.
+5. Публичное API не запускает код до появления отдельного изолированного исполнителя.
 """
 
 import pytest
@@ -290,7 +290,7 @@ class SlidingWindowRateLimiter:
             return True
         return False
 """
-    # 1. Прямой запуск через POST /api/v1/testing/code-sandbox/execute
+    # Прямой запуск через API отключён: подпроцесс backend не даёт изоляции.
     exec_resp = await client.post(
         "/api/v1/testing/code-sandbox/execute",
         headers=headers,
@@ -300,12 +300,7 @@ class SlidingWindowRateLimiter:
             "timeout_seconds": 3.0,
         },
     )
-    assert exec_resp.status_code == 200
-    exec_data = exec_resp.json()
-    assert exec_data["status"] == "success"
-    assert exec_data["passed"] is True
-    assert exec_data["score"] == 1.0
-    assert exec_data["tests_passed"] == 5
+    assert exec_resp.status_code == 503
 
     # 2. Тестовый запуск решения задачи через POST /api/v1/testing/open-questions/{code}/test-run
     test_run_resp = await client.post(
@@ -313,8 +308,7 @@ class SlidingWindowRateLimiter:
         headers=headers,
         json={"code": valid_rate_limiter, "timeout_seconds": 3.0},
     )
-    assert test_run_resp.status_code == 200
-    assert test_run_resp.json()["status"] == "success"
+    assert test_run_resp.status_code == 503
 
     # 3. Финальная сдача решения: POST /api/v1/testing/open-questions/OPEN-BE-CODE-01/submit
     submit_resp = await client.post(
@@ -324,7 +318,6 @@ class SlidingWindowRateLimiter:
     )
     assert submit_resp.status_code == 201
     submit_data = submit_resp.json()
-    assert submit_data["passed"] is True
-    assert submit_data["score"] == 1.0
-    assert submit_data["evaluator"] == "code_sandbox_b25"
-    assert "Скрытые тесты пройдены" in submit_data["feedback"]
+    assert submit_data["evaluator"] == "fallback_heuristic"
+    assert submit_data["needs_manual_review"] is True
+    assert "Скрытые тесты пройдены" not in submit_data["feedback"]

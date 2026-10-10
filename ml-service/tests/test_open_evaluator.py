@@ -24,7 +24,7 @@ class OpenEvaluatorTests(unittest.IsolatedAsyncioTestCase):
         def reply(request: httpx.Request) -> httpx.Response:
             payload = json.loads(request.content)
             self.assertEqual(request.url.path, "/api/chat")
-            self.assertIn(payload["model"], ("qwen2.5:latest", "qwen3:8b"))
+            self.assertIn(payload["model"], ("qwen2.5:latest", "qwen3:8b", "qwen2.5:14b-instruct-q4_K_M"))
             self.assertIn("OPEN-BE-ARCH-01", payload["messages"][1]["content"])
             return httpx.Response(
                 200,
@@ -74,8 +74,9 @@ class OpenEvaluatorTests(unittest.IsolatedAsyncioTestCase):
             )
 
         self.assertEqual(result.evaluator, "llm_qwen3")
-        self.assertAlmostEqual(result.score, 0.85, places=2)
-        self.assertTrue(result.passed)
+        self.assertAlmostEqual(result.score, 0.67, places=2)
+        self.assertFalse(result.passed)
+        self.assertTrue(result.needs_manual_review)
         self.assertIn("Отличный", result.feedback)
         self.assertEqual(result.criterion_scores[criteria[0]], 1.0)
         self.assertEqual(result.criterion_scores[criteria[2]], 0.0)
@@ -191,7 +192,7 @@ class SlidingWindowRateLimiter:
             )
 
         self.assertEqual(result.evaluator, "llm_qwen3")
-        self.assertAlmostEqual(result.score, 0.90, places=2)
+        self.assertAlmostEqual(result.score, 1.0, places=2)
         self.assertTrue(result.passed)
         self.assertIn("успешно", result.feedback)
 

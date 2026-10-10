@@ -244,16 +244,16 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 ---
 
-### 11. Открытые вопросы и безопасная песочница кода (B-25, B-27) (`/api/v1/testing`)
+### 11. Открытые вопросы и прототип проверки кода (B-25, B-27) (`/api/v1/testing`)
 
 | Метод | URL | Описание | Доступ | Тело / Параметры | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/testing/open-questions` | Список открытых вопросов с критериями | Публичный | `specialization` (опционально) | `200 OK`: `list[OpenQuestionResponse]` |
+| `GET` | `/testing/open-questions` | Список открытых вопросов с критериями, без эталонов и допустимых решений | Публичный | `specialization`, `grade` (опционально) | `200 OK`: `list[OpenQuestionResponse]` |
 | `GET` | `/testing/open-questions/{code}` | Просмотр открытого вопроса по коду | Публичный | — | `200 OK`: `OpenQuestionResponse` |
-| `POST` | `/testing/open-questions/{code}/submit` | Сдача решения открытого вопроса (автоматическая проверка песочницей для кода) | `Bearer JWT` (Candidate) | `{ "answer_text": "..." }` | `201 Created`: `OpenQuestionSubmissionResponse` |
-| `POST` | `/testing/code-sandbox/execute` | Безопасный запуск кода в изолированной песочнице с лимитами времени и ресурсов | `Bearer JWT` (Candidate) | `{ "code": "...", "question_code": "...", "timeout_seconds": 3.0 }` | `200 OK`: `SandboxExecutionResponse` |
-| `POST` | `/testing/open-questions/{code}/test-run` | Тестовый запуск решения со скрытыми тестами до финальной отправки | `Bearer JWT` (Candidate) | `{ "code": "...", "timeout_seconds": 3.0 }` | `200 OK`: `SandboxExecutionResponse` |
+| `POST` | `/testing/open-questions/{code}/submit` | Сдача ответа; код передаётся на оценку модели, но не исполняется в backend | `Bearer JWT` (Candidate) | `{ "answer_text": "..." }` | `201 Created`: `OpenQuestionSubmissionResponse` |
+| `POST` | `/testing/code-sandbox/execute` | Запуск отключён до подключения изолированного исполнителя | `Bearer JWT` (Candidate) | `{ "code": "...", "question_code": "...", "timeout_seconds": 3.0 }` | `503` |
+| `POST` | `/testing/open-questions/{code}/test-run` | Запуск отключён до подключения изолированного исполнителя | `Bearer JWT` (Candidate) | `{ "code": "...", "timeout_seconds": 3.0 }` | `503` |
 | `GET` | `/testing/open-submissions` | История отправленных решений кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
-| `GET` | `/testing/open-submissions/pending` | Список решений, ожидающих проверки экспертом | `Bearer JWT` (Reviewer/Admin) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
-| `POST` | `/testing/open-submissions/{id}/review` | Экспертная оценка и рецензия решения | `Bearer JWT` (Reviewer/Admin) | `{ "score": 0.9, "passed": true, "notes": "..." }` | `200 OK`: `OpenQuestionSubmissionResponse` |
+| `GET` | `/testing/open-submissions/pending-review` | Список решений, ожидающих проверки | `Bearer JWT` (Admin) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
+| `POST` | `/testing/open-submissions/{id}/review` | Ручная оценка решения | `Bearer JWT` (Admin) | `{ "score": 0.9, "passed": true, "notes": "..." }` | `200 OK`: `OpenQuestionSubmissionResponse` |
 

@@ -101,10 +101,10 @@ get_current_employer = require_role(UserRole.EMPLOYER)
 async def get_current_reviewer(
     current_user: User = Depends(get_current_verified_user),
 ) -> User:
-    if current_user.role not in (UserRole.EMPLOYER, UserRole.ADMIN):
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Недостаточно прав. Требуется роль работодателя или администратора",
+            detail="Недостаточно прав. Требуется роль администратора",
         )
     return current_user
 

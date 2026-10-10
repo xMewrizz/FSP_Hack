@@ -145,6 +145,7 @@ class OpenQuestionResponse(BaseModel):
     specialization: str
     grade: str
     question_type: str
+    skill: str = ""
     question_text: str
     rubric_criteria: list[str]
 

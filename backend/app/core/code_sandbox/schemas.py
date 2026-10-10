@@ -14,7 +14,6 @@ class TestCaseResult(BaseModel):
 class SandboxExecutionRequest(BaseModel):
     code: str = Field(..., description="Исходный код кандидата для проверки")
     question_code: str | None = Field(None, description="Код вопроса из банка, если применимо")
-    custom_tests_code: str | None = Field(None, description="Пользовательский код скрытых тестов (опционально)")
     timeout_seconds: float = Field(3.0, ge=0.5, le=10.0, description="Лимит времени выполнения в секундах")
 
 

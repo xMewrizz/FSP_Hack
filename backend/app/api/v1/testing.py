@@ -28,7 +28,6 @@ from app.core.code_sandbox.schemas import (
     SandboxExecutionRequest,
     SandboxExecutionResponse,
 )
-from app.services.code_sandbox_service import code_sandbox_service
 from app.services.roadmap_service import roadmap_service
 from app.services.testing_service import testing_service
 
@@ -156,8 +155,8 @@ async def get_test_history(
     response_model=list[OpenQuestionResponse],
     summary="Список доступных открытых вопросов и заданий с кодом",
 )
-async def list_open_questions(specialization: str | None = None):
-    return get_public_open_questions(specialization)
+async def list_open_questions(specialization: str | None = None, grade: str | None = None):
+    return get_public_open_questions(specialization, grade)
 
 
 @router.get(
@@ -175,6 +174,7 @@ async def get_open_question(code: str):
         "specialization": q["specialization"],
         "grade": q["grade"],
         "question_type": q["question_type"],
+        "skill": q.get("skill", ""),
         "question_text": q["question_text"],
         "rubric_criteria": q["rubric_criteria"],
     }
@@ -275,19 +275,19 @@ async def get_test_session(
 @router.post(
     "/code-sandbox/execute",
     response_model=SandboxExecutionResponse,
-    summary="Безопасный запуск кода в изолированной песочнице (B-25)",
+    summary="Запуск кода временно недоступен (B-25)",
 )
 async def execute_code_sandbox(
     data: SandboxExecutionRequest,
     current_user: User = Depends(get_current_candidate),
 ):
-    return code_sandbox_service.execute(data)
+    raise HTTPException(status_code=503, detail="Запуск кода недоступен до подключения изолированного исполнителя")
 
 
 @router.post(
     "/open-questions/{code}/test-run",
     response_model=SandboxExecutionResponse,
-    summary="Тестовый запуск решения задачи со скрытыми тестами (B-25)",
+    summary="Тестовый запуск кода временно недоступен (B-25)",
 )
 async def test_run_open_question_code(
     code: str,
@@ -297,10 +297,6 @@ async def test_run_open_question_code(
     q = get_open_question_by_code(code)
     if not q:
         raise HTTPException(status_code=404, detail="Открытый вопрос не найден")
-    return code_sandbox_service.evaluate_question_code(
-        question_code=code,
-        candidate_code=data.code,
-        timeout_seconds=data.timeout_seconds,
-    )
+    raise HTTPException(status_code=503, detail="Запуск кода недоступен до подключения изолированного исполнителя")
 
 

@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.services.code_sandbox_service import code_sandbox_service
 from app.core.open_question_bank import (
     OPEN_QUESTIONS,
     get_open_question_by_code,
@@ -19,8 +18,12 @@ from app.models.test import OpenQuestionSubmission
 from app.models.user import User
 
 
-def get_public_open_questions(specialization: str | None = None) -> list[dict[str, Any]]:
-    questions = OPEN_QUESTIONS if not specialization else [q for q in OPEN_QUESTIONS if q["specialization"] == specialization]
+def get_public_open_questions(specialization: str | None = None, grade: str | None = None) -> list[dict[str, Any]]:
+    questions = OPEN_QUESTIONS
+    if specialization:
+        questions = [q for q in questions if q["specialization"] == specialization]
+    if grade:
+        questions = [q for q in questions if q["grade"] == grade.lower()]
     return [
         {
             "code": q["code"],
@@ -28,6 +31,7 @@ def get_public_open_questions(specialization: str | None = None) -> list[dict[st
             "specialization": q["specialization"],
             "grade": q["grade"],
             "question_type": q["question_type"],
+            "skill": q.get("skill", ""),
             "question_text": q["question_text"],
             "rubric_criteria": q["rubric_criteria"],
         }
@@ -55,47 +59,6 @@ def _local_fallback_eval(
     criterion_scores: dict[str, float] = {}
 
     if q_type == "code":
-        sandbox_res = code_sandbox_service.evaluate_question_code(question["code"], answer_text)
-        if not sandbox_res.is_safe:
-            return {
-                "score": 0.0,
-                "passed": False,
-                "feedback": sandbox_res.feedback,
-                "criterion_scores": {c: 0.0 for c in criteria},
-                "evaluator": "code_sandbox_b25",
-                "needs_manual_review": True,
-            }
-        if sandbox_res.status == "time_limit_exceeded":
-            return {
-                "score": 0.0,
-                "passed": False,
-                "feedback": sandbox_res.feedback,
-                "criterion_scores": {c: 0.0 for c in criteria},
-                "evaluator": "code_sandbox_b25",
-                "needs_manual_review": True,
-            }
-        if sandbox_res.status == "syntax_error":
-            return {
-                "score": 0.1,
-                "passed": False,
-                "feedback": sandbox_res.feedback,
-                "criterion_scores": {c: 0.0 for c in criteria},
-                "evaluator": "code_sandbox_b25",
-                "needs_manual_review": True,
-            }
-        if sandbox_res.tests_total > 0:
-            score = sandbox_res.score
-            passed = sandbox_res.passed
-            crit_scores = {c: 1.0 if passed else round(score, 2) for c in criteria}
-            return {
-                "score": score,
-                "passed": passed,
-                "feedback": sandbox_res.feedback,
-                "criterion_scores": crit_scores,
-                "evaluator": "code_sandbox_b25",
-                "needs_manual_review": not passed,
-            }
-
         err_msg = ""
         parsed_ast = None
         try:
