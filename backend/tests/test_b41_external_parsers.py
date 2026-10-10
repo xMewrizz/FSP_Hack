@@ -264,7 +264,7 @@ def test_verifier_honest_candidate():
 
 def test_verifier_inflated_experience_detected():
     candidate_id = uuid.uuid4()
-    # Кандидат заявляет Senior (5+ лет, с 2019 года), но на Хабре опыт всего 10 месяцев (с конца 2024 года)
+    # 1. Завышение стажа в 2+ раза и разрыв более 2 лет (5 лет заявлено vs 10 месяцев на Хабре)
     external_profile = ParsedExternalProfile(
         source="habr_career",
         source_name="Хабр Карьера",
@@ -291,7 +291,35 @@ def test_verifier_inflated_experience_detected():
     assert audit.status == ExperienceAuditStatus.POSSIBLY_INFLATED
     assert audit.is_flagged_for_inflation is True
     assert "возможно крутит опыт" in audit.flags
-    assert any("существенно превышает" in r or "Нестыковка года" in r for r in audit.reasons)
+    assert audit.discrepancy_months >= 24
+    assert audit.discrepancy_ratio >= 2.0
+    assert any("существенно превышает" in r for r in audit.reasons)
+    assert any("Нестыковка года" in r for r in audit.reasons)
+
+    # 2. Сдвиг года начала карьеры (в резюме с 2018, первая запись на внешнем ресурсе только с 2022 года — сдвиг 4 года >= 3 лет)
+    careerist_profile = ParsedExternalProfile(
+        source="careerist",
+        source_name="Careerist",
+        total_experience_months=36,
+        work_periods=[
+            ExternalWorkPeriod(
+                company="ООО Софт",
+                role="Middle Developer",
+                start_date="2022-01",
+                end_date="2025-01",
+                duration_months=36,
+            )
+        ],
+    )
+    audit_shift = ExperienceVerifier.verify_candidate_experience(
+        candidate_id=candidate_id,
+        declared_grade="senior",
+        resume_text="Senior Developer c 2018 года по 2025 год. Опыт 6 лет.",
+        external_profiles=[careerist_profile],
+    )
+    assert audit_shift.status == ExperienceAuditStatus.POSSIBLY_INFLATED
+    assert audit_shift.is_flagged_for_inflation is True
+    assert any("Нестыковка года" in r for r in audit_shift.reasons)
 
 
 def test_verifier_profi_ru_tutoring_does_not_flag_inflation():

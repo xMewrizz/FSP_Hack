@@ -82,7 +82,7 @@ class ExperienceVerifier:
         reasons: list[str] = []
         is_inflated = False
         discrepancy_months = max(0, claimed_months - verified_formal_months)
-        ratio = round(claimed_months / max(verified_formal_months, 1), 2) if verified_formal_months > 0 else 1.0
+        ratio = round(claimed_months / max(verified_formal_months, 1), 2) if verified_formal_months > 0 else (float(claimed_months) if claimed_months > 0 else 1.0)
 
         # 3. Анализ и принятие решения
         if not formal_profiles and not freelance_profiles:
@@ -100,10 +100,11 @@ class ExperienceVerifier:
             guidance = "Опыт фриланса и репетиторства можно обсудить на техническом интервью как проектный опыт."
         else:
             # Есть формальные профили (Хабр Карьера, Careerist)
-            # Критерий 1: Существенное расхождение в стаже (заявлено в 2+ раза больше, разрыв от 2 лет)
+            # Критерий 1: Существенное расхождение в стаже (завышен в 2+ раза при разрыве от 2 лет, либо заявлен Middle/Senior при подтверждённом < 18 мес.)
             inflation_detected = False
-            if (claimed_months >= 36 and verified_formal_months < 18 and discrepancy_months >= 24) or (
-                claimed_months >= 48 and verified_formal_months <= 24 and ratio >= 2.0
+            if (
+                (ratio >= 2.0 and discrepancy_months >= 24)
+                or (claimed_months >= 36 and verified_formal_months < 18 and discrepancy_months >= 24)
             ):
                 inflation_detected = True
                 reasons.append(
