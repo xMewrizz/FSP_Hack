@@ -786,6 +786,15 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
 ]
 
 
+# Один архитектурный ответ и одно решение с кодом на каждый грейд Backend.
+# Коды фиксируются при открытии полного набора и не меняются в ходе попытки.
+BACKEND_GRADE_OPEN_CODES: dict[str, tuple[str, str]] = {
+    "junior": ("OPEN-BE-ARCH-JR-01", "OPEN-BE-CODE-JR-01"),
+    "middle": ("OPEN-BE-ARCH-01", "OPEN-BE-CODE-01"),
+    "senior": ("OPEN-BE-ARCH-SR-01", "OPEN-BE-CODE-SR-01"),
+}
+
+
 def get_open_questions(specialization: str | None = None, grade: str | None = None) -> list[dict[str, Any]]:
     questions = OPEN_QUESTIONS
     if specialization:

@@ -639,8 +639,7 @@ function EmployerScreen({
           </section>
           <section className="feature-card">
             <div className="feature-head"><div><span>КАЧЕСТВО МАТЧИНГА</span><strong>За 30 дней</strong></div></div>
-            <div className="quality-score"><strong>87</strong><span>/ 100</span></div>
-            <p className="feature-description">87% релевантных кандидатов попадают в топ-3 выдачи.</p>
+            <p className="feature-description">Качество подбора будет оценено по независимым оценкам работодателей. Подтверждённой метрики пока нет.</p>
           </section>
         </div>
       </div>
@@ -808,44 +807,10 @@ function EmployerScreen({
   if (active === "Аналитика") {
     return (
       <div className="page-content">
-        <div className="metrics-grid">
-          <MetricCard label="ТОЧНОСТЬ TOP-3" value="87%" detail="Цель ≥ 80%" accent icon="check" />
-          <MetricCard label="СРЕДНЕЕ СОВПАДЕНИЕ" value="82%" detail="+6% за месяц" icon="compare" />
-          <MetricCard label="ДО ОТВЕТА КАНДИДАТА" value="18 ч" detail="-4 часа за месяц" icon="bell" />
-          <MetricCard label="ПРИНЯТЫЕ ПРИГЛАШЕНИЯ" value="50%" detail="8 из 16" icon="send" />
-        </div>
-        <div className="dashboard-grid">
-          <section className="feature-card feature-card--wide">
-            <div className="feature-head"><div><span>ДИНАМИКА ЗА 6 НЕДЕЛЬ</span><strong>Релевантность подборок</strong></div></div>
-            <div className="bar-chart">
-              {[62, 68, 72, 70, 81, 87].map((value, index) => <div key={value}><span style={{ height: `${value}%` }} /><small>{index + 1} нед.</small></div>)}
-            </div>
-          </section>
-          <section className="feature-card">
-            <div className="feature-head"><div><span>РАЗРЫВ В НАВЫКАХ</span><strong>Над чем стоит поработать</strong></div></div>
-            <div className="funnel">
-              <div><span>CI/CD</span><strong>38%</strong><Progress value={38} /></div>
-              <div><span>Тестирование</span><strong>31%</strong><Progress value={31} /></div>
-              <div><span>Алгоритмы</span><strong>22%</strong><Progress value={22} /></div>
-              <div><span>Безопасность</span><strong>19%</strong><Progress value={19} /></div>
-            </div>
-          </section>
-          <section className="feature-card feature-card--wide">
-            <div className="feature-head"><div><span>ПЛАН ВЫХОДОВ</span><strong>Когда кандидаты готовы начать</strong></div><Button variant="outline" onClick={() => onNotify("Календарь выходов экспортирован")}>Экспорт календаря</Button></div>
-            <div className="start-dates">
-              {[
-                ["27 мая", "Алексей Морозов", "Backend · Middle", "Оффер согласован"],
-                ["3 июня", "Елена Смирнова", "Backend · Middle", "Финальное интервью"],
-                ["10 июня", "Анна Петрова", "Backend · Senior", "Обсуждение условий"],
-                ["17 июня", "Роман Гусев", "DevOps · Middle", "Резерв"],
-              ].map((item, index) => <div key={item[1]}><b>{item[0]}</b><i className={index === 0 ? "active" : ""} /><div><strong>{item[1]}</strong><span>{item[2]}</span></div><em>{item[3]}</em></div>)}
-            </div>
-          </section>
-          <section className="feature-card validation-card">
-            <div className="feature-head"><div><span>ВАЛИДАЦИЯ ТЕСТИРОВАНИЯ</span><strong>Качество оценки</strong></div></div>
-            <div className="validation-metrics"><div><span>Разделение уровней</span><strong>p = 0,018</strong><small>Статистически значимо</small></div><div><span>Повторный проход</span><strong>Δ 0,21</strong><small>Цель меньше 0,30</small></div><div><span>Разные задания</span><strong>Δ 0,34</strong><small>Цель меньше 0,50</small></div><div><span>Релевантный в топ-3</span><strong>87%</strong><small>Цель не ниже 80%</small></div></div>
-          </section>
-        </div>
+        <section className="feature-card">
+          <div className="feature-head"><div><span>АНАЛИТИКА</span><strong>Данных пока недостаточно</strong></div></div>
+          <p className="feature-description feature-description--left">Метрики качества теста и подбора появятся после проверки на реальных участниках и оценок работодателей.</p>
+        </section>
       </div>
     );
   }
@@ -959,8 +924,8 @@ function CandidateScreen({
         <div className="metrics-grid">
           <MetricCard label="ПРОСМОТРЫ ПРОФИЛЯ" value="34" detail="+12 за неделю" accent icon="users" />
           <MetricCard label="ПРИГЛАШЕНИЯ" value="3" detail="2 новых" icon="bell" />
-          <MetricCard label="ОЦЕНКА ДОВЕРИЯ" value="0,92" detail="Без расхождений" icon="check" />
-          <MetricCard label="АКТУАЛЬНОСТЬ" value="98%" detail="Активен" icon="sun" />
+          <MetricCard label="ПОДТВЕРЖДЁННЫЙ ГРЕЙД" value="Middle" detail="Результат базового теста" icon="check" />
+          <MetricCard label="ПРОФИЛЬ" value="Виден" detail="Опубликован кандидатом" icon="sun" />
         </div>
         <div className="dashboard-grid">
           <section className="feature-card">

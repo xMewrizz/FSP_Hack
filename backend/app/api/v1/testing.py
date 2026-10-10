@@ -203,6 +203,7 @@ async def submit_open_question(
             profile=profile,
             question_code=code,
             answer_text=data.answer_text,
+            assessment_id=data.assessment_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

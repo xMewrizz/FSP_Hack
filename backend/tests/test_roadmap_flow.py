@@ -8,6 +8,7 @@ from app.core.question_variants import prepared_variants
 from app.models.candidate import CandidateProfile
 from app.models.test import GradeAssessment
 from conftest import TestingSessionLocal
+from open_assessment_helpers import finish_open_assessment
 
 
 async def candidate(client: AsyncClient, email: str, grade: str = "junior") -> dict[str, str]:
@@ -51,7 +52,7 @@ async def finish_skill(client, headers, assessment_id, code, correct_count):
 
 
 @pytest.mark.asyncio
-async def test_roadmap_assigns_grade_only_after_four_skills(client: AsyncClient):
+async def test_roadmap_assigns_grade_only_after_four_skills_and_open_answers(client: AsyncClient):
     headers = await candidate(client, "roadmap-success@example.com")
     created = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
     assert created.status_code == 201, created.text
@@ -64,8 +65,9 @@ async def test_roadmap_assigns_grade_only_after_four_skills(client: AsyncClient)
         if code != "reliability":
             assert result["grade_confirmed"] is False
             assert result["verified_grade"] is None
-    assert result["grade_confirmed"] is True
-    assert result["verified_grade"] == "junior"
+    assert result["grade_confirmed"] is False
+    assert result["verified_grade"] is None
+    await finish_open_assessment(assessment_id, (1.0, 0.5))
 
     stored_skill = await client.get(f"/api/v1/testing/{result['session_id']}", headers=headers)
     assert stored_skill.status_code == 200
@@ -77,6 +79,7 @@ async def test_roadmap_assigns_grade_only_after_four_skills(client: AsyncClient)
     assert complete.json()["percentage"] == 75.0
     assert complete.json()["passed"] is True
     assert [item["level_out_of_ten"] for item in complete.json()["skills"]] == [10.0, 7.0, 7.0, 6.0]
+    assert [item["status"] for item in complete.json()["open_questions"]] == ["completed", "completed"]
 
 
 @pytest.mark.asyncio
@@ -89,9 +92,10 @@ async def test_one_weak_skill_blocks_grade_even_when_overall_above_75(client: As
         result = await finish_skill(client, headers, assessment_id, code, score)
     assert result["grade_confirmed"] is False
     assert result["suggested_grade"] is None
+    await finish_open_assessment(assessment_id)
     complete = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
     assert complete["status"] == "completed"
-    assert complete["percentage"] == pytest.approx(85.0)
+    assert complete["percentage"] == pytest.approx(90.0)
     assert complete["passed"] is False
     assert complete["retake_used"] is False
 
@@ -110,8 +114,9 @@ async def test_one_weak_skill_blocks_grade_even_when_overall_above_75(client: As
         assert second.question_snapshots == original.retake_question_snapshots
     for skill in retake["skills"]:
         result = await finish_skill(client, headers, retake["id"], skill["code"], 10)
-    assert result["grade_confirmed"] is True
-    assert result["verified_grade"] == "middle"
+    assert result["grade_confirmed"] is False
+    await finish_open_assessment(retake["id"])
+    assert (await client.get("/api/v1/candidates/profile", headers=headers)).json()["verified_grade"] == "middle"
 
 
 @pytest.mark.asyncio
@@ -124,12 +129,14 @@ async def test_only_one_full_retake_is_allowed(client: AsyncClient):
     assert premature.json()["id"] == roadmap["id"]
     for code in ("api", "reliability"):
         await finish_skill(client, headers, roadmap["id"], code, 1)
+    await finish_open_assessment(roadmap["id"])
 
     second = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     assert second["id"] != roadmap["id"]
     assert (await client.get(f"/api/v1/testing/roadmap/{roadmap['id']}", headers=headers)).json()["retake_used"] is True
     for skill in second["skills"]:
         await finish_skill(client, headers, second["id"], skill["code"], 1)
+    await finish_open_assessment(second["id"])
     third = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
     assert third.status_code == 409
     assert "через неделю" in third.json()["detail"]
@@ -152,10 +159,12 @@ async def test_lower_grade_is_suggested_after_failed_full_retake(client: AsyncCl
     for skill in middle["skills"]:
         failed = await finish_skill(client, headers, middle["id"], skill["code"], 1)
     assert failed["suggested_grade"] is None
+    await finish_open_assessment(middle["id"])
     second = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     for skill in second["skills"]:
         failed = await finish_skill(client, headers, second["id"], skill["code"], 1)
-    assert failed["suggested_grade"] == "junior"
+    assert failed["suggested_grade"] is None
+    await finish_open_assessment(second["id"])
     assert (await client.get(f"/api/v1/testing/roadmap/{second['id']}", headers=headers)).json()["suggested_grade"] == "junior"
     lower = await client.post(
         "/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"},
@@ -164,6 +173,7 @@ async def test_lower_grade_is_suggested_after_failed_full_retake(client: AsyncCl
     assert lower.json()["target_grade"] == "junior"
     for skill in lower.json()["skills"]:
         await finish_skill(client, headers, lower.json()["id"], skill["code"], 10)
+    await finish_open_assessment(lower.json()["id"])
     async with TestingSessionLocal() as db:
         profile = await db.scalar(select(CandidateProfile))
         profile.verified_grade_updated_at = datetime.now(timezone.utc) - timedelta(days=91)
@@ -224,6 +234,7 @@ async def test_additional_git_result_is_separate_from_grade(client: AsyncClient)
     roadmap = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     for skill in roadmap["skills"]:
         await finish_skill(client, headers, roadmap["id"], skill["code"], 10)
+    await finish_open_assessment(roadmap["id"])
     available = await client.get("/api/v1/testing/additional", headers=headers)
     assert [(item["code"], item["target_grade"]) for item in available.json()] == [("git", "junior")]
 
@@ -286,7 +297,8 @@ async def test_promotion_uses_full_next_grade_and_90_day_rule(client: AsyncClien
     junior = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     for skill in junior["skills"]:
         result = await finish_skill(client, headers, junior["id"], skill["code"], 10)
-    assert result["verified_grade"] == "junior"
+    assert result["verified_grade"] is None
+    await finish_open_assessment(junior["id"])
 
     too_early = await client.post(
         "/api/v1/testing/roadmap", headers=headers,
@@ -312,7 +324,9 @@ async def test_promotion_uses_full_next_grade_and_90_day_rule(client: AsyncClien
     assert [item["status"] for item in middle.json()["skills"]] == ["not_started"] * 4
     for skill in middle.json()["skills"]:
         result = await finish_skill(client, headers, middle.json()["id"], skill["code"], 10)
-    assert result["verified_grade"] == "middle"
+    assert result["verified_grade"] == "junior"
+    await finish_open_assessment(middle.json()["id"])
+    assert (await client.get("/api/v1/candidates/profile", headers=headers)).json()["verified_grade"] == "middle"
 
 
 @pytest.mark.asyncio
@@ -337,6 +351,7 @@ async def test_same_grade_retake_does_not_restart_promotion_wait(client: AsyncCl
     first = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     for skill in first["skills"]:
         await finish_skill(client, headers, first["id"], skill["code"], 10)
+    await finish_open_assessment(first["id"])
 
     async with TestingSessionLocal() as db:
         profile = await db.scalar(select(CandidateProfile))
@@ -349,6 +364,7 @@ async def test_same_grade_retake_does_not_restart_promotion_wait(client: AsyncCl
     assert retake["retake_used"] is True
     for skill in retake["skills"]:
         await finish_skill(client, headers, retake["id"], skill["code"], 10)
+    await finish_open_assessment(retake["id"])
 
     async with TestingSessionLocal() as db:
         profile = await db.scalar(select(CandidateProfile))

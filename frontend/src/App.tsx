@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { apiGet, apiPost, apiPut, apiRequest, clearSession, saveSession } from "./api";
+import OpenQuestions from "./OpenQuestions";
 import {
   ALL_GRADES,
   ALL_SPECIALIZATIONS,
@@ -666,6 +667,7 @@ type GradeRoadmapData = {
   target_grade: string;
   status: string;
   skills: Array<{ code: string; label: string; status: string; percentage: number | null; level_out_of_ten: number | null; session_id: string | null }>;
+  open_questions: Array<{ code: string; title: string; question_type: string; status: string; score: number | null; submission_id: string | null }>;
   percentage: number | null;
   passed: boolean | null;
   grade_confirmed: boolean;
@@ -2095,51 +2097,6 @@ function EmployerScreen({
     );
   }
 
-  if (active === "Аналитика") {
-    return (
-      <div className="page-content">
-        <div className="metrics-grid">
-          <MetricCard label="ТОЧНОСТЬ TOP-3" value="87%" detail="Цель ≥ 80%" accent icon="target" />
-          <MetricCard label="СРЕДНЕЕ СОВПАДЕНИЕ" value="82%" detail="+6% за месяц" icon="chart" />
-          <MetricCard label="ДО ОТВЕТА КАНДИДАТА" value="18 ч" detail="-4 часа за месяц" icon="clock" />
-          <MetricCard label="ПРИНЯТЫЕ ПРИГЛАШЕНИЯ" value="50%" detail="8 из 16" icon="check" />
-        </div>
-        <div className="dashboard-grid">
-          <section className="feature-card feature-card--wide">
-            <div className="feature-head"><div><span>ДИНАМИКА ЗА 6 НЕДЕЛЬ</span><strong>Релевантность подборок</strong></div></div>
-            <div className="bar-chart">
-              {[62, 68, 72, 70, 81, 87].map((value, index) => <div key={value}><span style={{ height: `${value}%` }} /><small>{index + 1} нед.</small></div>)}
-            </div>
-          </section>
-          <section className="feature-card">
-            <div className="feature-head"><div><span>РАЗРЫВ В НАВЫКАХ</span><strong>Над чем стоит поработать</strong></div></div>
-            <div className="funnel">
-              <div><span>CI/CD</span><strong>38%</strong><Progress value={38} /></div>
-              <div><span>Тестирование</span><strong>31%</strong><Progress value={31} /></div>
-              <div><span>Алгоритмы</span><strong>22%</strong><Progress value={22} /></div>
-              <div><span>Безопасность</span><strong>19%</strong><Progress value={19} /></div>
-            </div>
-          </section>
-          <section className="feature-card feature-card--wide">
-            <div className="feature-head"><div><span>ПЛАН ВЫХОДОВ</span><strong>Когда кандидаты готовы начать</strong></div><Button variant="outline">Экспорт календаря</Button></div>
-            <div className="start-dates">
-              {[
-                ["27 мая", "Алексей Морозов", "Backend · Middle", "Оффер согласован"],
-                ["3 июня", "Елена Смирнова", "Backend · Middle", "Финальное интервью"],
-                ["10 июня", "Анна Петрова", "Backend · Senior", "Обсуждение условий"],
-                ["17 июня", "Роман Гусев", "DevOps · Middle", "Резерв"],
-              ].map((item, index) => <div key={item[1]}><b>{item[0]}</b><i className={index === 0 ? "active" : ""} /><div><strong>{item[1]}</strong><span>{item[2]}</span></div><em>{item[3]}</em></div>)}
-            </div>
-          </section>
-          <section className="feature-card validation-card">
-            <div className="feature-head"><div><span>ВАЛИДАЦИЯ ТЕСТИРОВАНИЯ</span><strong>Качество оценки</strong></div></div>
-            <div className="validation-metrics"><div><span>Разделение уровней</span><strong>p = 0,018</strong><small>Статистически значимо</small></div><div><span>Повторный проход</span><strong>Δ 0,21</strong><small>Цель меньше 0,30</small></div><div><span>Разные задания</span><strong>Δ 0,34</strong><small>Цель меньше 0,50</small></div><div><span>Релевантный в топ-3</span><strong>87%</strong><small>Цель не ниже 80%</small></div></div>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="page-content">
       <div className="settings-layout">
@@ -2711,7 +2668,7 @@ function InvitationChatDialog({
 }
 
 function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: string; onNotify: (message: string, type?: "success" | "error") => void; onNavigate: (screen: string, target?: string) => void; demoMode: boolean }) {
-  const [testPurpose, setTestPurpose] = useState<"grade" | "fsp-olympiad">("grade");
+  const [testPurpose, setTestPurpose] = useState<"grade" | "open" | "fsp-olympiad">("grade");
   const [testStarted, setTestStarted] = useState(false);
   const [question, setQuestion] = useState(0);
   const [answer, setAnswer] = useState("");
@@ -3458,7 +3415,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     const juniorRetryLocked = juniorRetryAt !== null && Date.parse(juniorRetryAt) > Date.now();
     return (
       <div className="page-content">
-        <div className="assessment-mode" role="group" aria-label="Режим проверки"><button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}>Грейд</button><button type="button" className={testPurpose === "fsp-olympiad" ? "active" : ""} onClick={() => setTestPurpose("fsp-olympiad")}>Олимпиада ФСП</button></div>
+        <div className="assessment-mode" role="group" aria-label="Режим проверки"><button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}>Грейд</button><button type="button" className={testPurpose === "open" ? "active" : ""} onClick={() => setTestPurpose("open")}>Развёрнутые задания</button><button type="button" className={testPurpose === "fsp-olympiad" ? "active" : ""} onClick={() => setTestPurpose("fsp-olympiad")}>Олимпиада ФСП</button></div>
         {testPurpose === "grade" ? <>
           <section className="assessment-roadmap">
             <div className="assessment-roadmap__head">
@@ -3496,6 +3453,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                   );
                 })}
               </div>
+              {roadmap.open_questions?.length > 0 && <div className="open-questions__steps"><strong>Развёрнутые задания</strong><p>Ответ на архитектурную задачу и решение с кодом обязательны для этого набора. Каждый даёт до 10 баллов.</p>{roadmap.open_questions.map((item) => <div key={item.code} className="open-questions__step"><span>{item.title}</span><strong>{item.status === "completed" ? `${Math.round((item.score ?? 0) * 100)}%` : item.status === "review_pending" ? "Ждёт проверки" : "Не решено"}</strong></div>)}<Button variant="outline" onClick={() => setTestPurpose("open")}>Открыть задания</Button></div>}
               {roadmap.status === "in_progress" && <div className="assessment-roadmap__progress">
                 <div><span>Прогресс набора</span><strong>{roadmap.skills.filter((skill) => skill.status === "completed").length} из {roadmap.skills.length}</strong></div>
                 <Progress value={(roadmap.skills.filter((skill) => skill.status === "completed").length / Math.max(roadmap.skills.length, 1)) * 100} />
@@ -3513,6 +3471,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               {roadmap.status === "expired" && <div className="notice-box">Срок набора истёк. Результаты остались в истории, грейд по нему не присваивается.</div>}
               {roadmap.status === "cancelled" && <div className="notice-box">Набор прерван. Пройденные шаги остались в истории.</div>}
               {roadmap.status === "in_progress" && roadmap.suggested_grade && <div className="test-choice-actions"><Button variant="outline" disabled={testStarting} onClick={() => void switchToLowerRoadmap()}>Прервать набор и попробовать {roadmap.suggested_grade}</Button></div>}
+              {roadmap.status === "pending_review" && <div className="notice-box">Ответы отправлены. Итог по грейду появится после ручной проверки открытого задания.</div>}
               {(roadmap.status === "expired" || roadmap.status === "cancelled") && (roadmap.retake_used ? lowerAfterRetake ? <Button disabled={testStarting} onClick={() => void beginRoadmap(lowerAfterRetake)}>Попробовать {lowerAfterRetake}</Button> : <Button disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button> : <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Открыть новый набор</Button>)}
               {roadmap.status === "completed" && <div className="notice-box">Общий результат: {roadmap.percentage}%. {roadmap.passed ? `Грейд ${roadmap.target_grade} подтверждён.` : "Грейд не подтверждён; прежний уровень не меняется."}</div>}
               {roadmap.status === "completed" && <div className="test-choice-actions">{!roadmap.retake_used && <Button variant="outline" disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Пересдать весь набор</Button>}{roadmap.retake_used && !roadmap.passed && roadmap.target_grade === "junior" && <><Button variant="outline" disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button>{juniorRetryLocked && juniorRetryAt && <span>Повторить Junior можно с {new Date(juniorRetryAt).toLocaleDateString("ru-RU")}</span>}</>}{roadmap.suggested_grade && <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.suggested_grade ?? undefined)}>Попробовать {roadmap.suggested_grade}</Button>}{roadmap.passed && roadmap.target_grade !== "senior" && <><Button disabled={testStarting || (roadmap.promotion_available_at !== null && Date.parse(roadmap.promotion_available_at) > Date.now())} onClick={() => void beginRoadmap(roadmap.target_grade === "junior" ? "middle" : "senior")}>Хочу поднять грейд</Button>{roadmap.promotion_available_at && Date.parse(roadmap.promotion_available_at) > Date.now() && <span>Повышение доступно с {new Date(roadmap.promotion_available_at).toLocaleDateString("ru-RU")}</span>}</>}</div>}
@@ -3533,7 +3492,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               </article>
             ))}</div> : <div className="additional-competencies__empty"><Icon name="sparkle" size={19} /><span>Новые тесты появятся здесь, когда по дополнительным навыкам будут готовы задания.</span></div>}
           </section>
-        </> : <div className="test-intro"><div className="test-intro__graphic"><span>&lt;/&gt;</span><i /><b /></div><span>ОЛИМПИАДА ФСП</span><strong>Практические задачи по навыкам</strong><p>Результат олимпиады дополняет профиль, но не присваивает грейд.</p><div className="test-choice-actions"><Button disabled={testStarting} onClick={() => void startAdaptiveTest()}>{testStarting ? "Подготавливаем…" : "Начать олимпиаду"}</Button></div></div>}
+        </> : testPurpose === "open" ? <OpenQuestions specialization={roadmap?.specialization ?? profile?.specialization} grade={roadmap?.target_grade ?? profile?.verified_grade ?? profile?.declared_grade} assessmentId={roadmap?.id} assignedCodes={roadmap?.open_questions?.map((item) => item.code) ?? []} onSaved={() => { if (roadmap) apiGet<GradeRoadmapData>(`/testing/roadmap/${roadmap.id}`).then(setRoadmap).catch(() => undefined); }} onNotify={onNotify} /> : <div className="test-intro"><div className="test-intro__graphic"><span>&lt;/&gt;</span><i /><b /></div><span>ОЛИМПИАДА ФСП</span><strong>Практические задачи по навыкам</strong><p>Результат олимпиады дополняет профиль, но не присваивает грейд.</p><div className="test-choice-actions"><Button disabled={testStarting} onClick={() => void startAdaptiveTest()}>{testStarting ? "Подготавливаем…" : "Начать олимпиаду"}</Button></div></div>}
       </div>
     );
   }
@@ -3692,7 +3651,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   return (
     <div className="page-content">
       <div className="settings-layout">
-        <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Кому виден профиль</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><div className="profile-status-row"><span>Согласие на OSINT-проверку</span><strong>{profile?.agreed_osint ? "Сохранено" : "Не предоставлено"}</strong></div><label className="consent-large"><input type="checkbox" checked={profile?.agreed_publication ?? false} onChange={(event) => setProfile((current) => current ? { ...current, agreed_publication: event.target.checked, visibility_public: event.target.checked ? current.visibility_public : false } : current)} /><span>Разрешаю показывать мой профиль работодателям</span></label><label className="consent-large"><input type="checkbox" checked={profile?.visibility_public ?? false} disabled={!profile?.agreed_publication} onChange={(event) => setProfile((current) => current ? { ...current, visibility_public: event.target.checked } : current)} /><span>Показывать профиль в поиске и подборке</span></label><label className="consent-large consent-large--mentor"><input type="checkbox" checked={profile?.mentor_available ?? false} disabled={!profile?.verified_grade} onChange={(event) => setProfile((current) => current ? { ...current, mentor_available: event.target.checked } : current)} /><span><strong>Готов(а) быть наставником</strong><small>Другие кандидаты смогут найти вас по навыкам и подтверждённому грейду. Контакты останутся скрыты до принятия запроса.</small></span></label><p className="feature-description feature-description--left">Для поиска ментора нужен подтверждённый грейд. Видимость профиля работодателям и участие в наставничестве настраиваются отдельно.</p><Button disabled={!profile || profileSaving} onClick={() => void saveCandidatePrivacy()}>{profileSaving ? "Сохраняем…" : "Сохранить настройки"}</Button></section>
+        <section className="feature-card"><div className="feature-head"><div><span>ПРИВАТНОСТЬ</span><strong>Кому виден профиль</strong></div></div><div className="profile-status-row"><span>Согласие на обработку данных</span><strong>{profile?.agreed_152_fz ? "Сохранено" : "Не предоставлено"}</strong></div><label className="consent-large"><input type="checkbox" checked={profile?.agreed_publication ?? false} onChange={(event) => setProfile((current) => current ? { ...current, agreed_publication: event.target.checked, visibility_public: event.target.checked ? current.visibility_public : false } : current)} /><span>Разрешаю показывать мой профиль работодателям</span></label><label className="consent-large"><input type="checkbox" checked={profile?.visibility_public ?? false} disabled={!profile?.agreed_publication} onChange={(event) => setProfile((current) => current ? { ...current, visibility_public: event.target.checked } : current)} /><span>Показывать профиль в поиске и подборке</span></label><label className="consent-large consent-large--mentor"><input type="checkbox" checked={profile?.mentor_available ?? false} disabled={!profile?.verified_grade} onChange={(event) => setProfile((current) => current ? { ...current, mentor_available: event.target.checked } : current)} /><span><strong>Готов(а) быть наставником</strong><small>Другие кандидаты смогут найти вас по навыкам и подтверждённому грейду. Контакты останутся скрыты до принятия запроса.</small></span></label><p className="feature-description feature-description--left">Для поиска ментора нужен подтверждённый грейд. Видимость профиля работодателям и участие в наставничестве настраиваются отдельно.</p><Button disabled={!profile || profileSaving} onClick={() => void saveCandidatePrivacy()}>{profileSaving ? "Сохраняем…" : "Сохранить настройки"}</Button></section>
         <section className="feature-card"><div className="feature-head"><div><span>ИНТЕГРАЦИИ</span><strong>Данные ФСП</strong></div></div><p className="feature-description feature-description--left">Пока доступны только тестовые записи. Совпадение ID не подтверждает личность и не влияет на грейд.</p><label className="field field--flush"><span>ФСП ID</span><input value={fspInput} onChange={(event) => setFspInput(event.target.value)} placeholder="Например, FSP-77-001" /></label><div className="integration-card"><div className="fsp-symbol">◆</div><div><strong>{profile?.fsp_verified ? "Тестовая запись найдена" : "Запись не найдена"}</strong><span>{profile?.fsp_id ?? "Не привязан"}</span></div><Button variant="outline" disabled={!fspInput.trim()} onClick={() => void linkFspId()}>Найти</Button></div></section>
       </div>
     </div>
@@ -4062,7 +4021,6 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
   const [city, setCity] = useState("Москва");
   const [format, setFormat] = useState("Удалённо");
   const [fspId, setFspId] = useState("");
-  const [osint, setOsint] = useState(false);
   const [publication, setPublication] = useState(false);
   const [saving, setSaving] = useState(false);
   const steps = ["Профиль", "Специализация", "Формат работы", "Резюме", "ФСП и проверка"];
@@ -4082,7 +4040,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
         agreed_152_fz: consent,
         agreed_publication: publication,
         visibility_public: publication,
-        agreed_osint: osint,
+        agreed_osint: false,
       });
     } finally {
       setSaving(false);
@@ -4099,7 +4057,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
           {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Грейд подтверждает только тест. Достижения ФСП влияют на порядок в подборке, но грейд не подтверждают. {TEST_AVAILABILITY_HINT}</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>{specialization === "Backend" && <label className="field field--flush"><span>ЯЗЫК БАЗОВОГО ТЕСТА</span><select value="Python" disabled><option value="Python">Python</option></select><small>Сейчас для Backend подготовлен только Python. Другие языки добавим отдельными наборами.</small></label>}{!isTestablePair(specialization, grade) && <p className="feature-description feature-description--left">Для пары «{specialization} · {grade}» теста пока нет — профиль сохранить можно, но сквозной сценарий с подтверждённым грейдом сейчас проходится на Backend Junior / Middle / Senior. <Button variant="outline" onClick={() => { setSpecialization("Backend"); setGrade("middle"); }}>Выбрать Backend · Middle для теста</Button></p>}</>}
           {step === 2 && <><span>ШАГ 3</span><strong>Где и как вы хотите работать</strong><div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={city} onChange={(event) => setCity(event.target.value)} /></label><label className="field"><span>ФОРМАТ</span><select value={format} onChange={(event) => setFormat(event.target.value)}><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div><ToggleRow title="Готов к переезду" detail="Работодатели смогут учитывать это при подборе" /></>}
           {step === 3 && <><span>ШАГ 4</span><strong>Резюме и опыт</strong><p>После завершения настройки откройте раздел «Профиль», чтобы загрузить PDF. Распознанные данные можно проверить и исправить перед сохранением.</p><div className="notice-box">Для продолжения загрузка резюме не обязательна.</div></>}
-          {step === 4 && <><span>ШАГ 5</span><strong>Публикация и данные ФСП</strong><p>Профиль можно сохранить скрытым и открыть для работодателей позже в настройках.</p><label className="consent-large"><input type="checkbox" checked={publication} onChange={(event) => setPublication(event.target.checked)} /><span>Разрешаю показывать мой профиль работодателям в поиске и подборке</span></label><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label><label className="consent-large"><input type="checkbox" checked={osint} onChange={(event) => setOsint(event.target.checked)} /><span>Разрешаю проверку истории резюме для расчёта оценки доверия. Без согласия будет установлено нейтральное значение 0,50.</span></label></>}
+          {step === 4 && <><span>ШАГ 5</span><strong>Публикация и данные ФСП</strong><p>Профиль можно сохранить скрытым и открыть для работодателей позже в настройках.</p><label className="consent-large"><input type="checkbox" checked={publication} onChange={(event) => setPublication(event.target.checked)} /><span>Разрешаю показывать мой профиль работодателям в поиске и подборке</span></label><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label></>}
         </div>
         <div className="onboarding-actions"><Button variant="ghost" onClick={() => setStep(Math.max(0, step - 1))}>{step === 0 ? "Вернуться ко входу" : "Назад"}</Button><Button className={!canContinue || saving ? "button--disabled" : ""} onClick={() => { if (!canContinue || saving) return; if (step === steps.length - 1) void complete(); else setStep(step + 1); }}>{saving ? "Сохраняем…" : step === steps.length - 1 ? "Завершить настройку" : "Далее"} <Icon name="chevron" /></Button></div>
       </div>

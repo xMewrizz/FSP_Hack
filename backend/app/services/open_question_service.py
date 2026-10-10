@@ -5,6 +5,7 @@ from typing import Any
 import uuid
 
 import httpx
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +15,7 @@ from app.core.open_question_bank import (
     get_open_question_by_code,
 )
 from app.models.candidate import CandidateProfile
-from app.models.test import OpenQuestionSubmission
+from app.models.test import GradeAssessment, OpenQuestionSubmission, TestSession
 from app.models.user import User
 
 
@@ -132,11 +133,32 @@ async def submit_open_question_answer(
     profile: CandidateProfile,
     question_code: str,
     answer_text: str,
+    assessment_id: uuid.UUID | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> OpenQuestionSubmission:
     question = get_open_question_by_code(question_code)
     if not question:
         raise ValueError(f"Открытый вопрос с кодом {question_code} не найден")
+    if not answer_text.strip():
+        raise HTTPException(400, "Напишите ответ перед отправкой")
+    assessment = None
+    if assessment_id is not None:
+        assessment = await db.scalar(select(GradeAssessment).where(
+            GradeAssessment.id == assessment_id, GradeAssessment.user_id == user.id,
+        ))
+        if assessment is None:
+            raise HTTPException(404, "Набор тестов не найден")
+        from app.services.roadmap_service import assessment_is_expired
+        if assessment.status not in ("in_progress", "pending_review") or assessment_is_expired(assessment):
+            raise HTTPException(409, "Срок набора истёк или он уже завершён")
+        if question_code not in assessment.scoring_policy.get("open_codes", []):
+            raise HTTPException(400, "Задание не входит в этот набор")
+        existing = await db.scalar(select(OpenQuestionSubmission.id).where(
+            OpenQuestionSubmission.assessment_id == assessment_id,
+            OpenQuestionSubmission.question_code == question_code,
+        ))
+        if existing:
+            raise HTTPException(409, "Ответ на это задание уже отправлен")
 
     ml_url = f"{settings.ML_SERVICE_URL.rstrip('/')}/evaluate-open-answer"
     payload = {
@@ -166,9 +188,29 @@ async def submit_open_question_answer(
         if should_close_client:
             await client.aclose()
 
+    # В подготовленном бенчмарке модель пропускала зачётные частичные ответы.
+    # Отрицательное решение по обязательному открытому заданию требует проверки человеком.
+    if assessment_id is not None and float(eval_result.get("score", 0.0)) < 0.75:
+        eval_result["needs_manual_review"] = True
+
+    if assessment_id is not None:
+        assessment = await db.scalar(select(GradeAssessment).where(
+            GradeAssessment.id == assessment_id, GradeAssessment.user_id == user.id,
+        ).with_for_update())
+        from app.services.roadmap_service import assessment_is_expired
+        if assessment is None or assessment.status not in ("in_progress", "pending_review") or assessment_is_expired(assessment):
+            raise HTTPException(409, "Срок набора истёк или он уже завершён")
+        existing = await db.scalar(select(OpenQuestionSubmission.id).where(
+            OpenQuestionSubmission.assessment_id == assessment_id,
+            OpenQuestionSubmission.question_code == question_code,
+        ))
+        if existing:
+            raise HTTPException(409, "Ответ на это задание уже отправлен")
+
     submission = OpenQuestionSubmission(
         user_id=user.id,
         candidate_profile_id=profile.id,
+        assessment_id=assessment_id,
         question_code=question["code"],
         question_type=question["question_type"],
         answer_text=answer_text,
@@ -180,6 +222,14 @@ async def submit_open_question_answer(
         needs_manual_review=eval_result.get("needs_manual_review", True),
     )
     db.add(submission)
+    await db.flush()
+    if assessment is not None:
+        from app.services.roadmap_service import roadmap_service
+        completed_sessions = (await db.execute(select(TestSession).where(
+            TestSession.assessment_id == assessment.id, TestSession.status == "completed",
+        ).order_by(TestSession.created_at.desc()))).scalars().all()
+        if {item.skill_code for item in completed_sessions} >= set(assessment.required_skills):
+            await roadmap_service.finish_skill(db, completed_sessions[0], profile)
     await db.commit()
     await db.refresh(submission)
     return submission
@@ -229,6 +279,12 @@ async def review_open_submission(
     submission = await get_open_submission_by_id(db, submission_id)
     if not submission:
         raise ValueError(f"Решение открытого вопроса с id {submission_id} не найдено")
+    if not submission.needs_manual_review:
+        raise ValueError("Этот ответ не ожидает ручной проверки")
+    if submission.assessment_id is not None:
+        assessment = await db.get(GradeAssessment, submission.assessment_id)
+        if assessment is None or assessment.status not in ("in_progress", "pending_review"):
+            raise ValueError("Набор уже завершён")
 
     submission.score = round(max(0.0, min(1.0, score)), 2)
     submission.passed = passed
@@ -237,6 +293,16 @@ async def review_open_submission(
     submission.reviewed_at = datetime.now(timezone.utc)
     submission.needs_manual_review = False
 
+    if submission.assessment_id is not None:
+        from app.services.roadmap_service import roadmap_service
+        assessment = await db.get(GradeAssessment, submission.assessment_id)
+        if assessment and assessment.status in ("in_progress", "pending_review"):
+            profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
+            completed_sessions = (await db.execute(select(TestSession).where(
+                TestSession.assessment_id == assessment.id, TestSession.status == "completed",
+            ).order_by(TestSession.created_at.desc()))).scalars().all()
+            if {item.skill_code for item in completed_sessions} >= set(assessment.required_skills):
+                await roadmap_service.finish_skill(db, completed_sessions[0], profile)
     await db.commit()
     await db.refresh(submission)
     return submission

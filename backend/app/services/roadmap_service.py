@@ -11,12 +11,14 @@ from app.core.assessment_catalog import (
 )
 from app.core.catalog import CatalogError, validate_test_pair
 from app.core.grade_policy import OVERALL_MINIMUM, SKILL_MINIMUM, SkillResult, assess_grade
+from app.core.open_question_bank import BACKEND_GRADE_OPEN_CODES, get_open_question_by_code
 from app.core.question_variants import variant_for_attempt
 from app.models.candidate import CandidateProfile
-from app.models.test import GradeAssessment, Question, TestSession
+from app.models.test import GradeAssessment, OpenQuestionSubmission, Question, TestSession
 from app.models.user import User
 from app.schemas.testing import (
     AssessmentSkillProgress,
+    AssessmentOpenQuestionProgress,
     AdditionalSkillTestResponse,
     GradeAssessmentResponse,
     QuestionInTest,
@@ -82,7 +84,7 @@ class RoadmapService:
             select(GradeAssessment).where(
                 GradeAssessment.user_id == user.id,
                 GradeAssessment.specialization == specialization,
-                GradeAssessment.status == "in_progress",
+                GradeAssessment.status.in_(("in_progress", "pending_review")),
             ).order_by(GradeAssessment.created_at.desc()).limit(1)
         )
         if assessment is not None and assessment_is_expired(assessment):
@@ -180,7 +182,10 @@ class RoadmapService:
                 },
                 question_snapshots=frozen_snapshots,
                 retake_question_snapshots=retake_snapshots,
-                scoring_policy={"overall": OVERALL_MINIMUM, "skill": SKILL_MINIMUM},
+                scoring_policy={
+                    "overall": OVERALL_MINIMUM, "skill": SKILL_MINIMUM,
+                    "open_codes": list(BACKEND_GRADE_OPEN_CODES[grade]), "open_weight": 10,
+                },
             )
             db.add(assessment)
             await db.commit()
@@ -259,6 +264,22 @@ class RoadmapService:
                 level_out_of_ten=round(session.percentage / 10, 1) if completed else None,
                 session_id=session.id if session else None,
             ))
+        open_submissions = (await db.execute(select(OpenQuestionSubmission).where(
+            OpenQuestionSubmission.assessment_id == assessment.id,
+        ))).scalars().all()
+        open_by_code = {item.question_code: item for item in open_submissions}
+        open_questions = []
+        for code in assessment.scoring_policy.get("open_codes", []):
+            question = get_open_question_by_code(code)
+            submission = open_by_code.get(code)
+            open_questions.append(AssessmentOpenQuestionProgress(
+                code=code,
+                title=question["title"] if question else code,
+                question_type=question["question_type"] if question else "free_text",
+                status=("review_pending" if submission.needs_manual_review else "completed") if submission else "not_started",
+                score=submission.score if submission and not submission.needs_manual_review else None,
+                submission_id=submission.id if submission else None,
+            ))
         promotion_at = profile.verified_grade_updated_at
         if promotion_at is not None and promotion_at.tzinfo is None:
             promotion_at = promotion_at.replace(tzinfo=timezone.utc)
@@ -269,6 +290,7 @@ class RoadmapService:
             target_grade=assessment.target_grade,
             status="expired" if assessment_is_expired(assessment) else assessment.status,
             skills=skills,
+            open_questions=open_questions,
             percentage=assessment.percentage if assessment.status == "completed" else None,
             passed=assessment.passed if assessment.status == "completed" else None,
             grade_confirmed=assessment.status == "completed" and assessment.passed,
@@ -470,7 +492,7 @@ class RoadmapService:
         assessment = await db.scalar(select(GradeAssessment).where(
             GradeAssessment.id == session.assessment_id,
         ).with_for_update())
-        if assessment is None or assessment.status != "in_progress":
+        if assessment is None or assessment.status not in ("in_progress", "pending_review"):
             raise HTTPException(409, "Набор уже завершён")
         if assessment_is_expired(assessment):
             await db.rollback()
@@ -492,10 +514,26 @@ class RoadmapService:
         for item in sessions:
             if item.skill_code not in latest_by_skill:
                 latest_by_skill[item.skill_code] = item
-        results = [SkillResult(item.skill_code, item.score, item.max_score) for item in latest_by_skill.values()]
         policy = assessment.scoring_policy
+        open_codes = tuple(policy.get("open_codes", ()))
+        # В исходном банке максимумы навыков зависят от грейда (например, Middle — 15).
+        # Для нового набора каждый обязательный шаг нормализуется к десяти баллам.
+        results = [
+            SkillResult(item.skill_code, item.score / item.max_score * 10, 10)
+            if open_codes else SkillResult(item.skill_code, item.score, item.max_score)
+            for item in latest_by_skill.values()
+        ]
+        open_submissions = (await db.execute(select(OpenQuestionSubmission).where(
+            OpenQuestionSubmission.assessment_id == assessment.id,
+        ))).scalars().all()
+        open_by_code = {item.question_code: item for item in open_submissions}
+        open_weight = float(policy.get("open_weight", 10))
+        for code in open_codes:
+            submission = open_by_code.get(code)
+            if submission and not submission.needs_manual_review:
+                results.append(SkillResult(code, submission.score * open_weight, open_weight))
         decision = assess_grade(
-            tuple(assessment.required_skills), results,
+            tuple(assessment.required_skills) + open_codes, results,
             overall_minimum=policy["overall"], skill_minimum=policy["skill"],
         )
         weak_skills = tuple(
@@ -504,12 +542,19 @@ class RoadmapService:
             and latest_by_skill[code].score / latest_by_skill[code].max_score < policy["skill"]
         )
         if not decision.complete:
+            if all(code in latest_by_skill for code in assessment.required_skills):
+                if all(code in open_by_code for code in open_codes) and any(
+                    open_by_code[code].needs_manual_review for code in open_codes
+                ):
+                    assessment.status = "pending_review"
+                    return False, None, "Открытый ответ ждёт ручной проверки. Грейд пока не присвоен."
+                return False, None, "Обязательные навыки пройдены. Решите два развёрнутых задания для итоговой оценки."
             if session.percentage < 50:
                 return False, assessment.suggested_grade, "Навык набрал меньше 50%. Завершите остальные шаги; затем можно будет один раз пересдать весь набор."
             return False, assessment.suggested_grade, "Результат навыка сохранён. Продолжите остальные обязательные шаги."
 
-        assessment.score = sum(item.score for item in latest_by_skill.values())
-        assessment.max_score = sum(item.max_score for item in latest_by_skill.values())
+        assessment.score = sum(item.earned for item in results)
+        assessment.max_score = sum(item.maximum for item in results)
         assessment.percentage = round(decision.overall_ratio * 100, 1)
         assessment.passed = decision.passed
         assessment.status = "completed"
@@ -529,7 +574,7 @@ class RoadmapService:
             assessment.suggested_grade = (
                 GRADE_ORDER[index - 1] if assessment.retake_of_id is not None and index > 0 else None
             )
-            weak = ", ".join(SKILL_LABELS[code] for code in decision.below_minimum)
+            weak = ", ".join(SKILL_LABELS.get(code, get_open_question_by_code(code)["title"] if get_open_question_by_code(code) else code) for code in decision.below_minimum)
             reason = f" Ниже 50%: {weak}." if weak else ""
             next_step = " Можно один раз пересдать весь набор этого грейда."
             if assessment.retake_of_id is not None:

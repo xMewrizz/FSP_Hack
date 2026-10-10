@@ -3,6 +3,7 @@ from pypdf import PdfReader
 import pytest
 from httpx import AsyncClient
 from app.core.question_variants import BACKEND_FAMILIES, prepared_variants
+from open_assessment_helpers import finish_open_assessment
 
 
 @pytest.mark.asyncio
@@ -108,7 +109,8 @@ async def test_full_platform_end_to_end_flow(client: AsyncClient):
         assert submit_resp.status_code == 200
         result = submit_resp.json()
     assert result["passed"] is True
-    assert result["verified_grade"] == "junior"
+    assert result["verified_grade"] is None
+    await finish_open_assessment(roadmap_id)
     assert result["percentage"] >= 70.0
     assert len(result["skill_breakdown"]) > 0
     assert len(result["skill_breakdown"]) == 1

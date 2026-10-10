@@ -117,6 +117,7 @@ class OpenQuestionSubmission(Base, TimestampMixin):
     """Ответ кандидата на развернутое задание или код с оценкой LLM / fallback (B-27)."""
 
     __tablename__ = "open_question_submissions"
+    __table_args__ = (UniqueConstraint("assessment_id", "question_code", name="uq_open_submission_assessment_question"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -134,6 +135,10 @@ class OpenQuestionSubmission(Base, TimestampMixin):
         ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
+    )
+    assessment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("grade_assessments.id", ondelete="CASCADE"),
+        index=True, nullable=True,
     )
     question_code: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
     question_type: Mapped[str] = mapped_column(String(50), default="free_text", nullable=False)

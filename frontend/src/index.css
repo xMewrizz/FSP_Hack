@@ -10707,6 +10707,57 @@ select,
   box-shadow: 0 0.35rem 0.9rem rgba(64, 47, 255, 0.24);
 }
 
+.app-shell .open-questions {
+  display: grid;
+  gap: 1rem;
+}
+
+.app-shell .open-questions__task,
+.app-shell .open-questions__result {
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 1rem;
+}
+
+.app-shell .open-questions__task p,
+.app-shell .open-questions__result p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .open-questions__task h3 {
+  margin: 0.5rem 0;
+}
+
+.app-shell .open-questions__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.app-shell .open-questions textarea {
+  min-height: 12rem;
+  resize: vertical;
+}
+
+.app-shell .open-questions__steps {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.app-shell .open-questions__steps p {
+  margin: 0;
+}
+
+.app-shell .open-questions__step {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .app-shell .assessment-roadmap,
 .app-shell .additional-competencies {
   min-width: 0;

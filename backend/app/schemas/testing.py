@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.constants import Grade
 
@@ -111,6 +111,15 @@ class AssessmentSkillProgress(BaseModel):
     session_id: uuid.UUID | None = None
 
 
+class AssessmentOpenQuestionProgress(BaseModel):
+    code: str
+    title: str
+    question_type: str
+    status: str
+    score: float | None = None
+    submission_id: uuid.UUID | None = None
+
+
 class GradeAssessmentResponse(BaseModel):
     id: uuid.UUID
     specialization: str
@@ -118,6 +127,7 @@ class GradeAssessmentResponse(BaseModel):
     target_grade: str
     status: str
     skills: list[AssessmentSkillProgress]
+    open_questions: list[AssessmentOpenQuestionProgress] = Field(default_factory=list)
     percentage: float | None = None
     passed: bool | None = None
     grade_confirmed: bool = False
@@ -152,12 +162,14 @@ class OpenQuestionResponse(BaseModel):
 
 class OpenQuestionSubmitRequest(BaseModel):
     answer_text: str
+    assessment_id: uuid.UUID | None = None
 
 
 class OpenQuestionSubmissionResponse(BaseModel):
     id: uuid.UUID
     question_code: str
     question_type: str
+    assessment_id: uuid.UUID | None = None
     answer_text: str
     score: float
     passed: bool

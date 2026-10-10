@@ -2,6 +2,7 @@ import pytest
 import uuid
 from httpx import AsyncClient
 from app.core.question_variants import BACKEND_FAMILIES, prepared_variants
+from open_assessment_helpers import finish_open_assessment
 
 
 async def register_and_verify(client: AsyncClient, email: str, role: str) -> dict[str, str]:
@@ -173,7 +174,8 @@ async def test_failed_retake_does_not_remove_verified_grade(client: AsyncClient)
             headers=candidate, json={"answers": answers},
         )
         assert passed.status_code == 200
-    assert passed.json()["verified_grade"] == "junior"
+    assert passed.json()["verified_grade"] is None
+    await finish_open_assessment(roadmap.json()["id"])
 
     retake = await client.post("/api/v1/testing/start", headers=candidate, json={})
     assert retake.status_code == 201

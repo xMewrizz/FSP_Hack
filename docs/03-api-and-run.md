@@ -118,7 +118,7 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 ### 3. Тестирование и подтверждение категории (`/api/v1/testing`)
 
-Новый сценарий Backend использует `/testing/roadmap`: набор обязательных навыков можно проходить по частям в течение трёх дней. В ответе есть `expires_at` и `retake_used`; после неудачной пересдачи Junior — `retry_available_at`. После завершения первого набора повторный `POST /testing/roadmap` с тем же грейдом открывает одну пересдачу всех навыков с новым трёхдневным сроком. После второй неудачи Middle/Senior предлагается грейд ниже; Junior может открыть новый цикл через неделю. Прежний `/testing/start` остался для совместимости и не присваивает грейд. Правила — в [описании тестирования](02-testing-matching.md).
+Новый сценарий Backend использует `/testing/roadmap`: четыре теста навыков и два закреплённых открытых задания можно проходить в течение трёх дней. В ответе есть `open_questions`, `expires_at` и `retake_used`; после неудачной пересдачи Junior — `retry_available_at`. Грейд присваивается после всех шести шагов либо после ручной проверки спорного открытого ответа. После завершения первого набора повторный `POST /testing/roadmap` с тем же грейдом открывает одну пересдачу с новым трёхдневным сроком. После второй неудачи Middle/Senior предлагается грейд ниже; Junior может открыть новый цикл через неделю. Прежний `/testing/start` остался для совместимости и не присваивает грейд. Правила — в [описании тестирования](02-testing-matching.md).
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -250,7 +250,7 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/testing/open-questions` | Список открытых вопросов с критериями, без эталонов и допустимых решений | Публичный | `specialization`, `grade` (опционально) | `200 OK`: `list[OpenQuestionResponse]` |
 | `GET` | `/testing/open-questions/{code}` | Просмотр открытого вопроса по коду | Публичный | — | `200 OK`: `OpenQuestionResponse` |
-| `POST` | `/testing/open-questions/{code}/submit` | Сдача ответа; код передаётся на оценку модели, но не исполняется в backend | `Bearer JWT` (Candidate) | `{ "answer_text": "..." }` | `201 Created`: `OpenQuestionSubmissionResponse` |
+| `POST` | `/testing/open-questions/{code}/submit` | Сдача ответа; код передаётся на оценку модели, но не исполняется в backend. Для обязательного задания передайте ID начатого набора | `Bearer JWT` (Candidate) | `{ "answer_text": "...", "assessment_id": "UUID" }` | `201 Created`: `OpenQuestionSubmissionResponse`; без `assessment_id` ответ остаётся отдельной практикой |
 | `POST` | `/testing/code-sandbox/execute` | Запуск кода через отдельный Docker-исполнитель при включённом профиле `sandbox` | `Bearer JWT` (Candidate) | `{ "code": "...", "question_code": "...", "timeout_seconds": 3.0 }` | `200 OK`: результат тестов; `400` для неподдерживаемого задания; `503`, если исполнитель недоступен |
 | `POST` | `/testing/open-questions/{code}/test-run` | Пробный запуск задания с кодом через отдельный исполнитель | `Bearer JWT` (Candidate) | `{ "code": "...", "timeout_seconds": 3.0 }` | `200 OK`: результат тестов; `400` для неподдерживаемого задания; `503`, если исполнитель недоступен |
 | `GET` | `/testing/open-submissions` | История отправленных решений кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |

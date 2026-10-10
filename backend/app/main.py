@@ -121,6 +121,30 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE grade_assessments ADD COLUMN scoring_policy JSON NOT NULL "
                 "DEFAULT '{\"overall\": 0.75, \"skill\": 0.5}'"
             ))
+        open_submission_columns = await conn.run_sync(
+            lambda sync_conn: {column["name"] for column in inspect(sync_conn).get_columns("open_question_submissions")}
+        )
+        if "assessment_id" not in open_submission_columns:
+            await conn.execute(text("ALTER TABLE open_question_submissions ADD COLUMN assessment_id UUID"))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_open_question_submissions_assessment_id "
+            "ON open_question_submissions (assessment_id)"
+        ))
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_open_submission_assessment_question "
+            "ON open_question_submissions (assessment_id, question_code)"
+        ))
+        open_submission_fk_exists = await conn.run_sync(
+            lambda sync_conn: any(
+                key["constrained_columns"] == ["assessment_id"]
+                for key in inspect(sync_conn).get_foreign_keys("open_question_submissions")
+            )
+        )
+        if not open_submission_fk_exists:
+            await conn.execute(text(
+                "ALTER TABLE open_question_submissions ADD CONSTRAINT fk_open_question_submissions_assessment_id "
+                "FOREIGN KEY (assessment_id) REFERENCES grade_assessments(id) ON DELETE CASCADE"
+            ))
         achievement_columns = await conn.run_sync(
             lambda sync_conn: {column["name"] for column in inspect(sync_conn).get_columns("fsp_achievements")}
         )
