@@ -17,6 +17,7 @@ class OpenAnswerEvaluationRequest(BaseModel):
     question_text: str
     reference_solution: str
     rubric_criteria: list[str]
+    critical_criteria: list[int] = Field(default_factory=list)
     candidate_answer: str
 
 
@@ -43,6 +44,7 @@ async def evaluate_open_answer_endpoint(payload: OpenAnswerEvaluationRequest):
             question_text=payload.question_text,
             reference_solution=payload.reference_solution,
             rubric_criteria=payload.rubric_criteria,
+            critical_criteria=payload.critical_criteria,
             candidate_answer=payload.candidate_answer,
             client=client,
         )

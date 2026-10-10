@@ -1,5 +1,3 @@
-import ast
-import re
 from typing import Any
 import uuid
 from datetime import datetime, timezone
@@ -36,6 +34,7 @@ def get_public_open_questions(specialization: str | None = None, grade: str | No
             "skill": q.get("skill", ""),
             "question_text": q["question_text"],
             "rubric_criteria": q["rubric_criteria"],
+            "critical_criteria": q["critical_criteria"],
         }
         for q in questions
     ]
@@ -44,85 +43,12 @@ def get_public_open_questions(specialization: str | None = None, grade: str | No
 def _local_fallback_eval(
     question: dict[str, Any], answer_text: str
 ) -> dict[str, Any]:
-    """Детерминированная локальная оценка на случай недоступности ml-service."""
-    stripped = answer_text.strip()
-    criteria = question["rubric_criteria"]
-    if not stripped:
-        return {
-            "score": 0.0,
-            "passed": False,
-            "feedback": "Ответ пуст. Требуется ручная проверка экспертом.",
-            "criterion_scores": {c: 0.0 for c in criteria},
-            "evaluator": "fallback_heuristic",
-            "needs_manual_review": True,
-        }
-
-    q_type = question["question_type"]
-    criterion_scores: dict[str, float] = {}
-
-    if q_type == "code":
-        err_msg = ""
-        parsed_ast = None
-        try:
-            parsed_ast = ast.parse(answer_text)
-            has_syntax_err = False
-        except SyntaxError as e:
-            has_syntax_err = True
-            err_msg = str(e)
-
-        if has_syntax_err or parsed_ast is None:
-            return {
-                "score": 0.1,
-                "passed": False,
-                "feedback": f"Синтаксическая ошибка в коде: {err_msg}. Требуется ручная проверка экспертом.",
-                "criterion_scores": {c: 0.0 for c in criteria},
-                "evaluator": "fallback_heuristic",
-                "needs_manual_review": True,
-            }
-
-        ast_classes = {n.name for n in ast.walk(parsed_ast) if isinstance(n, ast.ClassDef)}
-        ast_funcs = {n.name for n in ast.walk(parsed_ast) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
-        code_lower = answer_text.lower()
-        for c in criteria:
-            c_low = c.lower()
-            if "класс" in c_low or "rate_limiter" in c_low or "ratelimiter" in c_low:
-                m = bool(ast_classes) or ("class " in code_lower)
-            elif "инициализаци" in c_low or "__init__" in c_low:
-                m = "__init__" in ast_funcs or "__init__" in code_lower or "def " in code_lower
-            elif "allow_request" in c_low or "метод" in c_low:
-                m = any(f in ast_funcs for f in ("allow_request", "check", "acquire", "is_allowed")) or "def " in code_lower
-            elif "deque" in c_low or "хранение" in c_low or "список" in c_low:
-                m = any(k in code_lower for k in ("deque", "list", "dict", "defaultdict", "append"))
-            elif "окна" in c_low or "устаревш" in c_low or "threshold" in c_low:
-                m = any(k in code_lower for k in ("popleft", "pop", "threshold", "while", "for", ">", "<"))
-            elif "проверка лимита" in c_low or "лимит" in c_low:
-                m = any(k in code_lower for k in ("<", "<=", "return true", "return false", "max_requests"))
-            elif "фолд" in c_low or "kfold" in c_low or "split" in c_low:
-                m = any(k in code_lower for k in ("kfold", "split", "stratifiedkfold", "cv"))
-            elif "fit" in c_low or "scaler" in c_low or "обучение" in c_low:
-                m = "fit" in code_lower or "scaler" in code_lower
-            elif "transform" in c_low:
-                m = "transform" in code_lower
-            elif "roc_auc" in c_low or "score" in c_low or "метрик" in c_low:
-                m = any(k in code_lower for k in ("roc_auc", "score", "predict_proba", "mean", "np.mean"))
-            else:
-                words = [w for w in re.findall(r"\w{4,}", c_low) if w not in {"быть", "должен", "использованием"}]
-                m = any(w in code_lower for w in words)
-            criterion_scores[c] = 1.0 if m else 0.2
-    else:
-        ans_words = set(re.findall(r"\w+", answer_text.lower(), re.UNICODE))
-        for c in criteria:
-            c_tokens = [w for w in re.findall(r"\w{4,}", c.lower()) if w not in {"быть", "должен", "через", "также", "например"}]
-            matches = sum(1 for tok in c_tokens if any(tok[:4] in aw or aw[:4] in tok for aw in ans_words))
-            ratio = matches / max(len(c_tokens), 1)
-            criterion_scores[c] = 1.0 if ratio >= 0.30 else (0.5 if ratio >= 0.15 else 0.0)
-
-    total_score = round(sum(criterion_scores.values()) / max(len(criteria), 1), 2)
+    """Недоступный ML-сервис не даёт оснований выставлять балл."""
     return {
-        "score": total_score,
-        "passed": total_score >= 0.70,
-        "feedback": f"Эвристическая оценка: {int(total_score * 100)}%. Ожидает верификации экспертом (LLM офлайн).",
-        "criterion_scores": criterion_scores,
+        "score": 0.0,
+        "passed": False,
+        "feedback": "Автоматическая проверка недоступна. Ответ пока не оценён; повторите проверку позже.",
+        "criterion_scores": {},
         "evaluator": "fallback_heuristic",
         "needs_manual_review": True,
     }
@@ -137,6 +63,7 @@ async def _evaluate_with_ml(
         "question_text": question["question_text"],
         "reference_solution": question["reference_solution"],
         "rubric_criteria": question["rubric_criteria"],
+        "critical_criteria": question.get("critical_criteria", []),
         "candidate_answer": answer_text,
     }
     own_client = client is None

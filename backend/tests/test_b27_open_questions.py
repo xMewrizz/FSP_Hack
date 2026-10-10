@@ -1,3 +1,4 @@
+import json
 import pytest
 import httpx
 from httpx import AsyncClient
@@ -6,8 +7,18 @@ from app.core.open_question_bank import (
     OPEN_QUESTIONS,
     get_open_question_by_code,
 )
-from app.services.open_question_service import get_public_open_questions
+from app.services.open_question_service import _local_fallback_eval, evaluate_open_answer, get_public_open_questions
 from app.core.question_variants import prepared_variants
+
+
+def test_ml_outage_does_not_produce_a_candidate_score():
+    question = get_open_question_by_code("OPEN-BE-ARCH-JR-01")
+    result = _local_fallback_eval(question, "Подробный ответ с правильными словами из рубрики")
+    assert result["score"] == 0.0
+    assert result["passed"] is False
+    assert result["criterion_scores"] == {}
+    assert result["needs_manual_review"] is True
+    assert "не оценён" in result["feedback"]
 
 
 @pytest.fixture(autouse=True)
@@ -55,6 +66,7 @@ def test_open_questions_bank_structure():
         assert len(q["skill"]) > 3
         assert len(q["acceptable_solutions"]) >= 2
         assert len(q["rubric_criteria"]) >= 3
+        assert all(1 <= index <= len(q["rubric_criteria"]) for index in q["critical_criteria"])
         assert len(q["reference_solution"]) > 20
         assert len(q["question_text"]) > 20
 
@@ -63,6 +75,7 @@ def test_open_questions_bank_structure():
     for pub in public:
         assert "reference_solution" not in pub
         assert "rubric_criteria" in pub
+        assert "critical_criteria" in pub
         assert "code" in pub
         assert "skill" in pub
         assert "acceptable_solutions" not in pub
@@ -74,6 +87,24 @@ def test_open_questions_bank_structure():
     assert len(seniors_pub) >= 12
     ds_middles_pub = get_public_open_questions(specialization="Data Science / ML", grade="middle")
     assert len(ds_middles_pub) >= 6
+
+
+@pytest.mark.asyncio
+async def test_critical_criteria_are_sent_to_ml_service():
+    question = get_open_question_by_code("OPEN-DS-ARCH-JR-01")
+
+    def reply(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/evaluate-open-answer"
+        assert json.loads(request.content)["critical_criteria"] == [2]
+        return httpx.Response(200, json={
+            "score": 0.49, "passed": False, "feedback": "Будущие данные в признаках",
+            "criterion_scores": {}, "evaluator": "llm_openrouter", "needs_manual_review": False,
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as ml_client:
+        result = await evaluate_open_answer(question, "Использую будущие платежи", ml_client)
+    assert result["score"] == 0.49
+    assert result["passed"] is False
 
 
 @pytest.mark.asyncio
@@ -198,8 +229,8 @@ async def test_submit_open_architecture_answer(client: AsyncClient):
     assert body["question_code"] == "OPEN-BE-ARCH-01"
     assert body["score"] >= 0.70
     assert body["passed"] is True
-    assert body["evaluator"] in ("llm_qwen3", "llm_openrouter_qwen3_14b", "fallback_heuristic")
-    assert body["needs_manual_review"] is True or body["evaluator"] in ("llm_qwen3", "llm_openrouter_qwen3_14b")
+    assert body["evaluator"] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter", "fallback_heuristic")
+    assert body["needs_manual_review"] is True or body["evaluator"] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter")
     assert len(body["criterion_scores"]) >= 3
 
     # Проверяем историю отправок

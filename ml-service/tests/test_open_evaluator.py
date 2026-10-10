@@ -1,7 +1,10 @@
+import asyncio
 import json
+import ssl
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import httpx
 
@@ -14,6 +17,95 @@ from open_evaluator import (
 
 
 class OpenEvaluatorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_critical_criterion_caps_score_below_skill_minimum(self):
+        criteria = ["Временное разделение", "Нет признаков из будущего", "Train-only preprocessing", "Проверка"]
+
+        def reply(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "score": 0.75, "passed": True,
+                "criteria_breakdown": [
+                    {"criterion": str(index), "met": index != 2, "explanation": "Проверено"}
+                    for index in range(1, 5)
+                ],
+                "general_feedback": "Три критерия выполнены",
+            })}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            result = await evaluate_open_answer(
+                "OPEN-DS-ARCH-JR-01", "free_text", "Вопрос", "Эталон", criteria,
+                "Разделил по времени, но использовал платежи из будущего.", client,
+                critical_criteria=[2],
+            )
+        self.assertEqual(result.score, 0.49)
+        self.assertFalse(result.passed)
+        self.assertIn(criteria[1], result.feedback)
+
+    async def test_numbered_criterion_text_is_recognized(self):
+        criterion = "Объяснена проверка прав доступа"
+
+        def reply(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "score": 1.0, "passed": True,
+                "criteria_breakdown": [
+                    {"criterion": f"1. {criterion}", "met": True, "explanation": "Права проверены"},
+                ],
+                "general_feedback": "Ответ проверен",
+            })}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            result = await evaluate_open_answer(
+                "OPEN-BE-WORK-MID-01", "free_text", "Вопрос", "Эталон", [criterion],
+                "Проверю владельца перед выдачей CSV.", client,
+            )
+        self.assertEqual(result.score, 1.0)
+        self.assertEqual(result.evaluator, "llm_ollama")
+
+    async def test_tls_failure_keeps_answer_pending(self):
+        def reply(_request: httpx.Request) -> httpx.Response:
+            raise ssl.SSLError("broken TLS record")
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            result = await evaluate_open_answer(
+                "OPEN-BE-WORK-MID-01", "free_text", "Вопрос", "Эталон",
+                ["Описан план"], "Уточню требования и проверю результат.", client,
+            )
+        self.assertEqual(result.evaluator, "fallback_heuristic")
+
+    async def test_slow_model_does_not_hold_the_answer_indefinitely(self):
+        async def reply(_request: httpx.Request) -> httpx.Response:
+            await asyncio.sleep(0.05)
+            return httpx.Response(200, json={"message": {"content": "{}"}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            with patch("open_evaluator.LLM_EVALUATION_TIMEOUT_SECONDS", 0.01):
+                result = await evaluate_open_answer(
+                    "OPEN-BE-WORK-MID-01", "free_text", "Вопрос", "Эталон",
+                    ["Описан план"], "Сначала уточню требования и затем проверю результат.", client,
+                )
+        self.assertEqual(result.evaluator, "fallback_heuristic")
+
+    async def test_empty_or_repeated_criterion_cannot_raise_score(self):
+        criteria = ["Проверен доступ", "Предусмотрены ошибки"]
+
+        def reply(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "score": 1.0, "passed": True,
+                "criteria_breakdown": [
+                    {"criterion": "", "met": True, "explanation": "Пустой идентификатор"},
+                    {"criterion": "1", "met": True, "explanation": "Есть проверка"},
+                    {"criterion": "Проверен доступ", "met": True, "explanation": "Дубликат"},
+                ],
+                "general_feedback": "Ответ проверен",
+            })}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            result = await evaluate_open_answer(
+                "OPEN-BE-WORK-MID-01", "free_text", "Вопрос", "Эталон", criteria,
+                "Проверяю доступ и обрабатываю ошибки.", client,
+            )
+        self.assertEqual(result.evaluator, "fallback_heuristic")
+        self.assertTrue(result.needs_manual_review)
+
     async def test_llm_evaluation_success(self):
         criteria = [
             "Использование idempotency_key с UNIQUE constraint",
@@ -73,7 +165,7 @@ class OpenEvaluatorTests(unittest.IsolatedAsyncioTestCase):
                 client=client,
             )
 
-        self.assertEqual(result.evaluator, "llm_qwen3")
+        self.assertEqual(result.evaluator, "llm_ollama")
         self.assertAlmostEqual(result.score, 0.67, places=2)
         self.assertFalse(result.passed)
         self.assertFalse(result.needs_manual_review)
@@ -148,8 +240,9 @@ class SlidingWindowRateLimiter:
 
         self.assertEqual(result.evaluator, "fallback_heuristic")
         self.assertTrue(result.needs_manual_review)
-        self.assertGreaterEqual(result.score, 0.70)
-        self.assertTrue(result.passed)
+        self.assertEqual(result.score, 0.0)
+        self.assertFalse(result.passed)
+        self.assertIn("Ответ не оценён", result.feedback)
 
     def test_deterministic_code_ast_syntax_error(self):
         criteria = ["Корректная функция", "KFold", "StandardScaler"]
@@ -214,7 +307,7 @@ class SlidingWindowRateLimiter:
                 client=client,
             )
 
-        self.assertEqual(result.evaluator, "llm_qwen3")
+        self.assertEqual(result.evaluator, "llm_ollama")
         self.assertAlmostEqual(result.score, 1.0, places=2)
         self.assertTrue(result.passed)
         self.assertIn("успешно", result.feedback)
@@ -263,8 +356,9 @@ class SlidingWindowRateLimiter:
         )
         self.assertEqual(result.score, 0.0)
         self.assertFalse(result.passed)
-        self.assertTrue(result.needs_manual_review)
-        self.assertIn("Prompt Injection", result.feedback)
+        self.assertFalse(result.needs_manual_review)
+        self.assertEqual(result.evaluator, "rule_prompt_injection")
+        self.assertIn("команды оценщику", result.feedback)
 
 
 if __name__ == "__main__":

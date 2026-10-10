@@ -19,7 +19,7 @@ class OpenRouterTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(str(request.url), "https://openrouter.ai/api/v1/chat/completions")
             self.assertEqual(request.headers["Authorization"], "Bearer test-key")
             payload = json.loads(request.content)
-            self.assertEqual(payload["model"], "qwen/qwen3-14b")
+            self.assertEqual(payload["model"], "google/gemini-2.5-flash")
             self.assertEqual(payload["response_format"]["type"], "json_schema")
             output_schema = payload["response_format"]["json_schema"]["schema"]
             self.assertEqual(set(output_schema["required"]), {"specialization", "skills"})
@@ -75,7 +75,7 @@ class OpenRouterTests(unittest.IsolatedAsyncioTestCase):
                 result = await evaluate_open_answer(
                     "OPEN-BE-01", "free_text", "Вопрос", "Эталон", [criterion], "Ответ кандидата", client
                 )
-        self.assertEqual(result.evaluator, "llm_openrouter_qwen3_14b")
+        self.assertEqual(result.evaluator, "llm_openrouter")
         self.assertEqual(result.criterion_scores[criterion], 1.0)
         self.assertFalse(result.needs_manual_review)
 
