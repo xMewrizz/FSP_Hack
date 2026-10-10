@@ -12,6 +12,7 @@ from sqlalchemy.orm import defer, joinedload, selectinload
 
 from app.core.ranking import rank_candidates
 from app.core.assessment_catalog import BACKEND_MATCHING_SKILL_CODES
+from app.core.assessment_catalog_ds import DS_MATCHING_SKILL_CODES
 from app.models.candidate import CandidateProfile
 from app.models.candidate_specialization import CandidateSpecializationTrack
 from app.models.need import EmployerNeed
@@ -83,7 +84,7 @@ def _candidate_data(candidate: CandidateProfile, percentage: float | None, reque
 
 def _candidate_activity_status(last_active_at: datetime | None) -> str:
     if last_active_at is None:
-        return "Не активен"
+        return "Нет отметки об активности"
     timestamp = last_active_at.replace(tzinfo=timezone.utc) if last_active_at.tzinfo is None else last_active_at
     days_since_activity = (datetime.now(timezone.utc) - timestamp.astimezone(timezone.utc)).total_seconds() / 86400
     if days_since_activity < 7:
@@ -317,7 +318,11 @@ class MatchingService:
                 ):
                     confirmed_results[candidate.id] = session.percentage
 
-        aliases = BACKEND_MATCHING_SKILL_CODES if need.specialization.casefold() == "backend" else {}
+        aliases = (
+            BACKEND_MATCHING_SKILL_CODES if need.specialization.casefold() == "backend"
+            else DS_MATCHING_SKILL_CODES if need.specialization.casefold() == "data science / ml"
+            else {}
+        )
         requested_codes = {
             aliases.get(str(item.get("name") or "").strip().casefold())
             for item in (need.required_skills or []) if isinstance(item, dict)

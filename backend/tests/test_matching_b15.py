@@ -157,3 +157,73 @@ async def test_matching_only_confirmed_and_order_matches_b14(client: AsyncClient
     assert empty_stack_search.json() == []
     forbidden = await client.get(f"/api/v1/matching/for-need/{need_id}", headers=other_headers)
     assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_data_science_skill_results_appear_in_matching_and_affect_order(client: AsyncClient):
+    async with TestingSessionLocal() as db:
+        owner = User(email="ds-match-owner@example.test", hashed_password="unused", role=UserRole.EMPLOYER, is_verified=True)
+        db.add(owner)
+        await db.flush()
+        employer = EmployerProfile(user_id=owner.id, company_name="Компания", onboarding_completed=True)
+        db.add(employer)
+        await db.flush()
+        need = EmployerNeed(
+            employer_id=employer.id, title="Data Scientist", specialization="Data Science / ML",
+            required_grade="senior", required_skills=[
+                {"name": "Python", "weight": 5}, {"name": "Pandas", "weight": 4},
+                {"name": "SQL", "weight": 4}, {"name": "Machine Learning", "weight": 5},
+                {"name": "Docker", "weight": 2},
+            ],
+            salary_min=300000, salary_max=450000, salary_tax_type="gross", work_format="remote",
+        )
+        db.add(need)
+        await db.flush()
+        profiles = []
+        for index in range(2):
+            user = User(email=f"ds-match-{index}@example.test", hashed_password="unused", role=UserRole.CANDIDATE, is_verified=True)
+            db.add(user)
+            await db.flush()
+            profile = CandidateProfile(
+                user_id=user.id, first_name="Кандидат", last_name=str(index),
+                specialization="Data Science / ML", verified_specialization="Data Science / ML",
+                declared_grade="senior", verified_grade="senior",
+                skills=["Python", "Pandas", "SQL", "машинное обучение", "Docker"],
+                work_format="remote", salary_expectation=400000, salary_tax_type="gross",
+                onboarding_completed=True, agreed_publication=True, visibility_public=True,
+            )
+            db.add(profile)
+            await db.flush()
+            assessment = GradeAssessment(
+                user_id=user.id, candidate_profile_id=profile.id,
+                specialization="Data Science / ML", target_grade="senior",
+                required_skills=[], question_codes={}, question_snapshots={},
+                retake_question_snapshots={}, scoring_policy={}, status="completed",
+                passed=True, percentage=85,
+            )
+            db.add(assessment)
+            await db.flush()
+            if index == 0:
+                for code, percentage in (("ds_python", 90), ("ds_pandas", 80), ("ds_sql", 90), ("ds_ml", 80)):
+                    db.add(CandidateTestSession(
+                        user_id=user.id, candidate_profile_id=profile.id,
+                        assessment_id=assessment.id, specialization="Data Science / ML",
+                        target_grade="senior", skill_code=code,
+                        status="completed", percentage=percentage,
+                    ))
+            profiles.append(profile)
+        await db.commit()
+        need_id, owner_id = need.id, owner.id
+        tested_id, untested_id = (str(profile.id) for profile in profiles)
+
+    headers = {"Authorization": f"Bearer {create_access_token({'sub': str(owner_id)})}"}
+    response = await client.get(f"/api/v1/matching/for-need/{need_id}", headers=headers)
+    assert response.status_code == 200
+    data = response.json()["candidates"]
+    assert [item["candidate_id"] for item in data] == [tested_id, untested_id]
+    assert [(item["name"], item["percentage"]) for item in data[0]["requested_skill_tests"]] == [
+        ("Python", 90), ("Pandas", 80), ("SQL", 90), ("Machine Learning", 80), ("Docker", None),
+    ]
+    assert "4 из 5 запрошенных навыков" in data[0]["match_explanation"]["summary"]
+    assert "машинное обучение" in data[0]["match_explanation"]["matched_skills"]
+    assert "машинное обучение" not in data[0]["match_explanation"]["missing_skills"]

@@ -12,6 +12,22 @@ DS_REQUIRED_SKILLS: tuple[tuple[str, str], ...] = (
     ("ds_ml", "Машинное обучение"),
 )
 
+# Названия навыков работодателя соотносятся с тестами только внутри Data Science.
+# Например, Python здесь не означает тест Python для Backend.
+DS_MATCHING_SKILL_CODES = {
+    "python": "ds_python",
+    "python для data science": "ds_python",
+    "pandas": "ds_pandas",
+    "sql": "ds_sql",
+    "вероятность и статистика": "ds_statistics",
+    "статистика": "ds_statistics",
+    "a/b-тестирование": "ds_ab",
+    "a/b-тесты": "ds_ab",
+    "machine learning": "ds_ml",
+    "машинное обучение": "ds_ml",
+    "ml": "ds_ml",
+}
+
 DS_TARGET_QUESTIONS = {
     "ds_python": 10,
     "ds_pandas": 10,

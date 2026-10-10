@@ -55,6 +55,11 @@ type Candidate = {
   githubUrl?: string | null;
 };
 
+const formatMatchScore = (score: number) => {
+  const form = new Intl.PluralRules("ru-RU").select(score);
+  return `${score} ${form === "one" ? "балл" : form === "few" ? "балла" : "баллов"}`;
+};
+
 type VacancyPermissionRecord = {
   user_id: string;
   email: string;
@@ -815,7 +820,7 @@ function mapMatchToCandidate(item: MatchingCandidate, index: number, demoMode = 
     fspVerified: item.fsp_verified,
     verifiedGrade: Boolean(item.verified_grade),
     availableFrom: item.available_from ?? null,
-    activityStatus: item.activity_status ?? "Не активен",
+    activityStatus: item.activity_status ?? "Нет отметки об активности",
     trueScore: item.trust_score ?? null,
     trueScoreFlags: item.trust_flags,
     resumeVersions: item.resume_versions,
@@ -1341,7 +1346,7 @@ function Logo() {
 
 const pageCopy: Record<string, { eyebrow: string; title: string }> = {
   Обзор: { eyebrow: "РАБОЧЕЕ ПРОСТРАНСТВО", title: "Обзор платформы" },
-  Подборка: { eyebrow: "ПОДБОР КОМАНДЫ / BACKEND", title: "Подборка кандидатов" },
+  Подборка: { eyebrow: "ПОДБОР КАНДИДАТОВ", title: "Подборка кандидатов" },
   "Банк кандидатов": { eyebrow: "ВЕРИФИЦИРОВАННАЯ БАЗА", title: "Банк кандидатов" },
   Потребности: { eyebrow: "ЗАПРОС НА ПОДБОР", title: "Кого ищем" },
   Приглашения: { eyebrow: "REVERSE RECRUITING", title: "Приглашения" },
@@ -1821,11 +1826,11 @@ function EmployerScreen({
   const [vacancySaving, setVacancySaving] = useState(false);
   const [vacancyForm, setVacancyForm] = useState({
     title: "",
-    specialization: "Backend",
-    required_grade: "middle",
+    specialization: demoMode ? "Backend" : "",
+    required_grade: demoMode ? "middle" : "",
     required_skills: "",
-    salary_min: "220000",
-    salary_max: "280000",
+    salary_min: demoMode ? "220000" : "",
+    salary_max: demoMode ? "280000" : "",
     salary_tax_type: "gross" as "gross" | "net",
     work_format: "remote",
     city: "",
@@ -1836,22 +1841,22 @@ function EmployerScreen({
   const [applicationsLoading, setApplicationsLoading] = useState(false);
   const [vacancyListFilter, setVacancyListFilter] = useState<"published" | "drafts" | "all">("published");
   const [needs, setNeeds] = useState<EmployerNeedRecord[]>([]);
-  const [needTitle, setNeedTitle] = useState("Backend-разработчик");
-  const [needSpecialization, setNeedSpecialization] = useState("Backend");
-  const [needGrade, setNeedGrade] = useState("middle");
+  const [needTitle, setNeedTitle] = useState(demoMode ? "Backend-разработчик" : "");
+  const [needSpecialization, setNeedSpecialization] = useState(demoMode ? "Backend" : "");
+  const [needGrade, setNeedGrade] = useState(demoMode ? "middle" : "");
   const [needDescription, setNeedDescription] = useState("");
-  const [needSalaryMin, setNeedSalaryMin] = useState("220000");
-  const [needSalaryMax, setNeedSalaryMax] = useState("280000");
+  const [needSalaryMin, setNeedSalaryMin] = useState(demoMode ? "220000" : "");
+  const [needSalaryMax, setNeedSalaryMax] = useState(demoMode ? "280000" : "");
   const [needSalaryTaxType, setNeedSalaryTaxType] = useState<"gross" | "net" | "">("gross");
   const [needCity, setNeedCity] = useState("");
   const [needWorkFormat, setNeedWorkFormat] = useState("remote");
-  const [skillItems, setSkillItems] = useState<Array<{ name: string; weight: number }>>([
+  const [skillItems, setSkillItems] = useState<Array<{ name: string; weight: number }>>(demoMode ? [
     { name: "Python", weight: 5 },
     { name: "FastAPI", weight: 4 },
     { name: "PostgreSQL", weight: 4 },
     { name: "Docker", weight: 3 },
     { name: "CI/CD", weight: 3 },
-  ]);
+  ] : []);
   const [newSkillName, setNewSkillName] = useState("");
   const [skillSuggestionsOpen, setSkillSuggestionsOpen] = useState(false);
   const skillSuggestions = (DEFAULT_SKILLS_BY_SPEC[needSpecialization] ?? []).map((item) => item.name).filter((name) =>
@@ -1890,9 +1895,7 @@ function EmployerScreen({
 
   const handleSpecializationChange = (newSpec: string) => {
     setNeedSpecialization(newSpec);
-    if (DEFAULT_SKILLS_BY_SPEC[newSpec]) {
-      setSkillItems(DEFAULT_SKILLS_BY_SPEC[newSpec]);
-    }
+    setSkillItems(DEFAULT_SKILLS_BY_SPEC[newSpec] ?? []);
   };
   const [needSaving, setNeedSaving] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<EmployerProfileData | null>(null);
@@ -2000,11 +2003,11 @@ function EmployerScreen({
     setVacancyEditingId(null);
     setVacancyForm({
       title: "",
-      specialization: "Backend",
-      required_grade: "middle",
+      specialization: demoMode ? "Backend" : "",
+      required_grade: demoMode ? "middle" : "",
       required_skills: "",
-      salary_min: "220000",
-      salary_max: "280000",
+      salary_min: demoMode ? "220000" : "",
+      salary_max: demoMode ? "280000" : "",
       salary_tax_type: "gross",
       work_format: "remote",
       city: "",
@@ -2033,8 +2036,8 @@ function EmployerScreen({
   const saveVacancy = async () => {
     const salaryMin = Number(vacancyForm.salary_min.replace(/\D/g, ""));
     const salaryMax = Number(vacancyForm.salary_max.replace(/\D/g, ""));
-    if (vacancyForm.title.trim().length < 2 || salaryMin <= 0 || salaryMax < salaryMin) {
-      onNotify("Укажите название и корректный диапазон зарплаты", "error");
+    if (vacancyForm.title.trim().length < 2 || !vacancyForm.specialization || !vacancyForm.required_grade || salaryMin <= 0 || salaryMax < salaryMin) {
+      onNotify("Укажите название, специализацию, уровень и корректный диапазон зарплаты", "error");
       return;
     }
     setVacancySaving(true);
@@ -2458,7 +2461,7 @@ function EmployerScreen({
         <div className="metrics-grid">        <MetricCard label="КАНДИДАТОВ В БАНКЕ" value={String(bankItems.length)} detail="По текущим фильтрам" accent icon="users" /><MetricCard label="СРЕДНИЙ БАЛЛ ПОДБОРА" value={averageScore} detail="Считается для конкретной потребности" icon="target" /><MetricCard label="ДАТА ВЫХОДА УКАЗАНА" value={`${confirmedDates} / ${bankItems.length}`} detail="Если кандидат указал дату" icon="calendar" /></div>
         <section className="feature-card feature-card--wide">
           <div className="feature-head"><div><span>ДОСТУПНОСТЬ КАНДИДАТОВ</span><strong>Планируемые даты выхода</strong></div><Button variant="outline" onClick={() => onNavigate("Подборка")}>Открыть подборку</Button></div>
-          <div className="start-dates">{scheduled.map((candidate, index) => <div key={candidate.backendId}><b>{new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</b><i className={index === 0 ? "active" : ""} /><div><strong>{candidate.name}</strong><span>{candidate.role} · {candidate.level} · {candidate.score} баллов</span></div><em>{candidate.availableFrom ? "Готов к выходу" : "Дата не указана"}</em></div>)}</div>
+          <div className="start-dates">{scheduled.map((candidate, index) => <div key={candidate.backendId}><b>{new Date(`${candidate.availableFrom}T00:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</b><i className={index === 0 ? "active" : ""} /><div><strong>{candidate.name}</strong><span>{candidate.role} · {candidate.level} · {formatMatchScore(candidate.score)}</span></div><em>{candidate.availableFrom ? "Готов к выходу" : "Дата не указана"}</em></div>)}</div>
           {!scheduled.length && <div className="empty-state">В профилях пока нет дат готовности</div>}
         </section>
       </div>
@@ -2479,10 +2482,10 @@ function EmployerScreen({
             <div className="feature-head"><div><span>{vacancyEditingId ? "РЕДАКТИРОВАНИЕ" : "НОВАЯ ВАКАНСИЯ"}</span><strong>Основные условия</strong></div><Button variant="ghost" onClick={() => { setVacancyEditor(false); resetVacancyForm(); }}>Закрыть</Button></div>
             <div className="field-row field-row--flush">
               <label className="field"><span>НАЗВАНИЕ *</span><input value={vacancyForm.title} onChange={(event) => setVacancyForm((current) => ({ ...current, title: event.target.value }))} /></label>
-              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ *</span><select value={vacancyForm.specialization} onChange={(event) => setVacancyForm((current) => ({ ...current, specialization: event.target.value }))}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="field"><span>СПЕЦИАЛИЗАЦИЯ *</span><select value={vacancyForm.specialization} onChange={(event) => setVacancyForm((current) => ({ ...current, specialization: event.target.value }))}><option value="">Выберите специализацию</option>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
             <div className="field-row field-row--flush">
-              <label className="field"><span>УРОВЕНЬ *</span><select value={vacancyForm.required_grade} onChange={(event) => setVacancyForm((current) => ({ ...current, required_grade: event.target.value }))}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+              <label className="field"><span>УРОВЕНЬ *</span><select value={vacancyForm.required_grade} onChange={(event) => setVacancyForm((current) => ({ ...current, required_grade: event.target.value }))}><option value="">Выберите уровень</option>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
               <label className="field"><span>ФОРМАТ *</span><select value={vacancyForm.work_format} onChange={(event) => setVacancyForm((current) => ({ ...current, work_format: event.target.value }))}><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label>
             </div>
             <div className="field-row field-row--flush">
@@ -2620,7 +2623,7 @@ function Invitations({ employer = false, onNotify, onNavigate }: { employer?: bo
   }, [employer]);
 
   const statusLabels: Record<string, string> = {
-    sent: "Отправлено",
+    sent: employer ? "Отправлено" : "Получено",
     viewed: "Просмотрено",
     accepted: "Принято",
     rejected: "Отклонено",
@@ -2634,7 +2637,7 @@ function Invitations({ employer = false, onNotify, onNavigate }: { employer?: bo
       const updated = await apiPost<(typeof items)[number]>(`/invitations/${id}/${action}`, {});
       setItems((current) => current.map((item) => item.id === id ? updated : item));
       window.dispatchEvent(new Event("fsp-invitations-updated"));
-      onNotify?.(action === "accept" ? "Приглашение принято. Работодатель увидит контакты в статусе отклика." : "Приглашение отклонено.");
+      onNotify?.(action === "accept" ? "Приглашение принято. Работодатель увидит ваши контакты; диалог уже доступен." : "Приглашение отклонено.");
     } catch (requestError) {
       onNotify?.(requestError instanceof Error ? requestError.message : "Не удалось обновить приглашение", "error");
     } finally {
@@ -2645,7 +2648,7 @@ function Invitations({ employer = false, onNotify, onNavigate }: { employer?: bo
 
   return (
     <div className="page-content">
-      <div className="tab-row">{["Все", "Отправлено", "Просмотрено", "Принято", "Отклонено"].map((label) => <button type="button" key={label} className={filter === label ? "active" : ""} onClick={() => setFilter(label)}>{label}{label === "Все" && <span>{items.length}</span>}</button>)}</div>
+      <div className="tab-row">{["Все", employer ? "Отправлено" : "Получено", "Просмотрено", "Принято", "Отклонено"].map((label) => <button type="button" key={label} className={filter === label ? "active" : ""} onClick={() => setFilter(label)}>{label}{label === "Все" && <span>{items.length}</span>}</button>)}</div>
       {error && <div className="form-error" role="alert">{error}</div>}
       {loading ? <div className="empty-state">{employer ? "Загружаем список приглашённых кандидатов…" : "Загружаем приглашения…"}</div> : filteredItems.length === 0 ? <div className="empty-state">{employer ? "Вы ещё не пригласили кандидатов" : "Приглашений в этом разделе пока нет"}</div> : (
         <div className="invitation-list">
@@ -3179,6 +3182,13 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     apiGet<TestHistoryData[]>("/testing/history")
       .then(setTestHistory)
       .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить историю тестов", "error"));
+  }, [active]);
+
+  useEffect(() => {
+    if (active !== "Обзор") return;
+    apiGet<GradeRoadmapData | null>("/testing/roadmap/current")
+      .then(setRoadmap)
+      .catch(() => setRoadmap(null));
   }, [active]);
 
   useEffect(() => {
@@ -3731,40 +3741,46 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <MetricCard label="ФСП ID" value={profile?.fsp_verified ? "Демо-запись" : "Не привязан"} detail={profile?.fsp_id ?? ""} icon="shield" />
         </div>
         <section className="feature-card candidate-overview-radar">
-          <div className="feature-head"><div><span>КАРТА НАВЫКОВ</span><strong>Профиль и ориентир уровня</strong></div><span className="task-radar-card__badge">ДЕМО-ПРИМЕР</span></div>
+          <div className="feature-head"><div><span>КАРТА НАВЫКОВ</span><strong>Результаты обязательных навыков</strong></div></div>
           {(() => {
-            const sample = SPECIALTY_RADAR_SAMPLES.find((item) => item.specialization === profile?.specialization) ?? SPECIALTY_RADAR_SAMPLES[0];
-            const target = sample.values.map((value) => Math.min(10, Number((value + 1.2).toFixed(1))));
-            const strongestIndex = sample.values.indexOf(Math.max(...sample.values));
-            const growthIndex = sample.values.indexOf(Math.min(...sample.values));
-            const average = (sample.values.reduce((sum, value) => sum + value, 0) / sample.values.length).toFixed(1);
+            const skills = roadmap?.status === "completed" && roadmap.passed
+              && roadmap.specialization === profile?.specialization
+              && roadmap.target_grade === profile?.verified_grade
+              ? roadmap.skills.filter((skill) => skill.status === "completed" && skill.level_out_of_ten !== null)
+              : [];
+            if (skills.length === 0) return <div className="grade-radar-empty"><strong>Результатов базового набора пока нет</strong><p>После подтверждения грейда здесь появятся оценки по обязательным навыкам.</p><Button onClick={() => onNavigate("Тестирование")}>Перейти к тестам</Button></div>;
+            const values = skills.map((skill) => skill.level_out_of_ten ?? 0);
+            const labels = skills.map((skill) => skill.label);
+            const strongestIndex = values.indexOf(Math.max(...values));
+            const growthIndex = values.indexOf(Math.min(...values));
+            const average = (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
             return (
               <div className="candidate-overview-radar__body">
                 <div className="candidate-overview-radar__chart">
-                  <Radar values={sample.values} target={target} axisLabels={sample.labels} description={`Демонстрационное наложение радара профиля по направлению ${sample.specialization}`} />
+                  <Radar values={values} target={values.map(() => 10)} axisLabels={labels} description={`Результаты обязательных навыков по направлению ${roadmap?.specialization}`} />
                 </div>
                 <div className="candidate-overview-radar__details">
                   <div className="candidate-overview-radar__summary">
-                    <span>{sample.specialization} · демонстрационная модель</span>
+                    <span>{roadmap?.specialization} · {roadmap?.target_grade}</span>
                     <div className="result-radar__legend">
-                      <span><i className="result-radar__legend-before" />Навыки профиля</span>
-                      <span><i className="result-radar__legend-after" />Ориентир уровня</span>
+                      <span><i className="result-radar__legend-before" />Ваши результаты</span>
+                      <span><i className="result-radar__legend-after" />Максимум</span>
                     </div>
                     <div className="candidate-overview-radar__average">
-                      <span>Средний показатель примера</span>
+                      <span>Средний результат по навыкам</span>
                       <strong>{average}<small> / 10</small></strong>
                     </div>
                   </div>
                   <div className="candidate-overview-radar__highlights">
                     <div>
                       <span>Сильная сторона</span>
-                      <strong>{sample.labels[strongestIndex]}</strong>
-                      <b>{sample.values[strongestIndex].toFixed(1)}<small> / 10</small></b>
+                      <strong>{labels[strongestIndex]}</strong>
+                      <b>{values[strongestIndex].toFixed(1)}<small> / 10</small></b>
                     </div>
                     <div>
                       <span>Точка для роста</span>
-                      <strong>{sample.labels[growthIndex]}</strong>
-                      <b>{sample.values[growthIndex].toFixed(1)}<small> / 10</small></b>
+                      <strong>{labels[growthIndex]}</strong>
+                      <b>{values[growthIndex].toFixed(1)}<small> / 10</small></b>
                     </div>
                   </div>
                   <Button variant="outline" onClick={() => onNavigate("Мой грейд")}>Все радары</Button>
@@ -3777,13 +3793,13 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <section className="feature-card">
             <div className="feature-head"><div><span>ТЕКУЩИЙ СТАТУС</span><strong>{profile?.verified_grade ? "Уровень подтверждён" : "Уровень ожидает подтверждения"}</strong></div></div>
             <p className="feature-description feature-description--left">{profile?.specialization ?? "Специализация не указана"} · заявлено {profile?.declared_grade ?? "—"}{profile?.verified_grade ? ` · подтверждено ${profile.verified_grade}` : ""}</p>
-            <Button variant="outline" onClick={() => onNavigate("Тестирование")}>Подтвердить уровень</Button>
+            <Button variant="outline" onClick={() => onNavigate(profile?.verified_grade ? "Мой грейд" : "Тестирование")}>{profile?.verified_grade ? "Посмотреть результаты" : "Подтвердить уровень"}</Button>
           </section>
           <section className="feature-card feature-card--wide">
             <div className="feature-head"><div><span>ТРЕБУЕТ ВНИМАНИЯ</span><strong>Следующие действия</strong></div></div>
             <div className="action-list">
-              <div><div className="action-number">01</div><div><strong>Ответьте на приглашения</strong><span>{pendingInvitations} ожидают вашего решения</span></div><Button onClick={() => onNavigate("Приглашения")}>Открыть</Button></div>
-              <div><div className="action-number">02</div><div><strong>Обновите профиль</strong><span>Измените контакты, опыт и условия работы</span></div><Button variant="outline" onClick={() => onNavigate("Профиль")}>Профиль</Button></div>
+              {pendingInvitations > 0 && <div><div className="action-number">01</div><div><strong>Ответьте на приглашения</strong><span>{pendingInvitations} ожидают вашего решения</span></div><Button onClick={() => onNavigate("Приглашения")}>Открыть</Button></div>}
+              <div><div className="action-number">{pendingInvitations > 0 ? "02" : "01"}</div><div><strong>Обновите профиль</strong><span>Измените контакты, опыт и условия работы</span></div><Button variant="outline" onClick={() => onNavigate("Профиль")}>Профиль</Button></div>
             </div>
           </section>
           <section className="feature-card feature-card--fsp" data-tour="fsp-tools">
@@ -4633,9 +4649,9 @@ function AuthScreen({
         </div>
       </div>
       <div className="auth-card">
-        <div className="auth-tabs"><button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setEmailSent(false); }}>Вход</button><button type="button" className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setEmailSent(false); }}>Регистрация</button></div>
+        <div className="auth-tabs"><button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setEmailSent(false); setError(""); }}>Вход</button><button type="button" className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setEmailSent(false); setEmail(""); setPassword(""); setError(""); }}>Регистрация</button></div>
         <span>{mode === "login" ? "ДОБРО ПОЖАЛОВАТЬ" : "СОЗДАЙТЕ АККАУНТ"}</span>
-        <strong>{mode === "login" ? "Войдите в ФСП Карьеру" : "Начните карьерный профиль"}</strong>
+        <strong>{mode === "login" ? "Войдите в ФСП Карьеру" : selectedRole === "employer" ? "Создайте аккаунт компании" : "Создайте профиль кандидата"}</strong>
         <p>{mode === "login" ? "Войдите с email и паролем, указанными при регистрации." : "Выберите роль для нового аккаунта."}</p>
         {mode === "register" && <div className="auth-role">
           <button type="button" className={selectedRole === "candidate" ? "active" : ""} onClick={() => setSelectedRole("candidate")}><Icon name="users" /><strong>Кандидат</strong><span>Ищу предложения</span></button>
@@ -4662,7 +4678,7 @@ function AuthScreen({
         )}
         {error && <div className="form-error" role="alert">{error}</div>}
         <div className="demo-access">
-          <div className="demo-access__intro"><span>ДЕМО-ДОСТУП</span><small>Тестовые логин и пароль уже заполнены. Можно войти напрямую в любой демо-кабинет.</small></div>
+          <div className="demo-access__intro"><span>ДЕМО-ДОСТУП</span><small>Можно открыть демо-кабинет без регистрации.</small></div>
           <div>
             <Button variant="outline" disabled={busy} onClick={() => void signInToDemo("candidate")}><Icon name="users" /> {busy ? "Подключаем…" : "Войти как кандидат"}</Button>
             <Button variant="outline" disabled={busy} onClick={() => void signInToDemo("employer")}><Icon name="briefcase" /> {busy ? "Подключаем…" : "Войти как компания"}</Button>
@@ -4832,7 +4848,7 @@ function SwipeDeck({
     <div className="swipe-workspace">
       <div className="swipe-help"><Icon name="sparkle" /><div><strong>Найдите подходящего человека</strong><span>Свайпните карточку или используйте кнопки: влево — пропустить, вправо — добавить в сравнение.</span></div></div>
       <div className="swipe-deck">
-        {nextCandidate && <article className="swipe-card swipe-card--under" aria-hidden="true"><span>СЛЕДУЮЩИЙ ПРОФИЛЬ</span><strong>{nextCandidate.name}</strong><small>{nextCandidate.role} · {nextCandidate.level} · {nextCandidate.score} баллов</small></article>}
+        {nextCandidate && <article className="swipe-card swipe-card--under" aria-hidden="true"><span>СЛЕДУЮЩИЙ ПРОФИЛЬ</span><strong>{nextCandidate.name}</strong><small>{nextCandidate.role} · {nextCandidate.level} · {formatMatchScore(nextCandidate.score)}</small></article>}
         <article
           className={`swipe-card ${direction ? `swipe-card--leaving-${direction}` : entering ? "swipe-card--entering" : ""}`}
           onPointerDown={handlePointerDown}
@@ -5213,7 +5229,9 @@ function App() {
         ];
   const currentCopy = role === "employer" && active === "Приглашения"
     ? { eyebrow: "ОТПРАВЛЕННЫЕ ПРЕДЛОЖЕНИЯ", title: "Приглашённые кандидаты" }
-    : pageCopy[active] ?? pageCopy["Обзор"];
+    : role === "employer" && active === "Подборка" && activeNeed
+      ? { eyebrow: `ПОДБОР КАНДИДАТОВ / ${activeNeed.specialization.toUpperCase()}`, title: "Подборка кандидатов" }
+      : pageCopy[active] ?? pageCopy["Обзор"];
   const taskDemoMode = offlineDemo || window.localStorage.getItem("fsp-demo-session") === "true";
   const groupLabels: Record<string, string> =
     role === "employer"
@@ -5362,7 +5380,7 @@ function App() {
       setInviteDirty(false);
       setInviteDiscardConfirm(false);
       window.dispatchEvent(new Event("fsp-invitations-updated"));
-      showNotice(`Приглашение для ${selected.name} отправлено`);
+      showNotice(`Кандидат приглашён: ${selected.name}`);
     } catch (requestError) {
       showNotice(requestError instanceof Error ? requestError.message : "Не удалось отправить приглашение", "error");
     } finally {
@@ -5654,7 +5672,7 @@ function App() {
                 <span>{selected.verifiedGrade ? "ПОДТВЕРЖДЁННЫЙ УРОВЕНЬ" : "ЗАЯВЛЕННЫЙ УРОВЕНЬ"}</span>
                 <strong>{selected.level}</strong>
               </div>
-              <div className="grade-line__score">{selected.backendId ? `${selected.score} баллов в подборе` : "06.001 / ур. 6"}</div>
+              <div className="grade-line__score">{selected.backendId ? `${formatMatchScore(selected.score)} в подборе` : "06.001 / ур. 6"}</div>
             </div>
             {selected.backendId && <div className="profile-resume__meta"><span>АКТИВНОСТЬ · {selected.activityStatus}</span></div>}
             {selected.additionalSpecializations?.length ? <section className="profile-resume__section" aria-label="Дополнительные направления кандидата">
@@ -5691,9 +5709,9 @@ function App() {
               </div>
             </div>
             <div className="profile-metrics">
-              <div><span>ОЦЕНКА ДОВЕРИЯ</span><strong>Нет данных</strong><small>Не предоставляется matching API</small></div>
+              <div><span>СИГНАЛЫ ДОВЕРИЯ</span><strong>{selected.trueScoreFlags?.length ? "Есть данные" : "Нет данных"}</strong><small>{selected.trueScoreFlags?.length ? "Подробности — в резюме кандидата" : "Данных для проверки пока нет"}</small></div>
               <div><span>ФСП</span><strong>{selected.achievementsCount || "—"}</strong><small>{selected.fspVerified ? "тестовая запись; личность не проверена" : "Нет записи"}</small></div>
-              <div><span>АКТУАЛЬНОСТЬ</span><strong>—</strong><small>Нет данных</small></div>
+              <div><span>ОБНОВЛЕНИЕ ПРОФИЛЯ</span><strong>{selected.updated}</strong><small>По данным профиля</small></div>
             </div>
             <div className="profile-panel__actions">
               <Button variant="outline" onClick={() => toggleCompare(selected.id)}>
@@ -5785,7 +5803,7 @@ function App() {
             </div>
             <div className="invite-person">
               <div className="avatar">{selected.initials}</div>
-              <div><strong>{selected.role} · {selected.level}</strong><span>{selected.score} баллов в подборе под потребность</span></div>
+              <div><strong>{selected.role} · {selected.level}</strong><span>{formatMatchScore(selected.score)} в подборе под потребность</span></div>
             </div>
             <label className="field">
               <span>ОПИСАНИЕ ПРЕДЛОЖЕНИЯ</span>

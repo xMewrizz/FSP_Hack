@@ -9,12 +9,21 @@ def _norm(value: Any) -> str:
     return str(value or "").strip().casefold()
 
 
+def _norm_skill(value: Any) -> str:
+    name = _norm(value)
+    return {
+        "machine learning": "машинное обучение",
+        "ml": "машинное обучение",
+        "a/b-тесты": "a/b-тестирование",
+    }.get(name, name)
+
+
 def _skill_requirements(need: dict[str, Any]) -> list[tuple[str, float]]:
     requirements: dict[str, float] = {}
     for item in need.get("required_skills") or []:
         if not isinstance(item, dict):
             continue
-        name = _norm(item.get("name"))
+        name = _norm_skill(item.get("name"))
         if not name:
             continue
         try:
@@ -44,11 +53,11 @@ def score_candidate(need: dict[str, Any], candidate: dict[str, Any]) -> dict[str
     group = "confirmed"
 
     requirements = _skill_requirements(need)
-    candidate_skills = {_norm(skill) for skill in candidate.get("skills") or []}
+    candidate_skills = {_norm_skill(skill) for skill in candidate.get("skills") or []}
     for skill in tuple(candidate_skills):
         for part in skill.replace("/", " & ").split(" & "):
             if part.strip():
-                candidate_skills.add(part.strip())
+                candidate_skills.add(_norm_skill(part))
     matched = [name for name, _ in requirements if name in candidate_skills]
     missing = [name for name, _ in requirements if name not in candidate_skills]
     total_weight = sum(weight for _, weight in requirements)
@@ -58,7 +67,7 @@ def score_candidate(need: dict[str, Any], candidate: dict[str, Any]) -> dict[str
     tested_weight = 0.0
     tested_points = 0.0
     tested_results = {
-        _norm(item.get("name")): item.get("percentage")
+        _norm_skill(item.get("name")): item.get("percentage")
         for item in candidate.get("requested_skill_tests") or []
         if isinstance(item, dict)
     }
