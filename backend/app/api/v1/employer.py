@@ -33,6 +33,7 @@ class EmployerMentorResponse(BaseModel):
     skills: list[str]
     city: str | None
     company_link: str
+    photo_url: str | None = None
 
 
 @router.get(
@@ -83,6 +84,7 @@ async def list_company_mentors(
             skills=profile.skills or [],
             city=profile.city,
             company_link="Отклик или принятое приглашение",
+            photo_url=f"/candidate/{profile.id}/photo" if profile.photo_filename else None,
         )
         for profile in profiles
     ]

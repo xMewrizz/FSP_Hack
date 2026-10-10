@@ -286,6 +286,43 @@ const candidates: DemoCandidate[] = [
   },
 ];
 
+const additionalDemoCandidates: Array<Pick<DemoCandidate, "candidate_id" | "first_name" | "last_name" | "specialization" | "verified_grade" | "city" | "skills"> & { mentor_available?: boolean }> = [
+  { candidate_id: "demo-candidate-olga-lebedeva", first_name: "Ольга", last_name: "Лебедева", specialization: "Backend", verified_grade: "middle", city: "Санкт-Петербург", skills: ["Python", "FastAPI", "PostgreSQL", "Redis"], mentor_available: true },
+  { candidate_id: "demo-candidate-egor-savin", first_name: "Егор", last_name: "Савин", specialization: "Backend", verified_grade: "middle", city: "Москва", skills: ["Python", "Django", "PostgreSQL", "Celery", "Docker"], mentor_available: true },
+  { candidate_id: "demo-candidate-marina-belyaeva", first_name: "Марина", last_name: "Беляева", specialization: "Backend", verified_grade: "middle", city: "Казань", skills: ["Go", "gRPC", "Kafka", "PostgreSQL"] },
+  { candidate_id: "demo-candidate-kirill-orlov", first_name: "Кирилл", last_name: "Орлов", specialization: "Backend", verified_grade: "middle", city: "Екатеринбург", skills: ["Python", "FastAPI", "SQL", "Redis", "Pytest"] },
+  { candidate_id: "demo-candidate-pavel-zaitsev", first_name: "Павел", last_name: "Зайцев", specialization: "Backend", verified_grade: "senior", city: "Москва", skills: ["Java", "Spring", "Kafka", "PostgreSQL", "Kubernetes"], mentor_available: true },
+  { candidate_id: "demo-candidate-olga-romanova", first_name: "Ольга", last_name: "Романова", specialization: "Frontend", verified_grade: "middle", city: "Москва", skills: ["TypeScript", "React", "HTML", "CSS", "Playwright"], mentor_available: true },
+  { candidate_id: "demo-candidate-timur-gareev", first_name: "Тимур", last_name: "Гареев", specialization: "DevOps / SRE", verified_grade: "middle", city: "Новосибирск", skills: ["Linux", "Docker", "Kubernetes", "CI/CD", "Prometheus"], mentor_available: true },
+  { candidate_id: "demo-candidate-irina-kiseleva", first_name: "Ирина", last_name: "Киселёва", specialization: "QA / Testing", verified_grade: "middle", city: "Санкт-Петербург", skills: ["Python", "Pytest", "Playwright", "API testing", "SQL"] },
+  { candidate_id: "demo-candidate-anton-smirnov", first_name: "Антон", last_name: "Смирнов", specialization: "Fullstack", verified_grade: "middle", city: "Москва", skills: ["TypeScript", "React", "Node.js", "PostgreSQL"] },
+  { candidate_id: "demo-candidate-viktoria-morozova", first_name: "Виктория", last_name: "Морозова", specialization: "Data Science / ML", verified_grade: "senior", city: "Санкт-Петербург", skills: ["Python", "PyTorch", "NLP", "MLflow", "Kubernetes"], mentor_available: true },
+];
+
+candidates.push(...additionalDemoCandidates.map((candidate, index): DemoCandidate => ({
+  ...candidate,
+  declared_grade: candidate.verified_grade,
+  work_format: index % 2 === 0 ? "remote" : "hybrid",
+  fsp_verified: index % 3 === 0,
+  achievements_count: index % 3 === 0 ? 1 : 0,
+  skills: candidate.skills,
+  bio: `Вымышленный профиль для демонстрации каталога. ${candidate.specialization} · ${candidate.verified_grade}.`,
+  match_score: 92 - index * 3,
+  available_from: `2026-10-${String(15 + index).padStart(2, "0")}`,
+  trust_score: 0.9 - index * 0.025,
+  trust_flags: [
+    { label: "Профиль", status: "verified", detail: "Демонстрационная запись; данные не относятся к реальному кандидату." },
+  ],
+  resume_versions: [
+    { id: "current", label: "Текущая", date: "2026-10-01", summary: "Демо-резюме с опытом и основными проектами." },
+  ],
+  match_explanation: {
+    summary: `Демо-профиль ${candidate.specialization} направления.`,
+    matched_skills: candidate.skills.slice(0, 3),
+    missing_skills: [],
+  },
+})));
+
 const needs: DemoNeed[] = [
   {
     id: "demo-need-backend",
@@ -469,6 +506,24 @@ vacancyApplications.push({
     skills: candidates[1].skills,
   },
 });
+vacancyApplications.push(...candidates.slice(4).map((candidate, index) => ({
+  ...vacancyApplications[0],
+  id: `demo-application-profile-${index + 1}`,
+  status: index % 3 === 0 ? "reviewed" as const : "pending" as const,
+  candidate_id: candidate.candidate_id,
+  candidate: {
+    first_name: candidate.first_name,
+    last_name: candidate.last_name,
+    email: `${candidate.candidate_id}@example.ru`,
+    phone: null,
+    telegram: null,
+    city: candidate.city,
+    specialization: candidate.specialization,
+    verified_grade: candidate.verified_grade,
+    skills: candidate.skills,
+  },
+  vacancy_title: `${candidate.verified_grade} ${candidate.specialization}`,
+})));
 const vacancyApplicationMessages: Record<string, DemoInvitationMessage[]> = {
   "demo-application-seed-1": [
     {
@@ -567,6 +622,14 @@ for (const candidate of candidates.slice(0, 2)) {
 const demoMentors = [
   { user_id: "demo-mentor-anna", name: "Анна Петрова", specialization: "Backend", verified_grade: "senior", skills: ["Python", "PostgreSQL", "Architecture", "Kafka"], city: "Москва" },
   { user_id: "demo-mentor-elena", name: "Елена Смирнова", specialization: "Backend", verified_grade: "senior", skills: ["Go", "Kafka", "Kubernetes", "gRPC"], city: "Санкт-Петербург" },
+  ...candidates.filter((candidate) => candidate.mentor_available).map((candidate) => ({
+    user_id: candidate.candidate_id,
+    name: `${candidate.first_name} ${candidate.last_name}`,
+    specialization: candidate.specialization,
+    verified_grade: candidate.verified_grade,
+    skills: candidate.skills,
+    city: candidate.city,
+  })),
 ];
 let mentorshipRequestsSent = 2;
 const networkConversations: Array<{

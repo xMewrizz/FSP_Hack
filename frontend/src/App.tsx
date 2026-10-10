@@ -349,8 +349,8 @@ const DEMO_PASSWORD = "Password123!";
 const isDemoAccountEmail = (email: string) =>
   Object.values(DEMO_ACCOUNTS).some((demoEmail) => demoEmail === email.trim().toLocaleLowerCase());
 
-const EMPLOYER_PAGES = ["Обзор", "Подборка", "Банк кандидатов", "Потребности", "Задания", "Диалоги", "Приглашения", "Вакансии компании", "Аналитика", "Настройки"];
-const CANDIDATE_PAGES = ["Обзор", "Профиль", "Тестирование", "Мой грейд", "Задания", "Диалоги", "Приглашения", "Вакансии", "Настройки"];
+const EMPLOYER_PAGES = ["Обзор", "Подборка", "Банк кандидатов", "Потребности", "Задания", "Диалоги", "Наставники компании", "Приглашения", "Вакансии компании", "Аналитика", "Настройки"];
+const CANDIDATE_PAGES = ["Обзор", "Профиль", "Тестирование", "Мой грейд", "Задания", "Диалоги", "Поиск ментора", "Приглашения", "Вакансии", "Настройки"];
 
 function pageForRole(page: string, role: "employer" | "candidate") {
   const allowedPages = role === "employer" ? EMPLOYER_PAGES : CANDIDATE_PAGES;
@@ -445,6 +445,7 @@ type EmployerMentorRecord = {
   skills: string[];
   city: string | null;
   company_link: string;
+  photo_url?: string | null;
 };
 
 type RequestedSkillTest = {
@@ -664,6 +665,7 @@ type MentorProfile = {
   verified_grade: string | null;
   skills: string[];
   city: string | null;
+  photo_url?: string | null;
 };
 
 type NetworkConversation = {
@@ -948,6 +950,7 @@ function Icon({
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01" /></>,
     target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
+    sort: <><path d="M3 6h10M3 12h7M3 18h4" /><path d="M18 4v16m0 0-3-3m3 3 3-3" /></>,
     layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5" /></>,
     shield: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
     money: <><rect x="2" y="5" width="20" height="14" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M6 9h.01M18 15h.01" /></>,
@@ -1351,12 +1354,14 @@ const pageCopy: Record<string, { eyebrow: string; title: string }> = {
   Потребности: { eyebrow: "ЗАПРОС НА ПОДБОР", title: "Потребность" },
   Приглашения: { eyebrow: "REVERSE RECRUITING", title: "Приглашения" },
   Диалоги: { eyebrow: "СООБЩЕСТВО И НЕТВОРКИНГ", title: "Диалоги" },
+  "Поиск ментора": { eyebrow: "ПРОФЕССИОНАЛЬНЫЙ РОСТ", title: "Поиск ментора" },
   Аналитика: { eyebrow: "КАЧЕСТВО ПОДБОРА", title: "Аналитика" },
   Настройки: { eyebrow: "УПРАВЛЕНИЕ АККАУНТОМ", title: "Настройки" },
   Профиль: { eyebrow: "ЛИЧНЫЙ КАБИНЕТ", title: "Профиль и резюме" },
   Тестирование: { eyebrow: "ПРОВЕРКА НАВЫКОВ", title: "Тестирование" },
   "Мой грейд": { eyebrow: "ВАШ ПРОФЕССИОНАЛЬНЫЙ ПРОФИЛЬ", title: "Мой грейд" },
   Задания: { eyebrow: "ПРАКТИЧЕСКИЕ ЗАДАНИЯ", title: "Задания и решения" },
+  "Наставники компании": { eyebrow: "ВНУТРЕННЯЯ ЭКСПЕРТИЗА", title: "Наставники компании" },
   Вакансии: { eyebrow: "ОТКРЫТЫЕ ПОЗИЦИИ", title: "Вакансии" },
   "Вакансии компании": { eyebrow: "ВАШИ ПУБЛИКАЦИИ И ОТКЛИКИ", title: "Мои вакансии" },
 };
@@ -1504,9 +1509,28 @@ function CandidateAvatar({ initials, photoUrl, large = false, xl = false, refres
     };
   }, [photoUrl, refreshKey]);
 
+  const portraitSeed = [...initials].reduce((seed, character) => seed + character.charCodeAt(0), 0);
+  const portraitPalettes = [
+    { background: "#c8e7e3", skin: "#d99b72", hair: "#3d2928", shirt: "#315b6b" },
+    { background: "#d8d4f4", skin: "#f0bd98", hair: "#4b342f", shirt: "#594d91" },
+    { background: "#f0d9c5", skin: "#b97854", hair: "#25242c", shirt: "#21685f" },
+    { background: "#cfe2f4", skin: "#e4b58d", hair: "#76513d", shirt: "#3974a2" },
+    { background: "#e6d5df", skin: "#f1c8ac", hair: "#35272f", shirt: "#8d4968" },
+    { background: "#d9e6cb", skin: "#9b6348", hair: "#33251f", shirt: "#65763b" },
+  ];
+  const portrait = portraitPalettes[portraitSeed % portraitPalettes.length];
+
   return (
     <div className={`avatar${large ? " avatar--large" : ""}${xl ? " avatar--xl" : ""}${photoSource ? " avatar--photo" : ""}`} title={photoUnavailable ? "Фото временно недоступно" : undefined}>
-      {photoSource ? <img src={photoSource} alt="" /> : initials}
+      {photoSource ? <img src={photoSource} alt="" /> : <svg className="avatar__portrait" viewBox="0 0 80 80" aria-hidden="true">
+        <rect width="80" height="80" fill={portrait.background} />
+        <path d="M9 80c2-17 13-26 31-26s29 9 31 26" fill={portrait.shirt} />
+        <path d="M21 38c-3-20 4-31 20-31 17 0 23 13 18 33l-5 13H26z" fill={portrait.hair} />
+        <ellipse cx="40" cy="35" rx="17" ry="21" fill={portrait.skin} />
+        <path d="M23 31c2-18 11-27 23-24 7 2 12 7 13 15-7 1-13-3-17-8-5 7-11 11-19 12z" fill={portrait.hair} />
+        <path d="M31 37h.1M49 37h.1" stroke="#342a2a" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M35 47c3 2 7 2 10 0" fill="none" stroke="#8a5149" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>}
     </div>
   );
 }
@@ -1902,6 +1926,7 @@ function EmployerScreen({
   const [companyLoading, setCompanyLoading] = useState(false);
   const [companyMentors, setCompanyMentors] = useState<EmployerMentorRecord[]>([]);
   const [companyMentorsLoading, setCompanyMentorsLoading] = useState(false);
+  const [companyMentorQuery, setCompanyMentorQuery] = useState("");
   const [bankItems, setBankItems] = useState<Candidate[]>([]);
   const [bankFilters, setBankFilters] = useState<BankFilters>(() => {
     const defaults = { query: "", skill: "", specialization: "", grade: "", format: "", city: "", education: "", course: "", ageMin: "", ageMax: "", fspOnly: false };
@@ -1943,12 +1968,14 @@ function EmployerScreen({
     if (active === "Потребности" || active === "Обзор") {
       apiGet<EmployerNeedRecord[]>("/needs").then(setNeeds).catch(() => setNeeds([]));
     }
-    if (active === "Настройки") {
-      setCompanyLoading(true);
-      apiGet<EmployerProfileData>("/employer/profile")
-        .then(setCompanyProfile)
-        .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить компанию", "error"))
-        .finally(() => setCompanyLoading(false));
+    if (active === "Настройки" || active === "Наставники компании") {
+      if (active === "Настройки") {
+        setCompanyLoading(true);
+        apiGet<EmployerProfileData>("/employer/profile")
+          .then(setCompanyProfile)
+          .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить компанию", "error"))
+          .finally(() => setCompanyLoading(false));
+      }
       setCompanyMentorsLoading(true);
       apiGet<EmployerMentorRecord[]>("/employer/mentors")
         .then(setCompanyMentors)
@@ -2445,6 +2472,39 @@ function EmployerScreen({
     return <Invitations employer onNotify={onNotify} onNavigate={onNavigate} />;
   }
 
+  if (active === "Наставники компании") {
+    const query = companyMentorQuery.trim().toLocaleLowerCase();
+    const shownMentors = companyMentors.filter((mentor) =>
+      [mentor.name, mentor.specialization ?? "", mentor.verified_grade ?? "", mentor.city ?? "", ...mentor.skills]
+        .some((value) => value.toLocaleLowerCase().includes(query)),
+    );
+    return <div className="page-content company-mentors-page">
+      <section className="company-mentors-hero">
+        <div>
+          <span>HR · ВНУТРЕННИЕ НАСТАВНИКИ</span>
+          <h2>Кто готов делиться опытом</h2>
+          <p>Кандидаты, связанные с компанией откликом или принятым приглашением и включившие доступность наставничества.</p>
+        </div>
+        <strong>{companyMentors.length}<small> наставников</small></strong>
+      </section>
+      <div className="company-mentors-toolbar">
+        <label className="search-field"><Icon name="search" /><input aria-label="Поиск по наставникам" placeholder="Имя, направление или навык" value={companyMentorQuery} onChange={(event) => setCompanyMentorQuery(event.target.value)} /></label>
+        <span>Показываем только профили с подтверждённым грейдом и открытой видимостью.</span>
+      </div>
+      <section className="company-mentors-grid" aria-label="Наставники компании">
+        {companyMentorsLoading ? <div className="empty-state">Загружаем наставников…</div> : shownMentors.length ? shownMentors.map((mentor) => <article className="company-mentor-card" key={mentor.user_id}>
+          <div className="company-mentor-card__person">
+            <CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} photoUrl={mentor.photo_url} large />
+            <div><strong>{mentor.name}</strong><span>{mentor.specialization ?? "Специализация не указана"} · {mentor.verified_grade ?? "Грейд не подтверждён"}</span></div>
+          </div>
+          <div className="company-mentor-card__meta"><span>{mentor.city ?? "Город не указан"}</span><span>{mentor.company_link}</span></div>
+          <div className="mini-tags">{mentor.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
+          <div className="company-mentor-card__footer"><span><i /> Готов(а) быть наставником</span><small>Связь с компанией подтверждена</small></div>
+        </article>) : <div className="empty-state">{companyMentors.length ? "По вашему запросу наставники не найдены." : "Пока нет связанных с компанией кандидатов, включивших наставничество."}</div>}
+      </section>
+    </div>;
+  }
+
   if (!demoMode && active === "Аналитика") {
     return <div className="page-content"><section className="feature-card"><div className="feature-head"><div><span>АНАЛИТИКА</span><strong>Метрики ещё не подключены</strong></div></div><p className="feature-description feature-description--left">Backend не предоставляет endpoint аналитики. Числа по конверсии, качеству Top-3 и динамике приглашений пока не рассчитываются.</p></section></div>;
   }
@@ -2527,7 +2587,7 @@ function EmployerScreen({
           <div className="feature-head"><div><span>ОТКЛИКИ</span><strong>{vacancies.find((item) => item.id === applicationsVacancy)?.title}</strong></div><Button variant="ghost" onClick={() => setApplicationsVacancy(null)}>Закрыть</Button></div>
           {applicationsLoading ? <div className="empty-state">Загружаем отклики…</div> : vacancyApplications.length === 0 ? <div className="empty-state">Откликов пока нет</div> : vacancyApplications.map((application) => (
             <article className="vacancy-application" key={application.id}>
-              <div className="avatar">{`${application.candidate.first_name[0] ?? ""}${application.candidate.last_name[0] ?? ""}`}</div>
+              <CandidateAvatar initials={`${application.candidate.first_name[0] ?? ""}${application.candidate.last_name[0] ?? ""}`} />
               <div className="vacancy-application__person"><strong>{application.candidate.first_name} {application.candidate.last_name}</strong><span>{application.candidate.specialization ?? "Специализация не указана"} · {application.candidate.verified_grade ?? "Грейд не подтверждён"} · {application.candidate.city ?? "Город не указан"}</span><span>{application.candidate.email}{application.candidate.phone ? ` · ${application.candidate.phone}` : ""}{application.candidate.telegram ? ` · ${application.candidate.telegram}` : ""}</span>{application.cover_letter && <p>{application.cover_letter}</p>}</div>
               <span className="vacancy-application__status">{application.status === "accepted" ? "Принят" : application.status === "rejected" ? "Отклонён" : application.status === "reviewed" ? "Просмотрен" : "Новый"}</span>
               {demoMode && <Button variant="outline" onClick={() => onNavigate("Диалоги", `application:${application.id}`)}>Открыть диалог</Button>}
@@ -2557,10 +2617,10 @@ function EmployerScreen({
           <div className="integration-card"><Icon name="settings" /><div><strong>ATS-интеграция</strong><span>Подключение не настроено</span></div></div>
         </section>
         <section className="feature-card employer-mentors">
-          <div className="feature-head"><div><span>СВЯЗАННЫЕ С КОМПАНИЕЙ ПРОФИЛИ</span><strong>Кандидаты-наставники</strong></div><span className="task-radar-card__badge">{companyMentors.length}</span></div>
+          <div className="feature-head"><div><span>СВЯЗАННЫЕ С КОМПАНИЕЙ ПРОФИЛИ</span><strong>Кандидаты-наставники</strong></div><Button variant="outline" onClick={() => onNavigate("Наставники компании")}>Открыть список · {companyMentors.length}</Button></div>
           <p className="feature-description feature-description--left">Здесь показаны пользователи платформы, которые откликались на вакансии или приняли приглашение компании и включили доступность наставничества.</p>
           {companyMentorsLoading ? <div className="empty-state">Загружаем наставников…</div> : companyMentors.length ? companyMentors.map((mentor) => <article className="employer-mentor-row" key={mentor.user_id}>
-            <CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} />
+            <CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} photoUrl={mentor.photo_url} />
             <div><strong>{mentor.name}</strong><span>{mentor.specialization ?? "Специализация не указана"} · {mentor.verified_grade ?? "Грейд не подтверждён"} · {mentor.city ?? "Город не указан"}</span><small>{mentor.company_link}</small><div className="mini-tags">{mentor.skills.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}</div></div>
             <span className="employer-mentor-row__badge">Наставник</span>
           </article>) : <div className="empty-state">Пока нет связанных с компанией кандидатов, доступных как наставники.</div>}
@@ -2680,12 +2740,14 @@ function DialogsScreen({
   employer,
   demoMode,
   initialTarget,
+  initialMode,
   onClearInitialTarget,
   onNotify,
 }: {
   employer: boolean;
   demoMode: boolean;
   initialTarget: string | null;
+  initialMode: "chats" | "mentors";
   onClearInitialTarget: () => void;
   onNotify: (message: string, type?: "success" | "error") => void;
 }) {
@@ -2696,7 +2758,7 @@ function DialogsScreen({
   const [selectedTarget, setSelectedTarget] = useState<string | null>(initialTarget);
   const [skillQuery, setSkillQuery] = useState("");
   const [mentorTarget, setMentorTarget] = useState<MentorProfile | null>(null);
-  const [directoryMode, setDirectoryMode] = useState<"chats" | "mentors">("chats");
+  const [directoryMode, setDirectoryMode] = useState<"chats" | "mentors">(initialMode);
   const [requestMessage, setRequestMessage] = useState("");
   const [requestSending, setRequestSending] = useState(false);
   const [verifiedGrade, setVerifiedGrade] = useState<string | null>(null);
@@ -2825,7 +2887,7 @@ function DialogsScreen({
           {!employer && directoryMode === "mentors" && <section className="mentor-finder">
             <div><span>ПРОФЕССИОНАЛЬНЫЙ РОСТ</span><strong>Найти ментора</strong><p>{verifiedGrade ? "Показываем только тех, кто включил наставничество и подтвердил грейд выше вашего." : "Сначала подтвердите свой грейд — так мы найдём специалистов, которые действительно выше по уровню."}</p></div>
             <form onSubmit={(event) => void findMentors(event)}><label htmlFor="mentor-skill">Какой навык прокачать?</label><div className="search-field"><Icon name="search" /><input id="mentor-skill" value={skillQuery} onChange={(event) => setSkillQuery(event.target.value)} placeholder="Например, PostgreSQL" /></div><Button type="submit" variant="outline" disabled={!verifiedGrade}><Icon name="search" /> Найти ментора</Button></form>
-            {mentors.map((mentor) => <article className="mentor-card" key={mentor.user_id}><div className="mentor-card__identity"><span className="dialogue-list-item__avatar dialogue-list-item__avatar--mentor">{mentor.name.slice(0, 2).toUpperCase()}</span><div><strong>{mentor.name}</strong><span>{mentor.specialization || "IT"} · {mentor.verified_grade}</span></div></div><div className="mini-tags">{mentor.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}</div><Button variant="outline" onClick={() => { setMentorTarget(mentor); setRequestMessage(`Здравствуйте! Хочу прокачать ${skillQuery.trim() || mentor.skills[0] || "навыки"} и подготовиться к следующему грейду. Будете готовы стать моим наставником?`); }}>Запросить поддержку</Button></article>)}
+            {mentors.map((mentor) => <article className="mentor-card" key={mentor.user_id}><div className="mentor-card__identity"><CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} photoUrl={mentor.photo_url} /><div><strong>{mentor.name}</strong><span>{mentor.specialization || "IT"} · {mentor.verified_grade}</span></div></div><div className="mini-tags">{mentor.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}</div><Button variant="outline" onClick={() => { setMentorTarget(mentor); setRequestMessage(`Здравствуйте! Хочу прокачать ${skillQuery.trim() || mentor.skills[0] || "навыки"} и подготовиться к следующему грейду. Будете готовы стать моим наставником?`); }}>Запросить поддержку</Button></article>)}
             {mentors.length === 0 && <span className="mentor-finder__hint">Наставники появятся после поиска по навыку.</span>}
           </section>}
         </aside>
@@ -5215,6 +5277,7 @@ function App() {
           ["briefcase", "Потребности"],
           ["briefcase", "Задания"],
           ["chat", "Диалоги"],
+          ["school", "Наставники компании"],
           ["mail", "Приглашения"],
           ["briefcase", "Вакансии компании"],
           ["chart", "Аналитика"],
@@ -5227,6 +5290,7 @@ function App() {
           ["compare", "Мой грейд"],
           ["briefcase", "Задания"],
           ["chat", "Диалоги"],
+          ["school", "Поиск ментора"],
           ["mail", "Приглашения"],
           ["search", "Вакансии"],
           ["settings", "Настройки"],
@@ -5239,8 +5303,8 @@ function App() {
   const taskDemoMode = offlineDemo || window.localStorage.getItem("fsp-demo-session") === "true";
   const groupLabels: Record<string, string> =
     role === "employer"
-      ? { Обзор: "ГЛАВНОЕ", Потребности: "ПОДБОР", Задания: "РАБОТА", Диалоги: "ОБЩЕНИЕ", Приглашения: "РАБОТА", Аналитика: "ДАННЫЕ" }
-      : { Обзор: "ГЛАВНОЕ", Профиль: "ПРОФИЛЬ", Тестирование: "ОЦЕНКА", Диалоги: "ОБЩЕНИЕ", Приглашения: "РАБОТА" };
+      ? { Обзор: "ГЛАВНОЕ", Потребности: "ПОДБОР", Задания: "РАБОТА", Диалоги: "ОБЩЕНИЕ", "Наставники компании": "КОМАНДА", Приглашения: "РАБОТА", Аналитика: "ДАННЫЕ" }
+      : { Обзор: "ГЛАВНОЕ", Профиль: "ПРОФИЛЬ", Тестирование: "ОЦЕНКА", Диалоги: "ОБЩЕНИЕ", "Поиск ментора": "РОСТ", Приглашения: "РАБОТА" };
 
   const showNotice = (message: string, type: "success" | "error" = "success") => {
     setNotice(message);
@@ -5492,11 +5556,13 @@ function App() {
           </div>
         </header>
 
-        {active === "Диалоги" ? (
+        {active === "Диалоги" || active === "Поиск ментора" ? (
           <DialogsScreen
+            key={active}
             employer={role === "employer"}
             demoMode={offlineDemo}
             initialTarget={selectedDialogueTarget}
+            initialMode={active === "Поиск ментора" ? "mentors" : "chats"}
             onClearInitialTarget={() => setSelectedDialogueTarget(null)}
             onNotify={showNotice}
           />
@@ -5603,7 +5669,7 @@ function App() {
             <div className="list-head">
               <strong>КАНДИДАТЫ</strong>
               <button type="button" aria-label={`Сортировать по релевантности: сначала ${sortDescending ? "выше" : "ниже"}`} onClick={() => setSortDescending((value) => !value)}>
-                Релевантность <span>↕</span>
+                Релевантность <Icon name="sort" size={15} />
               </button>
             </div>
             {filtered.map((candidate) => (
@@ -5806,7 +5872,7 @@ function App() {
               <button type="button" aria-label="Закрыть приглашение" onClick={requestCloseInvite}><Icon name="close" /></button>
             </div>
             <div className="invite-person">
-              <div className="avatar">{selected.initials}</div>
+              <CandidateAvatar initials={selected.initials} photoUrl={selected.avatarUrl} />
               <div><strong>{selected.role} · {selected.level}</strong><span>{formatMatchScore(selected.score)} в подборе под потребность</span></div>
             </div>
             <label className="field">

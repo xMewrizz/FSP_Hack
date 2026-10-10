@@ -39,35 +39,107 @@ type EmployerTask = {
   my_submission?: TaskSubmission | null;
 };
 
-const demoSubmission: TaskSubmission = {
-  id: "demo-submission-pending",
-  task_id: "demo-employer-task",
-  candidate_id: "demo-candidate",
-  candidate_name: "Алексей Морозов",
-  answer_text: "Добавил cursor pagination, проверку входных данных и тесты на последнюю страницу.",
-  answer_links: ["https://github.com/example/pagination"],
-  status: "pending_review",
-  score: null,
-  max_score: 10,
-  passed: null,
-  contact_consent: true,
-};
+const demoSubmissions: TaskSubmission[] = [
+  {
+    id: "demo-submission-pending",
+    task_id: "demo-employer-task-booking",
+    candidate_id: "demo-candidate",
+    candidate_name: "Алексей Морозов",
+    task_title: "Как не допустить двойную запись",
+    answer_text: "Перед подтверждением время ненадолго закрепляется за клиентом. Если он не завершил запись, время снова становится доступным. Если два клиента выбрали одно время одновременно, второму предлагаются ближайшие свободные варианты.",
+    status: "pending_review",
+    score: null,
+    max_score: 10,
+    passed: null,
+    contact_consent: true,
+  },
+  {
+    id: "demo-submission-graded",
+    task_id: "demo-employer-task-access",
+    candidate_id: "demo-candidate-2",
+    candidate_name: "Мария Волкова",
+    task_title: "Понятное восстановление доступа",
+    answer_text: "Сначала уточнить адрес учётной записи, затем отправить одноразовую ссылку с ограниченным сроком действия. Показать нейтральное сообщение, чтобы не раскрывать, зарегистрирован ли такой адрес. Предусмотреть повторную отправку и понятную ошибку для просроченной ссылки.",
+    status: "graded",
+    score: 9,
+    max_score: 10,
+    passed: true,
+    feedback: "Хорошо продуман сценарий и защита личных данных. Учтены повторная отправка и просроченная ссылка.",
+    contact_consent: true,
+    reviewed_at: new Date().toISOString(),
+  },
+  {
+    id: "demo-submission-second-pending",
+    task_id: "demo-employer-task-orders",
+    candidate_id: "demo-candidate-3",
+    candidate_name: "Илья Соколов",
+    task_title: "История заказов без долгого ожидания",
+    answer_text: "Показывать сначала последние заказы, а старые подгружать по запросу. Если данных много, разбивать их на небольшие порции и сохранять выбранные фильтры. Для часто просматриваемого списка использовать готовую копию данных с регулярным обновлением.",
+    status: "pending_review",
+    score: null,
+    max_score: 10,
+    passed: null,
+    contact_consent: true,
+  },
+];
 
-const demoTask: EmployerTask = {
-  id: "demo-employer-task",
-  title: "Пагинация списка кандидатов",
-  description: "Спроектируйте API-эндпоинт с cursor pagination для быстро меняющегося списка. Опишите контракт, граничные случаи и тесты.",
-  task_type: "manual_review",
-  max_score: 10,
-  is_active: true,
-  specialization: "Backend",
-  min_grade: "junior",
-  max_grade: "senior",
-  evaluation_criteria: ["Корректный курсор и устойчивый порядок", "Обработка пустой и последней страницы", "Тесты и ясность API-контракта"],
-  resource_links: ["https://github.com/example/api"],
-  created_at: new Date().toISOString(),
-  submissions_count: 1,
-};
+const demoTasks: EmployerTask[] = [
+  {
+    id: "demo-employer-task-booking",
+    title: "Как не допустить двойную запись",
+    description: "Два клиента одновременно выбирают одно и то же время для встречи. Опишите, как помочь обоим выбрать свободное время и не потерять запись.",
+    task_type: "manual_review",
+    max_score: 10,
+    is_active: true,
+    specialization: "Backend",
+    min_grade: "junior",
+    max_grade: "middle",
+    evaluation_criteria: ["Понятный сценарий для обоих клиентов", "Что произойдёт, если подтверждение задержится", "Как убедиться, что запись не потерялась"],
+    created_at: new Date().toISOString(),
+    submissions_count: 1,
+    company_name: "Команда сервиса «Запись»",
+  },
+  {
+    id: "demo-employer-task-access",
+    title: "Понятное восстановление доступа",
+    description: "Клиент забыл пароль и хочет вернуться в свой профиль. Предложите безопасный и понятный порядок действий, включая повторную попытку и просроченную ссылку.",
+    task_type: "manual_review",
+    max_score: 10,
+    is_active: true,
+    specialization: "Backend",
+    min_grade: "middle",
+    max_grade: "senior",
+    evaluation_criteria: ["Простой путь для клиента", "Защита личных данных", "Обработка повторной попытки и просроченной ссылки"],
+    created_at: new Date().toISOString(),
+    submissions_count: 1,
+    company_name: "Команда сервиса «Запись»",
+  },
+  {
+    id: "demo-employer-task-orders",
+    title: "Быстрый поиск в истории заказов",
+    description: "Клиенту нужно быстро найти заказ, сделанный несколько месяцев назад. Предложите удобный способ поиска и объясните, как показать много результатов, не заставляя ждать.",
+    task_type: "manual_review",
+    max_score: 10,
+    is_active: true,
+    specialization: "Backend",
+    min_grade: "middle",
+    max_grade: "senior",
+    evaluation_criteria: ["Удобный поиск по прошлым заказам", "Быстрая загрузка результатов", "Понятное объяснение решения"],
+    created_at: new Date().toISOString(),
+    submissions_count: 1,
+    company_name: "Команда сервиса «Запись»",
+  },
+];
+
+const demoCandidateTasks = demoTasks.map((task) => ({
+  ...task,
+  my_submission: demoSubmissions.find((submission) => submission.task_id === task.id && submission.candidate_id === "demo-candidate")
+    ?? (task.id === "demo-employer-task-access" ? demoSubmissions[1] : null),
+}));
+
+function gradeLabel(grade?: string | null) {
+  return ALL_GRADES.find((item) => item.value === grade)?.label ?? grade ?? "Любой уровень";
+}
 
 export default function TaskWorkspace({
   role,
@@ -79,9 +151,10 @@ export default function TaskWorkspace({
   onNotify: (message: string, type?: "success" | "error") => void;
 }) {
   const notifyRef = useRef(onNotify);
-  const [tasks, setTasks] = useState<EmployerTask[]>(demoMode ? [demoTask] : []);
-  const [selectedTaskId, setSelectedTaskId] = useState("");
-  const [submissions, setSubmissions] = useState<TaskSubmission[]>(demoMode && role === "employer" ? [demoSubmission] : []);
+  const [tasks, setTasks] = useState<EmployerTask[]>(demoMode ? (role === "candidate" ? demoCandidateTasks : demoTasks) : []);
+  const [selectedTaskId, setSelectedTaskId] = useState(demoMode && role === "employer" ? demoTasks[0].id : "");
+  const [submissions, setSubmissions] = useState<TaskSubmission[]>(demoMode && role === "employer" ? [demoSubmissions[0]] : []);
+  const [mockSubmissions, setMockSubmissions] = useState(demoSubmissions);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [files, setFiles] = useState<TaskFile[]>([]);
@@ -107,6 +180,13 @@ export default function TaskWorkspace({
   }, [onNotify]);
 
   useEffect(() => {
+    if (!demoMode) return;
+    setTasks(role === "candidate" ? demoCandidateTasks : demoTasks);
+    setSelectedTaskId(role === "employer" ? demoTasks[0].id : "");
+    setSubmissions(role === "employer" ? [mockSubmissions[0]] : []);
+  }, [demoMode, role]);
+
+  useEffect(() => {
     if (demoMode) return;
     const path = role === "employer" ? "/employer/tasks" : "/candidate/tasks";
     apiGet<EmployerTask[]>(path)
@@ -119,7 +199,7 @@ export default function TaskWorkspace({
   const loadSubmissions = async (task: EmployerTask) => {
     setSelectedTaskId(task.id);
     if (demoMode) {
-      setSubmissions(task.id === demoTask.id ? [demoSubmission] : []);
+      setSubmissions(mockSubmissions.filter((submission) => submission.task_id === task.id));
       return;
     }
     try {
@@ -204,6 +284,9 @@ export default function TaskWorkspace({
             feedback: feedback[submission.id] || "",
           });
       setSubmissions((current) => current.map((item) => item.id === result.id ? result : item));
+      if (demoMode) {
+        setMockSubmissions((current) => current.map((item) => item.id === result.id ? result : item));
+      }
       onNotify("Оценка и комментарий сохранены");
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось оценить задание", "error");
@@ -300,7 +383,7 @@ export default function TaskWorkspace({
 
   const fileControls = <div className="task-workspace__files">
     <label className="task-workspace__upload">
-      <span>{uploading ? "Загружаем файлы…" : "Прикрепить файлы · до 5 МБ"}</span>
+      <span>{uploading ? "Загружаем файлы…" : "Прикрепить файл"}</span>
       <input type="file" multiple disabled={uploading} onChange={(event) => void uploadFiles(event.target.files)} />
     </label>
     {files.map((file) => <button type="button" key={file.id} className="task-workspace__file" onClick={() => setFiles((current) => current.filter((item) => item.id !== file.id))}>{file.file_name} ×</button>)}
@@ -310,7 +393,7 @@ export default function TaskWorkspace({
     <section className="task-workspace__hero">
       <span>{role === "employer" ? "ЗАДАНИЯ КАНДИДАТАМ" : "ПРАКТИКА И ОТКЛИКИ"}</span>
       <h2>{role === "employer" ? "Задания и ответы" : "Задания по вашему направлению"}</h2>
-      <p>{role === "employer" ? "Опубликуйте практическую задачу, проверьте решение и откройте приглашение только после выставления оценки." : "Условие содержит критерии проверки. При отправке решения подтвердите, что HR автора задания может связаться с вами."}</p>
+      <p>{role === "employer" ? "Опубликуйте задачу, проверьте ответы и пригласите кандидата после оценки." : "Выберите задание по своему уровню, отправьте решение и получите обратную связь от работодателя."}</p>
     </section>
 
     {role === "employer" ? <div className="task-workspace__layout">
@@ -319,25 +402,34 @@ export default function TaskWorkspace({
         <form className="task-workspace__form" onSubmit={(event) => void createTask(event)}>
           <label className="field"><span>НАЗВАНИЕ</span><input maxLength={200} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} /></label>
           <div className="field-row field-row--flush">
-            <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={form.specialization} onChange={(event) => setForm((current) => ({ ...current, specialization: event.target.value }))}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
-            <label className="field"><span>ОТ ГРЕЙДА</span><select value={form.min_grade} onChange={(event) => setForm((current) => ({ ...current, min_grade: event.target.value }))}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-            <label className="field"><span>ДО ГРЕЙДА</span><select value={form.max_grade} onChange={(event) => setForm((current) => ({ ...current, max_grade: event.target.value }))}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+            <label className="field"><span>НАПРАВЛЕНИЕ</span><select value={form.specialization} onChange={(event) => setForm((current) => ({ ...current, specialization: event.target.value }))}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label className="field"><span>УРОВЕНЬ ОТ</span><select value={form.min_grade} onChange={(event) => setForm((current) => ({ ...current, min_grade: event.target.value }))}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+            <label className="field"><span>УРОВЕНЬ ДО</span><select value={form.max_grade} onChange={(event) => setForm((current) => ({ ...current, max_grade: event.target.value }))}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           </div>
           <label className="field"><span>УСЛОВИЕ ЗАДАНИЯ</span><textarea required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></label>
           <label className="field"><span>КРИТЕРИИ ОЦЕНИВАНИЯ · ПО ОДНОМУ НА СТРОКУ</span><textarea required placeholder={"Корректность решения\nРазбор граничных случаев\nКачество объяснения"} value={form.criteria} onChange={(event) => setForm((current) => ({ ...current, criteria: event.target.value }))} /></label>
-          <label className="field"><span>ССЫЛКИ НА GITHUB И МАТЕРИАЛЫ · ПО ОДНОЙ НА СТРОКУ</span><textarea placeholder="https://github.com/org/repository" value={form.resource_links} onChange={(event) => setForm((current) => ({ ...current, resource_links: event.target.value }))} /></label>
+          <label className="field"><span>ПОЛЕЗНЫЕ ССЫЛКИ · ПО ОДНОЙ НА СТРОКУ</span><textarea placeholder="https://example.com/material" value={form.resource_links} onChange={(event) => setForm((current) => ({ ...current, resource_links: event.target.value }))} /></label>
           {fileControls}
           <button type="submit" className="button" disabled={busy || uploading}>{busy ? "Публикуем…" : "Опубликовать задание"}</button>
         </form>
       </section>
       <section className="feature-card">
         <div className="feature-head"><div><span>ОПУБЛИКОВАНО</span><strong>Ваши задания</strong></div></div>
-        {tasks.map((task) => <article className="task-workspace__task" key={task.id}>
-          <div><span>{task.specialization ?? "Все направления"} · {task.min_grade ?? "Любой"} — {task.max_grade ?? "грейд"}</span><strong>{task.title}</strong><small>{task.submissions_count ?? 0} решений</small></div>
+        {tasks.map((task) => <article className={`task-workspace__task${selectedTaskId === task.id ? " task-workspace__task--selected" : ""}`} key={task.id}>
+          <div><span>{task.specialization ?? "Все направления"} · {gradeLabel(task.min_grade)} — {gradeLabel(task.max_grade)}</span><strong>{task.title}</strong><p>{task.description}</p><small>{task.submissions_count ?? 0} ответа</small></div>
           <button type="button" className="button button--outline" onClick={() => void loadSubmissions(task)}>Проверить ответы</button>
         </article>)}
         {!tasks.length && <div className="empty-state">Пока нет заданий. Создайте первое.</div>}
-        {selectedTask && <div className="task-workspace__reviews"><h3>Ответы · {selectedTask.title}</h3>
+        {selectedTask && <div className="task-workspace__reviews">
+          <section className="task-workspace__brief">
+            <span>УСЛОВИЕ</span>
+            <p>{selectedTask.description}</p>
+            {selectedTask.evaluation_criteria?.length ? <>
+              <strong>На что обратить внимание</strong>
+              <ul>{selectedTask.evaluation_criteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul>
+            </> : null}
+          </section>
+          <h3>Ответы · {selectedTask.title}</h3>
           {submissions.map((submission) => <article className="task-workspace__submission" key={submission.id}>
             <strong>{submission.candidate_name ?? "Кандидат"} · {submission.status === "graded" ? `Оценка ${submission.score}/${submission.max_score}` : "Ожидает проверки"}</strong>
             <p>{submission.answer_text}</p>
@@ -350,7 +442,7 @@ export default function TaskWorkspace({
             </> : <>
               <p>{submission.feedback || "Работодатель оценил решение."}</p>
               {submission.contact_consent && <div className="task-workspace__invite">
-                <h4>Кандидат разрешил передать контакты HR</h4>
+                <h4>Кандидат разрешил представителю компании связаться</h4>
                 <label className="field"><span>СПОСОБ СВЯЗИ</span><input value={inviteContact} onChange={(event) => setInviteContact(event.target.value)} placeholder="Почта, телефон или ссылка на чат" /></label>
                 <div className="field-row field-row--flush">
                   <label className="field"><span>ЗАРПЛАТА ОТ, ₽</span><input type="number" min="1" value={inviteSalaryMin} onChange={(event) => setInviteSalaryMin(event.target.value)} /></label>
@@ -365,16 +457,16 @@ export default function TaskWorkspace({
       </section>
     </div> : <div className="task-workspace__candidate">
       {tasks.map((task) => <article className="feature-card task-workspace__candidate-card" key={task.id}>
-        <div className="feature-head"><div><span>{task.company_name ?? "Работодатель"} · {task.specialization ?? "Все направления"} · {task.min_grade ?? "Любой"} — {task.max_grade ?? "грейд"}</span><strong>{task.title}</strong></div></div>
+        <div className="feature-head"><div><span>{task.company_name ?? "Работодатель"} · {task.specialization ?? "Все направления"} · {gradeLabel(task.min_grade)} — {gradeLabel(task.max_grade)}</span><strong>{task.title}</strong></div></div>
         <p>{task.description}</p>
-        {task.evaluation_criteria?.length ? <div className="topic-summary">{task.evaluation_criteria.map((criterion) => <div key={criterion}><span>{criterion}</span></div>)}</div> : null}
+        {task.evaluation_criteria?.length ? <div className="task-workspace__criteria"><strong>На что обратят внимание</strong><div className="topic-summary">{task.evaluation_criteria.map((criterion) => <div key={criterion}><span>{criterion}</span></div>)}</div></div> : null}
         {task.resource_links?.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer">{link}</a>)}
         {task.attachments?.map((file) => <button type="button" key={file.id} onClick={() => void downloadFile(file)}>{file.file_name}</button>)}
         {task.my_submission ? <div className="notice-box">{task.my_submission.status === "pending_review" ? "Решение ожидает проверки работодателем." : `Оценка: ${task.my_submission.score}/${task.my_submission.max_score}. ${task.my_submission.feedback ?? ""}`}</div> : <>
           <label className="field"><span>ВАШЕ РЕШЕНИЕ</span><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} /></label>
-          <label className="field"><span>ССЫЛКИ НА GITHUB И РЕШЕНИЕ · ПО ОДНОЙ НА СТРОКУ</span><textarea placeholder="https://github.com/user/solution" value={links} onChange={(event) => setLinks(event.target.value)} /></label>
+          <label className="field"><span>ССЫЛКИ НА МАТЕРИАЛЫ ИЛИ ПРИМЕР РЕШЕНИЯ</span><textarea placeholder="https://example.com/your-work" value={links} onChange={(event) => setLinks(event.target.value)} /></label>
           {fileControls}
-          <div className="notice-box">Отправляя решение, вы автоматически соглашаетесь передать ваши контактные данные HR автора задания для связи после проверки.</div>
+          <div className="notice-box">Отправляя решение, вы разрешаете представителю компании связаться с вами после проверки.</div>
           <button type="button" className="button" disabled={busy || uploading} onClick={() => void submitAnswer(task)}>{busy ? "Отправляем…" : "Отправить решение"}</button>
         </>}
       </article>)}

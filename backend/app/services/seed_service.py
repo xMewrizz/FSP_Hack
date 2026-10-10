@@ -42,6 +42,7 @@ class SeedService:
                 "fsp_verified": True,
                 "skills": ["SQL & Транзакции", "AsyncIO & Конкурентность", "Распределённые системы & CAP", "PostgreSQL", "Docker"],
                 "bio": "Мастер спорта по спортивному программированию РФ. Чемпион России 2025. Архитектор highload-бэкендов.",
+                "mentor_available": True,
             },
             {
                 "email": "kate@fsp.ru",
@@ -96,6 +97,7 @@ class SeedService:
                 "fsp_verified": False,
                 "skills": ["SQL & Оптимизация индексов", "Кэширование & Redis", "Python", "FastAPI"],
                 "bio": "Опытный бэкенд-разработчик. Кандидат без истории ФСП (успешно прошел все платформенные тесты).",
+                "mentor_available": True,
             },
             {
                 "email": "maria@frontend.ru",
@@ -116,6 +118,46 @@ class SeedService:
                 "bio": "Senior Frontend инженер. Архитектура дизайн-систем, Core Web Vitals, SSR.",
             },
         ]
+
+        mock_profiles = [
+            ("backend-middle-olga@example.ru", "Ольга", "Лебедева", "Backend", "middle", "Санкт-Петербург", "hybrid", 215000,
+             ["Python", "FastAPI", "PostgreSQL", "Redis"], "Развиваю сервисы бронирования, отвечаю за API и стабильность данных.", True),
+            ("backend-middle-egor@example.ru", "Егор", "Савин", "Backend", "middle", "Москва", "remote", 240000,
+             ["Python", "Django", "PostgreSQL", "Celery", "Docker"], "Создаю сервисы для электронной коммерции и автоматизирую обработку заказов.", True),
+            ("backend-middle-marina@example.ru", "Марина", "Беляева", "Backend", "middle", "Казань", "remote", 205000,
+             ["Go", "gRPC", "Kafka", "PostgreSQL"], "Разрабатываю сервисы обмена событиями и помогаю команде улучшать наблюдаемость.", False),
+            ("backend-middle-kirill@example.ru", "Кирилл", "Орлов", "Backend", "middle", "Екатеринбург", "hybrid", 225000,
+             ["Python", "FastAPI", "SQL", "Redis", "Pytest"], "Работаю над API внутренней продуктовой платформы и качеством тестирования.", False),
+            ("backend-senior-pavel@example.ru", "Павел", "Зайцев", "Backend", "senior", "Москва", "remote", 360000,
+             ["Java", "Spring", "Kafka", "PostgreSQL", "Kubernetes"], "Проектирую распределённые системы и помогаю инженерам расти до самостоятельных лидов.", True),
+            ("frontend-middle-olga@example.ru", "Ольга", "Романова", "Frontend", "middle", "Москва", "hybrid", 210000,
+             ["TypeScript", "React", "HTML", "CSS", "Playwright"], "Создаю интерфейсы продуктовых сервисов и развиваю доступность компонентов.", True),
+            ("devops-middle-timur@example.ru", "Тимур", "Гареев", "DevOps / SRE", "middle", "Новосибирск", "remote", 230000,
+             ["Linux", "Docker", "Kubernetes", "CI/CD", "Prometheus"], "Автоматизирую поставку сервисов и дежурю за надёжность инфраструктуры.", True),
+            ("qa-middle-irina@example.ru", "Ирина", "Киселёва", "QA / Testing", "middle", "Санкт-Петербург", "remote", 190000,
+             ["Python", "Pytest", "Playwright", "API testing", "SQL"], "Строю автоматизацию проверок веб-продуктов и помогаю командам выпускать изменения увереннее.", False),
+        ]
+        for email, first_name, last_name, specialization, grade, city, work_format, salary, skills, bio, mentor_available in mock_profiles:
+            candidates_data.append({
+                "email": email,
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone": None,
+                "telegram": None,
+                "city": city,
+                "specialization": specialization,
+                "declared_grade": grade,
+                "verified_grade": grade,
+                "demo_test_percentage": 82,
+                "work_format": work_format,
+                "salary_expectation": float(salary),
+                "salary_tax_type": "gross",
+                "fsp_id": None,
+                "fsp_verified": False,
+                "skills": skills,
+                "bio": f"Вымышленный профиль для демо. {bio}",
+                "mentor_available": mentor_available,
+            })
 
         # Вымышленные профили для демонстрации разных направлений в Data Science.
         # Навыки в анкете указаны кандидатом; отдельные тесты по ним не выдумываем.
@@ -209,6 +251,7 @@ class SeedService:
                     agreed_publication=True,
                     agreed_publication_at=now,
                     visibility_public=True,
+                    mentor_available=c.get("mentor_available", False),
                     agreed_osint=True,
                     agreed_osint_at=now,
                     onboarding_completed=True,
@@ -254,6 +297,8 @@ class SeedService:
                 res_p = await db.execute(stmt_p)
                 p = res_p.scalar_one_or_none()
                 if p:
+                    if c.get("mentor_available") is True:
+                        p.mentor_available = True
                     candidate_profiles.append(p)
 
         # 3. Seed Employers
@@ -452,6 +497,40 @@ class SeedService:
                 db.add(inv1)
                 db.add(inv2)
                 await db.commit()
+
+        if employer_profiles:
+            employer = employer_profiles[0]
+            mentor_emails = {item["email"] for item in candidates_data if item.get("mentor_available")}
+            mentors = (await db.scalars(
+                select(CandidateProfile)
+                .join(User, User.id == CandidateProfile.user_id)
+                .where(User.email.in_(mentor_emails))
+            )).all()
+            for index, mentor in enumerate(mentors):
+                existing = await db.scalar(
+                    select(Invitation.id).where(
+                        Invitation.employer_id == employer.id,
+                        Invitation.candidate_id == mentor.id,
+                        Invitation.status == "accepted",
+                    ).limit(1)
+                )
+                if existing:
+                    continue
+                db.add(Invitation(
+                    employer_id=employer.id,
+                    candidate_id=mentor.id,
+                    need_id=None,
+                    company_name=employer.company_name,
+                    offer_description="Демонстрационная связь кандидата с компанией для показа HR-раздела наставников.",
+                    contact_method="Контакт доступен после принятия приглашения",
+                    salary_min=180000.0,
+                    salary_max=320000.0,
+                    currency="RUB",
+                    status="accepted",
+                    candidate_reply="Демонстрационный профиль связан с компанией.",
+                    accepted_at=now,
+                ))
+            await db.commit()
 
         return {
             "message": "Демонстрационный набор данных успешно инициализирован",

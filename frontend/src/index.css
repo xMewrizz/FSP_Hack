@@ -54,7 +54,7 @@ button {
 .task-workspace__hero {
   border: 1px solid var(--line);
   border-radius: 0.5rem;
-  background: linear-gradient(120deg, rgba(98, 84, 255, 0.14), rgba(27, 28, 33, 0.94) 58%);
+  background: linear-gradient(115deg, rgba(64, 47, 255, 0.2), rgba(118, 108, 255, 0.08) 48%, var(--surface) 100%);
   padding: 1.5rem;
 }
 
@@ -142,16 +142,31 @@ button {
 
 .task-workspace__task {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
-  border-bottom: 1px solid var(--line);
-  padding: 1rem 0;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface-raised);
+  padding: 1rem;
+}
+
+.task-workspace__task--selected {
+  border-color: var(--violet);
+  background: linear-gradient(110deg, var(--violet-soft), var(--surface-raised) 65%);
 }
 
 .task-workspace__task > div {
   display: grid;
+  flex: 1 1 14rem;
+  min-width: 0;
   gap: 0.375rem;
+}
+
+.task-workspace__task > .button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .task-workspace__task strong,
@@ -159,9 +174,54 @@ button {
   font-size: 0.8125rem;
 }
 
+.task-workspace__task p {
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
 .task-workspace__task small {
   color: var(--muted);
   font-size: 0.625rem;
+}
+
+.task-workspace__brief {
+  display: grid;
+  gap: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface-raised);
+  padding: 1rem;
+}
+
+.task-workspace__brief > span,
+.task-workspace__brief > strong,
+.task-workspace__criteria > strong {
+  font-size: 0.7rem;
+}
+
+.task-workspace__brief > span {
+  color: var(--violet);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.task-workspace__brief p {
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.task-workspace__brief ul {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--muted-light);
+  font-size: 0.7rem;
+  line-height: 1.5;
 }
 
 .task-workspace__reviews {
@@ -194,8 +254,9 @@ button {
 
 .app-shell[data-theme="light"] .task-workspace .notice-box {
   border-color: #50545d;
-  background: #343840;
+  background: #444752;
   color: #ffffff;
+  font-weight: 500;
 }
 
 .app-shell[data-theme="light"] .task-workspace .notice-box * {
@@ -204,6 +265,19 @@ button {
 
 .task-workspace__candidate-card .topic-summary,
 .task-workspace__candidate-card .notice-box {
+  margin: 0;
+}
+
+.task-workspace__criteria {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.task-workspace__criteria > strong {
+  color: var(--text);
+}
+
+.task-workspace__criteria .topic-summary {
   margin: 0;
 }
 
@@ -240,6 +314,29 @@ button {
   .task-workspace__layout {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 600px) {
+  .task-workspace__task {
+    flex-direction: column;
+  }
+
+  .task-workspace__task > .button {
+    width: 100%;
+  }
+}
+
+.task-workspace .feature-card {
+  border-top-color: rgba(98, 84, 255, 0.55);
+}
+
+.task-workspace__task {
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.task-workspace__task:hover {
+  border-color: var(--violet);
+  transform: translateY(-1px);
 }
 
 .sidebar {
@@ -777,6 +874,12 @@ button {
   width: 3.375rem;
   height: 3.375rem;
   font-size: 0.875rem;
+}
+
+.avatar__portrait {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .candidate-card__identity {
@@ -13121,7 +13224,6 @@ select,
   font-size: max(0.875rem, 13px);
   line-height: 1.25;
   white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 .app-shell .candidate-directory-card__footer .button,
@@ -13234,6 +13336,9 @@ select,
 }
 
 .app-shell .candidates-list > .list-head > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   min-height: 2rem;
   flex: 0 0 auto;
   border: 1px solid var(--line);
@@ -13243,6 +13348,7 @@ select,
   color: var(--muted);
   font-size: 0.75rem;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .app-shell .candidate-card--compact {
@@ -13744,7 +13850,6 @@ select,
   font-size: max(0.875rem, 13px);
   line-height: 1.25;
   white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 .app-shell .candidate-directory-card__radar {
@@ -14184,6 +14289,157 @@ select,
   white-space: nowrap;
 }
 
+.app-shell .company-mentors-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.app-shell .company-mentors-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border: 1px solid rgba(98, 84, 255, 0.28);
+  border-radius: 1rem;
+  background: linear-gradient(120deg, rgba(64, 47, 255, 0.18), rgba(98, 84, 255, 0.06) 55%, var(--surface));
+  padding: clamp(1.1rem, 3vw, 2rem);
+}
+
+.app-shell .company-mentors-hero > div > span {
+  color: var(--brand-cobalt);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.app-shell .company-mentors-hero h2 {
+  margin: 0.5rem 0;
+  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+}
+
+.app-shell .company-mentors-hero p {
+  max-width: 55rem;
+  margin: 0;
+  color: var(--muted-light);
+  line-height: 1.6;
+}
+
+.app-shell .company-mentors-hero > strong {
+  display: grid;
+  min-width: 6rem;
+  min-height: 6rem;
+  align-content: center;
+  justify-items: center;
+  border: 1px solid rgba(98, 84, 255, 0.3);
+  border-radius: 1rem;
+  background: var(--surface);
+  color: var(--brand-cobalt);
+  font-size: 2rem;
+}
+
+.app-shell .company-mentors-hero > strong > small {
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.app-shell .company-mentors-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-shell .company-mentors-toolbar .search-field {
+  width: min(100%, 32rem);
+}
+
+.app-shell .company-mentors-toolbar > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.app-shell .company-mentors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  align-items: start;
+  gap: 1rem;
+}
+
+.app-shell .company-mentor-card {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-top: 2px solid rgba(98, 84, 255, 0.6);
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 1.15rem;
+  box-shadow: 0 0.8rem 2rem rgba(18, 20, 38, 0.06);
+}
+
+.app-shell .company-mentor-card__person {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.app-shell .company-mentor-card__person > div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.app-shell .company-mentor-card__person strong {
+  font-size: 1rem;
+}
+
+.app-shell .company-mentor-card__person span,
+.app-shell .company-mentor-card__meta {
+  color: var(--muted-light);
+  font-size: 0.75rem;
+}
+
+.app-shell .company-mentor-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+}
+
+.app-shell .company-mentor-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-radius: 0.65rem;
+  background: var(--violet-soft);
+  padding: 0.7rem;
+}
+
+.app-shell .company-mentor-card__footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.app-shell .company-mentor-card__footer i {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.app-shell .company-mentor-card__footer small {
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
 @media (max-width: 64rem) {
   .app-shell .bank-toolbar--candidates {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -14232,6 +14488,20 @@ select,
 
   .app-shell .employer-mentor-row__badge {
     grid-column: 2;
+  }
+
+  .app-shell .company-mentors-hero,
+  .app-shell .company-mentors-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-shell .company-mentors-hero > strong {
+    min-width: 0;
+    min-height: 4rem;
+    align-content: center;
+    justify-items: start;
+    padding: 0.75rem;
   }
 }
 
