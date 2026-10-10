@@ -1,4 +1,8 @@
-"""Тесты для банка вопросов Data Science (B-02)."""
+"""Технические проверки банка вопросов Data Science (B-02)."""
+
+from collections import Counter
+
+from app.core.assessment_catalog_ds import DS_QUESTION_CODES, DS_TARGET_QUESTIONS
 
 from app.core.question_bank_ds import (
     DS_FAMILIES,
@@ -8,24 +12,38 @@ from app.core.question_bank_ds import (
 
 
 def test_ds_families_count_and_grades():
-    assert len(DS_FAMILIES) == 12
+    assert len(DS_FAMILIES) == 181  # 180 обязательных + отдельный NumPy Senior
     grades = [code.split("-")[1] for code in DS_FAMILIES]
-    assert grades.count("JR") == 4
-    assert grades.count("MID") == 4
-    assert grades.count("SR") == 4
+    assert grades.count("JR") == 60
+    assert grades.count("MID") == 60
+    assert grades.count("SR") == 61
 
 
 def test_ds_skills_coverage_across_grades():
-    expected_skills = {
-        "ds_python_pandas",
-        "ds_sql_analytics",
-        "ds_stats_ab",
-        "ds_ml_modeling",
-    }
-    for grade_tag in ("JR", "MID", "SR"):
-        grade_families = [f for code, f in DS_FAMILIES.items() if code.split("-")[1] == grade_tag]
-        skills_in_grade = {f["skill_code"] for f in grade_families}
-        assert skills_in_grade == expected_skills, f"Mismatch in {grade_tag}"
+    for grade, groups in DS_QUESTION_CODES.items():
+        assert set(groups) == set(DS_TARGET_QUESTIONS)
+        for skill, codes in groups.items():
+            assert len(codes) == DS_TARGET_QUESTIONS[skill], (grade, skill)
+            assert len({DS_FAMILIES[code]["skill"] for code in codes}) == len(codes)
+            assert all(DS_FAMILIES[code]["skill_code"] == skill for code in codes)
+
+
+def test_ds_question_family_has_three_distinct_wordings_and_four_distinct_answers():
+    for grade_groups in DS_QUESTION_CODES.values():
+        for codes in grade_groups.values():
+            for code in codes:
+                variants = ds_prepared_variants(code)
+                assert len({v["question_text"] for v in variants}) == 3
+                assert len(DS_FAMILIES[code]["options"]) == 4
+                assert len(set(DS_FAMILIES[code]["options"])) == 4
+                assert all(v["source_url"].startswith("https://") for v in variants)
+
+
+def test_ds_grade_has_the_same_required_skills_without_reusing_families():
+    for grade_groups in DS_QUESTION_CODES.values():
+        codes = [code for group in grade_groups.values() for code in group]
+        assert len(codes) == len(set(codes)) == 60
+    assert Counter(family["skill_code"] for family in DS_FAMILIES.values())["ds_numpy"] == 1
 
 
 def test_every_ds_question_has_three_distinct_versions():

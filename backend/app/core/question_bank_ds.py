@@ -1,14 +1,14 @@
 """Банк вопросов по Data Science с рубриками, вариантами и источниками документации.
 
-Охватывает четыре ключевых компетенции:
-- ds_python_pandas: Python, NumPy, Pandas (векторизация, память, layout, категории)
-- ds_sql_analytics: SQL и аналитика данных (PostgreSQL, оконные функции, агрегаты, планы)
-- ds_stats_ab: Математическая статистика и A/B-тестирование (Kohavi, CUPED, SRM, ошибки I/II рода)
-- ds_ml_modeling: Машинное обучение (Scikit-Learn, утечки данных, метрики при дисбалансе, калибровка)
+Шесть самостоятельных обязательных навыков: Python, Pandas, SQL,
+статистика, A/B-тестирование и машинное обучение. NumPy имеет отдельный код
+для будущего дополнительного теста и не подменяет результат Python/Pandas.
 """
 
 import hashlib
 from typing import Any
+
+from app.core.question_bank_ds_full import SOURCES as EXPANSION_SOURCES, expanded_rows
 
 DS_SOURCES: dict[str, str] = {
     "pandas-vectorization": "https://pandas.pydata.org/docs/user_guide/enhancingperf.html",
@@ -24,19 +24,23 @@ DS_SOURCES: dict[str, str] = {
     "sklearn-metrics": "https://scikit-learn.org/stable/modules/model_evaluation.html#precision-recall-f-measure-metrics",
     "sklearn-calibration": "https://scikit-learn.org/stable/modules/calibration.html",
 }
+DS_SOURCES.update(EXPANSION_SOURCES)
 
 DS_TOPICS: dict[str, str] = {
-    "ds_python_pandas": "Python & Data Processing (NumPy, Pandas)",
-    "ds_sql_analytics": "SQL & Data Analytics (PostgreSQL)",
-    "ds_stats_ab": "Статистика и A/B тестирование",
-    "ds_ml_modeling": "Машинное обучение и валидация",
+    "ds_python": "Python для Data Science",
+    "ds_numpy": "NumPy",
+    "ds_pandas": "Pandas",
+    "ds_sql": "SQL и аналитика данных",
+    "ds_statistics": "Вероятность и статистика",
+    "ds_ab": "A/B-тестирование",
+    "ds_ml": "Машинное обучение и валидация",
 }
 
 # (code, skill_code, skill, source_key, options, prompts_tuple_or_list, explanation)
 DS_JUNIOR_ROWS = [
     (
         "DS-JR-01",
-        "ds_python_pandas",
+        "ds_pandas",
         "Векторизованные операции vs циклы в Pandas",
         "pandas-vectorization",
         (
@@ -54,7 +58,7 @@ DS_JUNIOR_ROWS = [
     ),
     (
         "DS-JR-02",
-        "ds_sql_analytics",
+        "ds_sql",
         "Оконные функции ранжирования",
         "pg-window",
         (
@@ -72,7 +76,7 @@ DS_JUNIOR_ROWS = [
     ),
     (
         "DS-JR-03",
-        "ds_stats_ab",
+        "ds_statistics",
         "Ошибки I и II рода при проверке гипотез",
         "stats-errors",
         (
@@ -90,7 +94,7 @@ DS_JUNIOR_ROWS = [
     ),
     (
         "DS-JR-04",
-        "ds_ml_modeling",
+        "ds_ml",
         "Предотвращение утечки данных (Data Leakage)",
         "sklearn-leakage",
         (
@@ -111,7 +115,7 @@ DS_JUNIOR_ROWS = [
 DS_MIDDLE_ROWS = [
     (
         "DS-MID-01",
-        "ds_python_pandas",
+        "ds_pandas",
         "Категориальный тип данных (Categorical Dtype)",
         "pandas-categorical",
         (
@@ -129,7 +133,7 @@ DS_MIDDLE_ROWS = [
     ),
     (
         "DS-MID-02",
-        "ds_sql_analytics",
+        "ds_sql",
         "Многомерная агрегация с GROUPING SETS",
         "pg-grouping",
         (
@@ -147,7 +151,7 @@ DS_MIDDLE_ROWS = [
     ),
     (
         "DS-MID-03",
-        "ds_stats_ab",
+        "ds_ab",
         "Диагностика Sample Ratio Mismatch (SRM)",
         "stats-srm",
         (
@@ -165,7 +169,7 @@ DS_MIDDLE_ROWS = [
     ),
     (
         "DS-MID-04",
-        "ds_ml_modeling",
+        "ds_ml",
         "Оценка моделей при сильном дисбалансе классов",
         "sklearn-metrics",
         (
@@ -186,7 +190,7 @@ DS_MIDDLE_ROWS = [
 DS_SENIOR_ROWS = [
     (
         "DS-SR-01",
-        "ds_python_pandas",
+        "ds_numpy",
         "NumPy Strides, Views vs Copies и C-contiguous Layout",
         "numpy-views",
         (
@@ -204,7 +208,7 @@ DS_SENIOR_ROWS = [
     ),
     (
         "DS-SR-02",
-        "ds_sql_analytics",
+        "ds_sql",
         "Оконные фреймы ROWS vs RANGE и производительность WindowAgg",
         "pg-window-frame",
         (
@@ -222,7 +226,7 @@ DS_SENIOR_ROWS = [
     ),
     (
         "DS-SR-03",
-        "ds_stats_ab",
+        "ds_ab",
         "Снижение дисперсии метрик методом CUPED",
         "stats-cuped",
         (
@@ -240,7 +244,7 @@ DS_SENIOR_ROWS = [
     ),
     (
         "DS-SR-04",
-        "ds_ml_modeling",
+        "ds_ml",
         "Калибровка вероятностей и Brier Score",
         "sklearn-calibration",
         (
@@ -283,7 +287,7 @@ def _rows_to_ds_families(rows: list[Any]) -> dict[str, dict[str, Any]]:
 
 
 DS_FAMILIES: dict[str, dict[str, Any]] = _rows_to_ds_families(
-    DS_JUNIOR_ROWS + DS_MIDDLE_ROWS + DS_SENIOR_ROWS
+    DS_JUNIOR_ROWS + DS_MIDDLE_ROWS + DS_SENIOR_ROWS + expanded_rows()
 )
 
 
