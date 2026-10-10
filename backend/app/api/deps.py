@@ -49,7 +49,6 @@ async def get_current_user(
         .options(
             joinedload(User.candidate_profile).options(
                 defer(CandidateProfile.resume_text),
-                defer(CandidateProfile.bio),
             ),
             joinedload(User.employer_profile),
         )

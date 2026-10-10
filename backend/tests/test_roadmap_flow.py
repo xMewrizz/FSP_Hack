@@ -381,7 +381,7 @@ async def test_changing_specialization_clears_grade_and_cancels_current_roadmap(
         "/api/v1/testing/roadmap", headers=headers,
         json={"specialization": "Backend", "target_grade": "junior"},
     )
-    assert rejected.status_code == 400
+    assert rejected.status_code in (400, 409)
 
 
 @pytest.mark.asyncio

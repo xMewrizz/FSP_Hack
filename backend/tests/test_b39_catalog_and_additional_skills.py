@@ -36,6 +36,11 @@ async def register_and_onboard_candidate(
         },
     )
     assert onboarded.status_code == 200, onboarded.text
+    await client.put(
+        "/api/v1/candidates/profile",
+        headers=headers,
+        json={"agreed_test_confidentiality": True},
+    )
     return headers
 
 
