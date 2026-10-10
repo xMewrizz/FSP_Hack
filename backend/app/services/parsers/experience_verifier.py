@@ -98,6 +98,10 @@ class ExperienceVerifier:
                 "По правилам платформы, наличие заказов на Профи.ру не является основанием для подозрения в завышении опыта."
             )
             guidance = "Опыт фриланса и репетиторства можно обсудить на техническом интервью как проектный опыт."
+        elif claimed_months == 0:
+            status = ExperienceAuditStatus.INSUFFICIENT_DATA
+            summary = "В резюме не указан стаж, который можно сопоставить с внешними профилями."
+            guidance = "Уточните периоды работы у кандидата перед сравнением стажа."
         else:
             # Есть формальные профили (Хабр Карьера, Careerist)
             # Критерий 1: Существенное расхождение в стаже (завышен в 2+ раза при разрыве от 2 лет, либо заявлен Middle/Senior при подтверждённом < 18 мес.)
@@ -205,14 +209,7 @@ class ExperienceVerifier:
         Возвращает: (months, earliest_year).
         """
         if not resume_text:
-            grade_defaults = {
-                "junior": (12, current_year - 1),
-                "middle": (36, current_year - 3),
-                "senior": (60, current_year - 5),
-                "lead": (84, current_year - 7),
-            }
-            clean_g = (declared_grade or "junior").lower()
-            return grade_defaults.get(clean_g, (12, current_year - 1))
+            return 0, None
 
         # Поиск явных дат в тексте
         years = [int(y) for y in re.findall(r"\b(20\d{2}|19\d{2})\b", resume_text)]
@@ -238,11 +235,5 @@ class ExperienceVerifier:
             calc_months = max(12, (current_year - earliest_year) * 12)
             return calc_months, earliest_year
 
-        grade_map = {
-            "junior": 12,
-            "middle": 36,
-            "senior": 60,
-            "lead": 84,
-        }
-        clean_g = (declared_grade or "middle").lower()
-        return grade_map.get(clean_g, 24), None
+        # Заявленный грейд ничего не говорит о продолжительности работы.
+        return 0, None

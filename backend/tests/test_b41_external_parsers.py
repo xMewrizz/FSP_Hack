@@ -262,6 +262,24 @@ def test_verifier_honest_candidate():
     assert audit.discrepancy_months == 0
 
 
+def test_declared_grade_is_not_claimed_experience():
+    external_profile = ParsedExternalProfile(
+        source="habr_career",
+        source_name="Хабр Карьера",
+        total_experience_months=8,
+    )
+    audit = ExperienceVerifier.verify_candidate_experience(
+        candidate_id=uuid.uuid4(),
+        declared_grade="senior",
+        resume_text="Разрабатываю сервисы на Python",
+        external_profiles=[external_profile],
+    )
+
+    assert audit.claimed_experience_months == 0
+    assert audit.status == ExperienceAuditStatus.INSUFFICIENT_DATA
+    assert not audit.is_flagged_for_inflation
+
+
 def test_verifier_inflated_experience_detected():
     candidate_id = uuid.uuid4()
     # 1. Завышение стажа в 2+ раза и разрыв более 2 лет (5 лет заявлено vs 10 месяцев на Хабре)
@@ -495,3 +513,7 @@ async def test_experience_audit_endpoint_permissions(client: AsyncClient):
     assert "careerist_check" in data
     assert "profi_check" in data
     assert data["visible_to_candidate"] is False
+    # Ссылка, написанная самим кандидатом, не является полученным внешним профилем.
+    assert data["status"] == "недостаточно данных"
+    assert data["is_flagged_for_inflation"] is False
+    assert data["external_profiles"] == []

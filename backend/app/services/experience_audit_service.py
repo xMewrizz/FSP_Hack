@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-import re
-import uuid
-from typing import Any
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.candidate import CandidateProfile
 from app.services.parsers.careerist_parser import CareeristParser
 from app.services.parsers.experience_verifier import ExperienceVerifier
@@ -13,7 +8,6 @@ from app.services.parsers.profi_ru_parser import ProfiRuParser
 from app.services.parsers.schemas import (
     ExperienceAuditStatus,
     ExperienceVerificationAudit,
-    ExternalWorkPeriod,
     ParsedExternalProfile,
 )
 
@@ -64,78 +58,9 @@ class ExperienceAuditService:
         # Если внешние профили уже переданы (из кэша/тестов/интеграции)
         resolved_profiles: list[ParsedExternalProfile] = list(external_profiles or [])
 
-        # Поиск внешних ссылок в тексте резюме и bio кандидата
-        text_corpus = f"{candidate.resume_text or ''} {candidate.bio or ''}"
-        
-        # 1. Ссылка на Хабр Карьеру
-        if not any(p.source == "habr_career" for p in resolved_profiles):
-            habr_match = re.search(r"career\.habr\.com/([a-zA-Z0-9_\-\.]+)", text_corpus, re.IGNORECASE)
-            if habr_match:
-                username = habr_match.group(1).rstrip("/.,;")
-                resolved_profiles.append(
-                    ParsedExternalProfile(
-                        source="habr_career",
-                        source_name="Хабр Карьера",
-                        url=f"https://career.habr.com/{username}",
-                        identifier=username,
-                        full_name=f"{candidate.first_name} {candidate.last_name}".strip(),
-                        headline=candidate.specialization or "Разработчик",
-                        total_experience_months=18 if candidate.declared_grade == "senior" else 36,
-                        work_periods=[
-                            ExternalWorkPeriod(
-                                company="ИТ-Компания (подтверждено Хабром)",
-                                role=candidate.specialization or "Разработчик",
-                                duration_months=18 if candidate.declared_grade == "senior" else 36,
-                                is_current=True,
-                            )
-                        ],
-                        skills=candidate.skills or [],
-                    )
-                )
-
-        # 2. Ссылка на Careerist
-        if not any(p.source == "careerist" for p in resolved_profiles):
-            careerist_match = re.search(r"careerist\.ru/(?:cv|cvs-programmist)/([a-zA-Z0-9_\-\.]+)", text_corpus, re.IGNORECASE)
-            if careerist_match:
-                cv_id = careerist_match.group(1).rstrip("/.,;")
-                resolved_profiles.append(
-                    ParsedExternalProfile(
-                        source="careerist",
-                        source_name="Careerist",
-                        url=f"https://careerist.ru/cv/{cv_id}/",
-                        identifier=cv_id,
-                        full_name=f"{candidate.first_name} {candidate.last_name}".strip(),
-                        total_experience_months=24,
-                        work_periods=[
-                            ExternalWorkPeriod(
-                                company="Компания из резюме Careerist",
-                                role=candidate.specialization or "Программист",
-                                duration_months=24,
-                                is_current=True,
-                            )
-                        ],
-                    )
-                )
-
-        # 3. Ссылка на Профи.ру
-        if not any(p.source == "profi_ru" for p in resolved_profiles):
-            profi_match = re.search(r"profi\.ru/(?:profile|it_freelance)/([a-zA-Z0-9_\-\.]+)", text_corpus, re.IGNORECASE)
-            if profi_match:
-                p_id = profi_match.group(1).rstrip("/.,;")
-                resolved_profiles.append(
-                    ParsedExternalProfile(
-                        source="profi_ru",
-                        source_name="Профи.ру (Фриланс/Репетиторство)",
-                        url=f"https://profi.ru/profile/{p_id}/",
-                        identifier=p_id,
-                        full_name=f"{candidate.first_name} {candidate.last_name}".strip(),
-                        total_experience_months=24,
-                        is_freelance_or_part_time=True,
-                        skills=["Репетиторство по IT", "Частная практика"],
-                        rating=4.9,
-                        orders_count=15,
-                    )
-                )
+        # Ссылка в резюме не подтверждает владельца профиля и не содержит
+        # проверенных сведений о стаже. Используем только реально полученные
+        # и сопоставленные внешние профили, переданные интеграцией.
 
         # Выполняем сравнение опыта
         return ExperienceVerifier.verify_candidate_experience(
