@@ -16,6 +16,7 @@ def test_each_job_has_container_limits_and_no_host_mounts():
     )
     spec = container_spec(request)
     limits = spec["HostConfig"]
+    assert spec["Labels"]["app"] == "fsp-sandbox-job"
     assert spec["NetworkDisabled"] is True
     assert spec["User"] == "0:0"
     assert limits["NetworkMode"] == "none"

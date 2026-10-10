@@ -28,6 +28,7 @@ def container_spec(data: SandboxExecutionRequest) -> dict:
     """Ограничения задаются сервером и не зависят от полей запроса."""
     return {
         "Image": RUNNER_IMAGE,
+        "Labels": {"app": "fsp-sandbox-job"},
         "Cmd": ["python", "-m", "app.core.code_sandbox.run_job"],
         "User": "0:0",
         "WorkingDir": "/app",

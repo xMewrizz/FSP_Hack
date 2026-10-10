@@ -1,6 +1,7 @@
 """Запускается внутри sandbox-controller с доступом к локальному Docker Engine."""
 
 import asyncio
+import json
 
 import httpx
 
@@ -48,6 +49,14 @@ class SlidingWindowRateLimiter:
     def allow_request(self, key, current_time): return False
 """
 
+ISOLATION_CHECK = """from pathlib import Path
+assert not Path('/var/run/docker.sock').exists()
+assert {item.name for item in Path('/sys/class/net').iterdir()} == {'lo'}
+assert 'DATABASE_URL' not in Path('/proc/self/environ').read_bytes().decode(errors='ignore')
+assert next(line for line in Path('/proc/self/status').read_text().splitlines()
+            if line.startswith('CapEff:')).split()[1] == '0000000000000000'
+""" + RATE_LIMITER
+
 
 async def execute(client: httpx.AsyncClient, code: str, question: str, timeout: float = 3.0) -> dict:
     response = await client.post("/execute", json={
@@ -73,6 +82,9 @@ async def main() -> None:
         wrong = await execute(client, FORGED_RESULT, "OPEN-BE-CODE-01")
         assert wrong["passed"] is False, wrong
 
+        isolation = await execute(client, ISOLATION_CHECK, "OPEN-BE-CODE-01")
+        assert isolation["passed"] is True, isolation
+
         timeout = await execute(client,
             "class SlidingWindowRateLimiter:\n"
             " def __init__(self, max_requests, window_seconds):\n"
@@ -82,12 +94,33 @@ async def main() -> None:
         )
         assert timeout["status"] == "time_limit_exceeded", timeout
 
+        memory = await client.post("/execute", json={
+            "code": "bytearray(1024 * 1024 * 1024)",
+            "question_code": "OPEN-BE-CODE-01", "timeout_seconds": 3.0,
+        })
+        assert memory.status_code in (200, 503), memory.text
+        if memory.status_code == 200:
+            assert memory.json()["passed"] is False, memory.text
+
+        still_running = await execute(client, RATE_LIMITER, "OPEN-BE-CODE-01")
+        assert still_running["passed"] is True, still_running
+
         unsupported = await client.post("/execute", json={
             "code": "pass", "question_code": "OPEN-DS-CODE-01",
         })
         assert unsupported.status_code == 400, unsupported.text
 
-    print("B-25 Docker integration: 2 correct, forged result, timeout, unsupported question OK")
+    async with httpx.AsyncClient(
+        transport=httpx.AsyncHTTPTransport(uds="/var/run/docker.sock"),
+        base_url="http://docker",
+    ) as docker:
+        listed = await docker.get("/v1.41/containers/json", params={
+            "all": "1", "filters": json.dumps({"label": ["app=fsp-sandbox-job"]}),
+        })
+        listed.raise_for_status()
+        assert listed.json() == [], listed.text
+
+    print("B-25 Docker integration: correct solutions, isolation, forged result, limits and cleanup OK")
 
 
 if __name__ == "__main__":
