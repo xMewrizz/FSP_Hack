@@ -4514,19 +4514,21 @@ function ResumeModal({
 
 function DemoTour({
   role,
+  hasCandidate,
   onFinish,
 }: {
   role: "employer" | "candidate";
+  hasCandidate: boolean;
   onFinish: () => void;
 }) {
   const [step, setStep] = useState(0);
-  const [targetTop, setTargetTop] = useState<number | null>(null);
+  const [targetRect, setTargetRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const tourRef = useRef<HTMLElement>(null);
   const steps = role === "employer" ? [
     { target: "demo-navigation", title: "Рабочие разделы", text: "Переключайтесь между подборкой, потребностями, банком профилей и приглашениями." },
-    { target: "active-need", title: "Потребность команды", text: "Здесь видны критерии и бюджет текущей роли. Нажмите карточку, чтобы открыть подбор." },
+    { target: "active-need", title: "Потребность команды", text: "Здесь видны критерии и бюджет текущей роли. После подсказки можно открыть подбор по этой потребности." },
     { target: "candidate-filters", title: "Быстрый поиск", text: "Ищите по имени и навыкам, включайте фильтр достижений ФСП и выбирайте вид списка." },
-    { target: "candidate-profile", title: "Профиль и оффер", text: "Проверьте объяснение совпадения, сравните навыки и отправьте демо-приглашение." },
+    ...(hasCandidate ? [{ target: "candidate-profile", title: "Профиль и оффер", text: "Проверьте объяснение совпадения, сравните навыки и отправьте демо-приглашение." }] : []),
   ] : [
     { target: "candidate-dashboard", title: "Ваш кабинет", text: "Здесь собраны статус профиля и приглашения, которым нужен ваш ответ." },
     { target: "fsp-tools", title: "Путь через ФСП", text: "В демо можно пройти олимпиаду по навыкам и передать диплом в локальную очередь проверки." },
@@ -4540,10 +4542,11 @@ function DemoTour({
     const update = () => {
       const target = document.querySelector<HTMLElement>(`[data-tour="${item.target}"]`);
       if (!target) {
-        setTargetTop(null);
+        setTargetRect(null);
         return;
       }
-      setTargetTop(target.getBoundingClientRect().top);
+      const rect = target.getBoundingClientRect();
+      setTargetRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
     };
     document.querySelector(`[data-tour="${item.target}"]`)?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
     measureTimer = window.setTimeout(update, 180);
@@ -4557,16 +4560,17 @@ function DemoTour({
   }, [item.target]);
 
   const isLastStep = step === steps.length - 1;
-  const cardAtBottom = targetTop !== null ? targetTop < window.innerHeight * 0.48 : true;
+  const cardAtBottom = targetRect !== null ? targetRect.top < window.innerHeight * 0.48 : true;
   return (
     <>
-      <div className="tour-shade tour-shade--full" />
+      <div className={`tour-shade tour-shade--full${targetRect ? " tour-shade--spotlight" : ""}`} />
+      {targetRect && <div className="tour-spotlight" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />}
       <section ref={tourRef} className={`demo-tour-card ${cardAtBottom ? "demo-tour-card--bottom" : "demo-tour-card--top"}`} role="dialog" aria-modal="true" aria-labelledby="demo-tour-title" tabIndex={-1}>
         <div className="guide-progress">{steps.map((_, index) => <i key={index} className={index <= step ? "active" : ""} />)}</div>
         <span>{role === "employer" ? "ДЕМО · КОМПАНИЯ" : "ДЕМО · КАНДИДАТ"} · {step + 1}/{steps.length}</span>
         <strong id="demo-tour-title">{item.title}</strong>
         <p>{item.text}</p>
-        <div className="guide-actions"><Button variant="ghost" onClick={onFinish}>Пропустить</Button><Button onClick={() => isLastStep ? onFinish() : setStep((current) => current + 1)}>{isLastStep ? "Начать работу" : "Далее"} <Icon name="chevron" /></Button></div>
+        <div className="guide-actions"><Button variant="ghost" onClick={onFinish}>Пропустить</Button><Button onClick={() => { if (isLastStep) onFinish(); else { setTargetRect(null); setStep((current) => current + 1); } }}>{isLastStep ? "Начать работу" : "Далее"} <Icon name="chevron" /></Button></div>
       </section>
     </>
   );
@@ -5876,7 +5880,7 @@ function App() {
           <button type="button" className="toast__close" aria-label="Закрыть уведомление" onClick={() => setNotice("")}><Icon name="close" size={15} /></button>
         </div>
       )}
-      {demoTourOpen && <DemoTour role={role} onFinish={() => { setDemoTourOpen(false); window.localStorage.setItem("fsp-demo-tour-complete", "true"); }} />}
+      {demoTourOpen && <DemoTour role={role} hasCandidate={filtered.length > 0} onFinish={() => { setDemoTourOpen(false); window.localStorage.setItem("fsp-demo-tour-complete", "true"); }} />}
     </div>
   );
 }

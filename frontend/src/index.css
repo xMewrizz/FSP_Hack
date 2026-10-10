@@ -5944,6 +5944,19 @@ button:disabled,
   inset: 0;
 }
 
+.tour-shade--spotlight {
+  background: transparent;
+}
+
+.tour-spotlight {
+  position: fixed;
+  z-index: 401;
+  pointer-events: none;
+  border: 2px solid #0ea5e9;
+  border-radius: 0.75rem;
+  box-shadow: 0 0 0 100vmax rgba(8, 15, 29, 0.68);
+}
+
 .demo-tour-card {
   position: fixed;
   z-index: 402;
