@@ -7,6 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.candidate_activity import CandidateActivity
+    from app.models.employer_task import EmployerTaskSubmission
     from app.models.fsp import FSPAchievement
     from app.models.invitation import Invitation
     from app.models.test import TestSession
@@ -66,6 +68,7 @@ class CandidateProfile(Base, TimestampMixin):
     visibility_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     mentor_available: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="candidate_profile")
     fsp_achievements: Mapped[list["FSPAchievement"]] = relationship(
@@ -90,4 +93,16 @@ class CandidateProfile(Base, TimestampMixin):
         back_populates="candidate",
         cascade="all, delete-orphan",
         order_by="desc(VacancyApplication.created_at)",
+    )
+    task_submissions: Mapped[list["EmployerTaskSubmission"]] = relationship(
+        "EmployerTaskSubmission",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+        order_by="desc(EmployerTaskSubmission.created_at)",
+    )
+    activities: Mapped[list["CandidateActivity"]] = relationship(
+        "CandidateActivity",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+        order_by="desc(CandidateActivity.created_at)",
     )

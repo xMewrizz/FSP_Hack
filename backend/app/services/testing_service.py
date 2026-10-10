@@ -4,6 +4,7 @@ import uuid
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 from app.core.catalog import (
     CatalogError,
     assert_no_substitution,
@@ -505,6 +506,11 @@ class TestingService:
     async def get_history(db: AsyncSession, user: User) -> list[TestSessionHistoryItem]:
         stmt = (
             select(TestSession)
+            .options(
+                defer(TestSession.questions_snapshot),
+                defer(TestSession.answers_data),
+                defer(TestSession.skill_breakdown),
+            )
             .where(TestSession.user_id == user.id)
             .order_by(TestSession.created_at.desc())
         )

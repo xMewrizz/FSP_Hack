@@ -87,6 +87,15 @@ class CandidateProfileUpdateRequest(BaseModel):
         return v
 
 
+class AdditionalSkillResultItem(BaseModel):
+    code: str
+    label: str
+    percentage: float
+    level_out_of_ten: float
+    target_grade: str
+    completed_at: datetime | None = None
+
+
 class CandidateProfileResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
@@ -119,7 +128,9 @@ class CandidateProfileResponse(BaseModel):
     mentor_available: bool = False
     agreed_osint: bool
     onboarding_completed: bool
+    last_active_at: datetime | None = None
 
     achievements: list[FSPAchievementSchema] = []
+    additional_skills: list[AdditionalSkillResultItem] = []
 
     model_config = {"from_attributes": True}

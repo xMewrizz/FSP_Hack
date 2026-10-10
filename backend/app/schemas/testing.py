@@ -190,3 +190,24 @@ class OpenQuestionReviewRequest(BaseModel):
     passed: bool
     notes: str | None = None
 
+
+class SupportedLanguageItem(BaseModel):
+    name: str
+    available: bool
+    reason: str | None = None
+
+
+class SpecializationTestingCatalogItem(BaseModel):
+    specialization: str
+    is_available: bool
+    languages: list[SupportedLanguageItem]
+    available_grades: list[str]
+    required_skills: list[dict[str, str]]
+    additional_skills: list[dict[str, str]]
+    note: str | None = None
+
+
+class TestingCatalogResponse(BaseModel):
+    specializations: list[SpecializationTestingCatalogItem]
+    supported_pairs: list[dict[str, str]]
+

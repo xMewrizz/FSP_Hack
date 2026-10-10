@@ -9,10 +9,12 @@ from app.models.fsp import FSPAchievement
 from app.models.test import GradeAssessment, TestSession
 from app.models.user import User
 from app.schemas.candidate import (
+    AdditionalSkillResultItem,
     CandidateOnboardingRequest,
     CandidateProfileResponse,
     CandidateProfileUpdateRequest,
 )
+from app.core.assessment_catalog import SKILL_LABELS
 from app.schemas.fsp import FSPAchievementSchema
 from app.services.fsp_service import fsp_service
 
@@ -125,8 +127,8 @@ class CandidateService:
         )
         res_reload = await db.execute(stmt_reload)
         fresh_profile = res_reload.scalar_one()
-
-        return CandidateService._build_response(fresh_profile, user.email)
+        extra_skills = await CandidateService._load_additional_skills(db, fresh_profile.id)
+        return CandidateService._build_response(fresh_profile, user.email, extra_skills)
 
     @staticmethod
     async def get_profile(db: AsyncSession, user: User) -> CandidateProfileResponse:
@@ -144,7 +146,8 @@ class CandidateService:
                 detail="Профиль кандидата не найден",
             )
 
-        return CandidateService._build_response(profile, user.email)
+        extra_skills = await CandidateService._load_additional_skills(db, profile.id)
+        return CandidateService._build_response(profile, user.email, extra_skills)
 
     @staticmethod
     async def update_profile(
@@ -213,7 +216,9 @@ class CandidateService:
             .options(selectinload(CandidateProfile.fsp_achievements))
             .where(CandidateProfile.id == profile.id)
         )
-        return CandidateService._build_response(refreshed.scalar_one(), user.email)
+        refreshed_prof = refreshed.scalar_one()
+        extra_skills = await CandidateService._load_additional_skills(db, refreshed_prof.id)
+        return CandidateService._build_response(refreshed_prof, user.email, extra_skills)
 
     @staticmethod
     async def link_fsp_id(
@@ -264,7 +269,9 @@ class CandidateService:
             .where(CandidateProfile.id == profile.id)
             .execution_options(populate_existing=True)
         )
-        return CandidateService._build_response(refreshed.scalar_one(), user.email)
+        refreshed_prof = refreshed.scalar_one()
+        extra_skills = await CandidateService._load_additional_skills(db, refreshed_prof.id)
+        return CandidateService._build_response(refreshed_prof, user.email, extra_skills)
 
     @staticmethod
     async def unlink_fsp_id(db: AsyncSession, user: User) -> CandidateProfileResponse:
@@ -280,10 +287,50 @@ class CandidateService:
             select(CandidateProfile).options(selectinload(CandidateProfile.fsp_achievements))
             .where(CandidateProfile.id == profile.id).execution_options(populate_existing=True)
         )
-        return CandidateService._build_response(refreshed.scalar_one(), user.email)
+        refreshed_prof = refreshed.scalar_one()
+        extra_skills = await CandidateService._load_additional_skills(db, refreshed_prof.id)
+        return CandidateService._build_response(refreshed_prof, user.email, extra_skills)
 
     @staticmethod
-    def _build_response(profile: CandidateProfile, email: str) -> CandidateProfileResponse:
+    async def _load_additional_skills(
+        db: AsyncSession, candidate_profile_id: uuid.UUID
+    ) -> list[AdditionalSkillResultItem]:
+        stmt = (
+            select(TestSession)
+            .where(
+                TestSession.candidate_profile_id == candidate_profile_id,
+                TestSession.assessment_id.is_(None),
+                TestSession.skill_code.is_not(None),
+                TestSession.status == "completed",
+            )
+            .order_by(TestSession.completed_at.desc(), TestSession.created_at.desc())
+        )
+        res = await db.execute(stmt)
+        sessions = res.scalars().all()
+        seen = set()
+        items: list[AdditionalSkillResultItem] = []
+        for s in sessions:
+            if s.skill_code and s.skill_code not in seen:
+                seen.add(s.skill_code)
+                label = SKILL_LABELS.get(s.skill_code, s.skill_code)
+                items.append(
+                    AdditionalSkillResultItem(
+                        code=s.skill_code,
+                        label=label,
+                        percentage=s.percentage,
+                        level_out_of_ten=round(s.percentage / 10, 1),
+                        target_grade=s.target_grade,
+                        completed_at=s.completed_at,
+                    )
+                )
+        return items
+
+    @staticmethod
+    def _build_response(
+        profile: CandidateProfile,
+        email: str,
+        additional_skills: list[AdditionalSkillResultItem] | None = None,
+    ) -> CandidateProfileResponse:
         return CandidateProfileResponse(
             id=profile.id,
             user_id=profile.user_id,
@@ -314,9 +361,11 @@ class CandidateService:
             mentor_available=profile.mentor_available,
             agreed_osint=profile.agreed_osint,
             onboarding_completed=profile.onboarding_completed,
+            last_active_at=profile.last_active_at,
             achievements=[
                 FSPAchievementSchema.model_validate(ach) for ach in profile.fsp_achievements
             ],
+            additional_skills=additional_skills or [],
         )
 
 

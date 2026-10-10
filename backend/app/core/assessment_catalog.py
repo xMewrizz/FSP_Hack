@@ -110,3 +110,113 @@ def validate_backend_question_mapping() -> None:
                 question = questions.get(code)
                 if question is None or question["specialization"] != "Backend" or question["grade"] != grade:
                     raise ValueError(f"Вопрос {code} не соответствует Backend {grade}")
+
+
+def get_testing_catalog() -> dict:
+    """Каталог поддерживаемых специализаций, языков и тестов (B-39)."""
+    return {
+        "specializations": [
+            {
+                "specialization": "Backend",
+                "is_available": True,
+                "languages": [
+                    {"name": "Python", "available": True, "reason": None},
+                    {"name": "Go", "available": False, "reason": "Банк заданий в разработке"},
+                    {"name": "Java", "available": False, "reason": "Банк заданий в разработке"},
+                    {"name": "C#", "available": False, "reason": "Банк заданий в разработке"},
+                    {"name": "Node.js", "available": False, "reason": "Банк заданий в разработке"},
+                ],
+                "available_grades": ["junior", "middle", "senior"],
+                "required_skills": [
+                    {"code": code, "label": label}
+                    for code, label in BACKEND_REQUIRED_SKILLS
+                ],
+                "additional_skills": [
+                    {"code": code, "label": label, "grade": grade}
+                    for code, label, grade in available_extra_skills("Backend")
+                ],
+                "note": "Базовый тест доступен на Python для грейдов junior, middle, senior. Дополнительный тест: Git Junior.",
+            },
+            {
+                "specialization": "Data Science / ML",
+                "is_available": True,
+                "languages": [
+                    {"name": "Python", "available": True, "reason": None},
+                    {"name": "R", "available": False, "reason": "Банк заданий в разработке"},
+                ],
+                "available_grades": ["junior", "middle", "senior"],
+                "required_skills": [
+                    {"code": code, "label": label}
+                    for code, label in DS_REQUIRED_SKILLS
+                ],
+                "additional_skills": [],
+                "note": "Базовый набор доступен на Python для Junior, Middle, Senior (Python, Pandas, SQL, статистика, A/B, ML).",
+            },
+            {
+                "specialization": "Frontend",
+                "is_available": False,
+                "languages": [
+                    {"name": "TypeScript", "available": False, "reason": "Банк заданий в разработке"},
+                    {"name": "JavaScript", "available": False, "reason": "Банк заданий в разработке"},
+                ],
+                "available_grades": [],
+                "required_skills": [],
+                "additional_skills": [],
+                "note": "Специализация Frontend в разработке",
+            },
+            {
+                "specialization": "Fullstack",
+                "is_available": False,
+                "languages": [
+                    {"name": "TypeScript / Python", "available": False, "reason": "Банк заданий в разработке"},
+                ],
+                "available_grades": [],
+                "required_skills": [],
+                "additional_skills": [],
+                "note": "Специализация Fullstack в разработке",
+            },
+            {
+                "specialization": "Mobile",
+                "is_available": False,
+                "languages": [
+                    {"name": "Kotlin", "available": False, "reason": "Банк заданий в разработке"},
+                    {"name": "Swift", "available": False, "reason": "Банк заданий в разработке"},
+                ],
+                "available_grades": [],
+                "required_skills": [],
+                "additional_skills": [],
+                "note": "Специализация Mobile в разработке",
+            },
+            {
+                "specialization": "DevOps",
+                "is_available": False,
+                "languages": [
+                    {"name": "Python / Bash", "available": False, "reason": "Банк заданий в разработке"},
+                ],
+                "available_grades": [],
+                "required_skills": [],
+                "additional_skills": [],
+                "note": "Специализация DevOps в разработке",
+            },
+            {
+                "specialization": "QA",
+                "is_available": False,
+                "languages": [
+                    {"name": "Python", "available": False, "reason": "Банк заданий в разработке"},
+                    {"name": "Java", "available": False, "reason": "Банк заданий в разработке"},
+                ],
+                "available_grades": [],
+                "required_skills": [],
+                "additional_skills": [],
+                "note": "Специализация QA в разработке",
+            },
+        ],
+        "supported_pairs": [
+            {"specialization": "Backend", "programming_language": "Python", "grade": "junior"},
+            {"specialization": "Backend", "programming_language": "Python", "grade": "middle"},
+            {"specialization": "Backend", "programming_language": "Python", "grade": "senior"},
+            {"specialization": "Data Science / ML", "programming_language": "Python", "grade": "junior"},
+            {"specialization": "Data Science / ML", "programming_language": "Python", "grade": "middle"},
+            {"specialization": "Data Science / ML", "programming_language": "Python", "grade": "senior"},
+        ],
+    }

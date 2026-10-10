@@ -10,12 +10,14 @@ from app.schemas.testing import (
     OpenQuestionReviewRequest,
     OpenQuestionSubmissionResponse,
     OpenQuestionSubmitRequest,
+    TestingCatalogResponse,
     TestResultResponse,
     TestSessionHistoryItem,
     TestStartRequest,
     TestStartResponse,
     TestSubmitRequest,
 )
+from app.core.assessment_catalog import get_testing_catalog
 from app.services.open_question_service import (
     get_candidate_submissions,
     get_pending_open_submissions,
@@ -34,6 +36,15 @@ from app.services.testing_service import testing_service
 
 router = APIRouter(prefix="/testing", tags=["Testing & Skill Verification"])
 
+
+
+@router.get(
+    "/catalog",
+    response_model=TestingCatalogResponse,
+    summary="Каталог поддерживаемых специализаций, языков и тестов (B-39)",
+)
+async def get_catalog():
+    return get_testing_catalog()
 
 
 @router.get("/additional", response_model=list[AdditionalSkillTestResponse])

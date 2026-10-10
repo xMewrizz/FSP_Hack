@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.employer_task import EmployerTask
     from app.models.invitation import Invitation
     from app.models.need import EmployerNeed
     from app.models.user import User
@@ -56,4 +57,10 @@ class EmployerProfile(Base, TimestampMixin):
         back_populates="employer",
         cascade="all, delete-orphan",
         order_by="desc(Vacancy.created_at)",
+    )
+    tasks: Mapped[list["EmployerTask"]] = relationship(
+        "EmployerTask",
+        back_populates="employer",
+        cascade="all, delete-orphan",
+        order_by="desc(EmployerTask.created_at)",
     )

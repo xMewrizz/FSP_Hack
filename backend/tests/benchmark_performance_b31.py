@@ -26,7 +26,24 @@ async def test_api_performance_and_memory_without_gpu_b31(client: AsyncClient):
     token = login_resp.json()["access_token"]
     emp_headers = {"Authorization": f"Bearer {token}"}
 
-    # 2. Симуляция 50 параллельных запросов к эндпоинтам поиска и подбора
+    # Авторизуемся под сидовым кандидатом для чтения истории тестов
+    cand_login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "alex@fsp.ru", "password": "Password123!"},
+    )
+    assert cand_login.status_code == 200
+    cand_token = cand_login.json()["access_token"]
+    cand_headers = {"Authorization": f"Bearer {cand_token}"}
+
+    # Получаем потребность работодателя
+    needs_resp = await client.get("/api/v1/needs", headers=emp_headers)
+    assert needs_resp.status_code == 200
+    needs = needs_resp.json()
+    need = next((item for item in needs if item["specialization"] == "Backend"), needs[0])
+    need_id = need["id"]
+
+    # 2. Симуляция 50 параллельных запросов к трем ключевым эндпоинтам B-31:
+    # «тест» (история), «поиск» (поиск кандидатов), «подбор» (подбор по потребности)
     concurrent_requests = 50
 
     async def fetch_matching_search():

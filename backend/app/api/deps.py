@@ -4,10 +4,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import defer, joinedload
 from app.core.constants import UserRole
 from app.core.database import get_db
 from app.core.security import decode_token
+from app.models.candidate import CandidateProfile
 from app.models.user import User
 
 security_scheme = HTTPBearer(auto_error=True)
@@ -46,7 +47,10 @@ async def get_current_user(
     stmt = (
         select(User)
         .options(
-            joinedload(User.candidate_profile),
+            joinedload(User.candidate_profile).options(
+                defer(CandidateProfile.resume_text),
+                defer(CandidateProfile.bio),
+            ),
             joinedload(User.employer_profile),
         )
         .where(User.id == user_id)

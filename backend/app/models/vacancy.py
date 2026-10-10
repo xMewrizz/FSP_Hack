@@ -9,6 +9,7 @@ from app.models.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from app.models.candidate import CandidateProfile
     from app.models.employer import EmployerProfile
+    from app.models.employer_task import EmployerTask
 
 
 class Vacancy(Base, TimestampMixin):
@@ -48,6 +49,10 @@ class Vacancy(Base, TimestampMixin):
         back_populates="vacancy",
         cascade="all, delete-orphan",
         order_by="desc(VacancyApplication.created_at)",
+    )
+    tasks: Mapped[list["EmployerTask"]] = relationship(
+        "EmployerTask",
+        back_populates="vacancy",
     )
 
 
