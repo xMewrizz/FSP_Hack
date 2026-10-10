@@ -23,7 +23,7 @@ def test_each_job_has_container_limits_and_no_host_mounts():
     assert limits["Memory"] <= 512 * 1024 * 1024
     assert limits["PidsLimit"] <= 16
     assert limits["CapDrop"] == ["ALL"]
-    assert set(limits["CapAdd"]) == {"SETUID", "SETGID"}
+    assert set(limits["CapAdd"]) == {"SETUID", "SETGID", "KILL"}
     assert "Binds" not in limits and "Mounts" not in spec
     assert all(not name.startswith(("DATABASE_URL=", "JWT_SECRET=", "OPENROUTER_API_KEY=")) for name in spec["Env"])
 

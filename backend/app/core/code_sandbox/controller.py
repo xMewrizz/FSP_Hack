@@ -48,7 +48,7 @@ def container_spec(data: SandboxExecutionRequest) -> dict:
             "NanoCpus": 1_000_000_000,
             "PidsLimit": 16,
             "CapDrop": ["ALL"],
-            "CapAdd": ["SETUID", "SETGID"],
+            "CapAdd": ["SETUID", "SETGID", "KILL"],
             "SecurityOpt": ["no-new-privileges"],
             "Tmpfs": {"/tmp": "rw,nosuid,nodev,size=64m"},
             "LogConfig": {"Type": "json-file", "Config": {"max-size": "128k", "max-file": "1"}},
