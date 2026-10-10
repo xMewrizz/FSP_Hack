@@ -165,6 +165,20 @@ async def start_roadmap_skill(
 
 
 @router.post(
+    "/roadmap/{assessment_id}/open-questions/{question_code}/retry",
+    response_model=GradeAssessmentResponse,
+)
+async def retry_roadmap_open_question(
+    assessment_id: uuid.UUID,
+    question_code: str,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    await _require_test_confidentiality_consent(db, current_user)
+    return await roadmap_service.retry_open_question(db, current_user, assessment_id, question_code)
+
+
+@router.post(
     "/start",
     response_model=TestStartResponse,
     status_code=status.HTTP_201_CREATED,

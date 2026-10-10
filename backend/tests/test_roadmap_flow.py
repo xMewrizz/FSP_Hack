@@ -6,7 +6,8 @@ from sqlalchemy import select
 
 from app.core.question_variants import prepared_variants
 from app.models.candidate import CandidateProfile
-from app.models.test import GradeAssessment
+from app.models.test import GradeAssessment, OpenQuestionSubmission, TestSession as AssessmentSession
+from app.services.roadmap_service import roadmap_service
 from conftest import TestingSessionLocal
 from open_assessment_helpers import finish_open_assessment
 
@@ -235,6 +236,59 @@ async def test_first_skill_retry_continues_same_roadmap(client: AsyncClient):
     assert complete["passed"] is True
     assert complete["retake_used"] is True
     assert [skill["percentage"] for skill in complete["skills"]] == [100.0] * 4
+
+
+@pytest.mark.asyncio
+async def test_failed_open_question_retries_only_that_question(client: AsyncClient):
+    headers = await candidate(client, "retry-open-only@example.com")
+    roadmap = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
+    assessment_id = roadmap["id"]
+    for skill_code in ("backend_python", "sql", "api", "reliability"):
+        await finish_skill(client, headers, assessment_id, skill_code, 10)
+    await finish_open_assessment(assessment_id, (1.0, 0.4))
+    failed = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert failed["status"] == "completed" and not failed["passed"]
+    failed_code = failed["open_questions"][1]["code"]
+
+    retry = await client.post(
+        f"/api/v1/testing/roadmap/{assessment_id}/open-questions/{failed_code}/retry",
+        headers=headers,
+    )
+    assert retry.status_code == 200, retry.text
+    current = retry.json()
+    assert current["status"] == "in_progress" and current["retake_used"]
+    assert current["open_questions"][0]["code"] == failed["open_questions"][0]["code"]
+    spare_code = current["open_questions"][1]["code"]
+    assert spare_code != failed_code
+    assert current["open_questions"][0]["score"] == 1.0
+    assert current["open_questions"][1]["status"] == "not_started"
+    assert [skill["percentage"] for skill in current["skills"]] == [100.0] * 4
+    second_retry = await client.post(
+        f"/api/v1/testing/roadmap/{assessment_id}/open-questions/{failed_code}/retry",
+        headers=headers,
+    )
+    assert second_retry.status_code == 409
+
+    async with TestingSessionLocal() as db:
+        assessment = await db.get(GradeAssessment, uuid.UUID(assessment_id))
+        profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
+        session = await db.scalar(select(AssessmentSession).where(
+            AssessmentSession.assessment_id == assessment.id,
+            AssessmentSession.status == "completed",
+        ))
+        db.add(OpenQuestionSubmission(
+            user_id=assessment.user_id, candidate_profile_id=profile.id,
+            assessment_id=assessment.id, question_code=spare_code,
+            question_type="free_text", answer_text="Новое решение",
+            score=0.8, passed=True, feedback="Проверено", criterion_scores={},
+            evaluator="manual_test", needs_manual_review=False,
+        ))
+        await db.flush()
+        await roadmap_service.finish_skill(db, session, profile)
+        await db.commit()
+    final = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert final["passed"] and final["grade_confirmed"]
+    assert final["open_questions"][1]["score"] == 0.8
 
 
 @pytest.mark.asyncio

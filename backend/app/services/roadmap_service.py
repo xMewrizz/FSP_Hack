@@ -230,6 +230,10 @@ class RoadmapService:
                         and item.percentage < previous_completed.scoring_policy["skill"] * 100), None)
                     if failed_code:
                         raise HTTPException(409, f"Пересдайте только навык «{SKILL_LABELS.get(failed_code, failed_code)}» в текущем наборе")
+                    failed_open_code = await RoadmapService.failed_open_question_code(db, previous_completed)
+                    if failed_open_code:
+                        question = get_open_question_by_code(failed_open_code)
+                        raise HTTPException(409, f"Пересдайте только задание «{question['title'] if question else failed_open_code}» в текущем наборе")
                 if previous_completed.retake_of_id is not None or retry_used:
                     available_at = (
                         previous_completed.completed_at + JUNIOR_RETRY_COOLDOWN
@@ -459,6 +463,64 @@ class RoadmapService:
                 else None
             ),
         )
+
+    @staticmethod
+    async def failed_open_question_code(db: AsyncSession, assessment: GradeAssessment) -> str | None:
+        codes = assessment.scoring_policy.get("open_codes", [])
+        if not codes:
+            return None
+        submissions = (await db.execute(select(OpenQuestionSubmission).where(
+            OpenQuestionSubmission.assessment_id == assessment.id,
+            OpenQuestionSubmission.question_code.in_(codes),
+            OpenQuestionSubmission.evaluation_status == "completed",
+        ))).scalars().all()
+        by_code = {item.question_code: item for item in submissions}
+        return next((code for code in codes if code in by_code
+                     and by_code[code].score < assessment.scoring_policy["skill"]), None)
+
+    @staticmethod
+    async def retry_open_question(
+        db: AsyncSession, user: User, assessment_id: uuid.UUID, question_code: str,
+    ) -> GradeAssessmentResponse:
+        assessment = await db.scalar(select(GradeAssessment).where(
+            GradeAssessment.id == assessment_id,
+            GradeAssessment.user_id == user.id,
+        ).with_for_update())
+        if assessment is None:
+            raise HTTPException(404, "Набор тестов не найден")
+        if assessment.status != "completed" or assessment.passed:
+            raise HTTPException(409, "Пересдача доступна только после неудачного завершения набора")
+        if datetime.now(timezone.utc) >= assessment_expires_at(assessment):
+            raise HTTPException(409, "Срок набора истёк")
+        if assessment.retake_of_id is not None or assessment.scoring_policy.get("skill_retry_used", False):
+            raise HTTPException(409, "Единственная пересдача уже использована")
+        current_codes = list(assessment.scoring_policy.get("open_codes", []))
+        if question_code not in current_codes or await RoadmapService.failed_open_question_code(db, assessment) != question_code:
+            raise HTTPException(409, "Это задание не требует пересдачи")
+        original_codes = GRADE_OPEN_CODES[assessment.specialization][assessment.target_grade]
+        spare_codes = GRADE_RETAKE_OPEN_CODES[assessment.specialization][assessment.target_grade]
+        if question_code not in original_codes:
+            raise HTTPException(409, "Запасное задание уже использовано")
+        spare_code = spare_codes[original_codes.index(question_code)]
+        if await db.scalar(select(OpenQuestionSubmission.id).where(
+            OpenQuestionSubmission.assessment_id == assessment.id,
+            OpenQuestionSubmission.question_code == spare_code,
+        )):
+            raise HTTPException(409, "Запасное задание уже отправлено")
+        current_codes[current_codes.index(question_code)] = spare_code
+        assessment.scoring_policy = {
+            **assessment.scoring_policy, "open_codes": current_codes, "skill_retry_used": True,
+        }
+        assessment.status = "in_progress"
+        assessment.completed_at = None
+        assessment.suggested_grade = None
+        assessment.score = 0
+        assessment.max_score = 0
+        assessment.percentage = 0
+        assessment.passed = False
+        await db.commit()
+        profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
+        return await RoadmapService.response(db, assessment, profile)
 
     @staticmethod
     async def start_skill(

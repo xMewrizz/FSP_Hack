@@ -17,6 +17,29 @@ from open_evaluator import (
 
 
 class OpenEvaluatorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_partial_credit_for_substantive_but_incomplete_answer(self):
+        criteria = ["Рабочий план", "Измеримый успех", "Безопасный запуск"]
+
+        def reply(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "score": 0.0, "passed": False,
+                "criteria_breakdown": [
+                    {"criterion": "1", "met": True, "credit": 1, "explanation": "План есть"},
+                    {"criterion": "2", "met": False, "credit": 0.5, "explanation": "Метрика задана, численный порог будет определён после baseline"},
+                    {"criterion": "3", "met": True, "credit": 1, "explanation": "Есть canary"},
+                ],
+                "general_feedback": "Нужно уточнить порог после сбора данных",
+            })}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            result = await evaluate_open_answer(
+                "OPEN-DS-WORK-SR-01", "free_text", "Вопрос", "Эталон", criteria,
+                "Сначала измерю baseline, затем зафиксирую минимальный эффект и запущу canary.", client,
+            )
+        self.assertEqual(result.criterion_scores[criteria[1]], 0.5)
+        self.assertEqual(result.score, 0.83)
+        self.assertTrue(result.passed)
+
     async def test_critical_criterion_caps_score_below_skill_minimum(self):
         criteria = ["Временное разделение", "Нет признаков из будущего", "Train-only preprocessing", "Проверка"]
 
