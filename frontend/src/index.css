@@ -82,14 +82,20 @@ button {
 .task-workspace__layout {
   display: grid;
   grid-template-columns: minmax(18rem, 0.9fr) minmax(22rem, 1.1fr);
-  align-items: start;
-  gap: 1rem;
+  align-items: stretch;
+  gap: 1.25rem;
 }
 
 .task-workspace__form,
 .task-workspace__candidate {
   display: grid;
   gap: 1rem;
+}
+
+.task-workspace__form > .field,
+.task-workspace__form > .field-row {
+  min-width: 0;
+  margin: 0;
 }
 
 .task-workspace__form .field textarea,
@@ -174,16 +180,31 @@ button {
   gap: 0.75rem;
   border: 1px solid var(--line);
   border-radius: 0.375rem;
-  background: var(--surface-raised);
+  background: #17181d;
   padding: 1rem;
 }
 
 .task-workspace__submission p {
   margin: 0;
-  color: var(--muted-light);
+  color: #ffffff;
   font-size: 0.75rem;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+.app-shell[data-theme="light"] .task-workspace .notice-box {
+  border-color: #50545d;
+  background: #343840;
+  color: #ffffff;
+}
+
+.app-shell[data-theme="light"] .task-workspace .notice-box * {
+  color: #ffffff;
+}
+
+.task-workspace__candidate-card .topic-summary,
+.task-workspace__candidate-card .notice-box {
+  margin: 0;
 }
 
 .task-workspace__invite {
@@ -14199,4 +14220,39 @@ select,
   .app-shell .employer-mentor-row__badge {
     grid-column: 2;
   }
+}
+
+.app-shell .profile-panel {
+  align-content: start;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.app-shell .profile-panel > .profile-panel__head,
+.app-shell .profile-panel > .profile-hero,
+.app-shell .profile-panel > .profile-contact-access,
+.app-shell .profile-panel > .profile-resume__meta,
+.app-shell .profile-panel > .profile-resume__section,
+.app-shell .profile-panel > .profile-resume__text,
+.app-shell .profile-panel > .grade-line,
+.app-shell .profile-panel > .panel-section,
+.app-shell .profile-panel > .explain-card,
+.app-shell .profile-panel > .profile-metrics {
+  width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+
+.app-shell .profile-panel > .profile-panel__head,
+.app-shell .profile-panel > .profile-hero,
+.app-shell .profile-panel > .profile-resume__meta,
+.app-shell .profile-panel > .profile-resume__section,
+.app-shell .profile-panel > .profile-resume__text,
+.app-shell .profile-panel > .panel-section {
+  padding-inline: 0;
+}
+
+.app-shell .profile-panel > .grade-line,
+.app-shell .profile-panel > .explain-card {
+  margin-inline: 0;
 }
