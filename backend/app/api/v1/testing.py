@@ -28,6 +28,7 @@ from app.core.code_sandbox.schemas import (
     SandboxExecutionRequest,
     SandboxExecutionResponse,
 )
+from app.services.code_sandbox_service import code_sandbox_service
 from app.services.roadmap_service import roadmap_service
 from app.services.testing_service import testing_service
 
@@ -275,19 +276,24 @@ async def get_test_session(
 @router.post(
     "/code-sandbox/execute",
     response_model=SandboxExecutionResponse,
-    summary="Запуск кода временно недоступен (B-25)",
+    summary="Проверить код в отдельном изолированном исполнителе (B-25)",
 )
 async def execute_code_sandbox(
     data: SandboxExecutionRequest,
     current_user: User = Depends(get_current_candidate),
 ):
-    raise HTTPException(status_code=503, detail="Запуск кода недоступен до подключения изолированного исполнителя")
+    try:
+        return await code_sandbox_service.execute(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
 
 
 @router.post(
     "/open-questions/{code}/test-run",
     response_model=SandboxExecutionResponse,
-    summary="Тестовый запуск кода временно недоступен (B-25)",
+    summary="Пробный запуск решения задачи с кодом (B-25)",
 )
 async def test_run_open_question_code(
     code: str,
@@ -297,6 +303,15 @@ async def test_run_open_question_code(
     q = get_open_question_by_code(code)
     if not q:
         raise HTTPException(status_code=404, detail="Открытый вопрос не найден")
-    raise HTTPException(status_code=503, detail="Запуск кода недоступен до подключения изолированного исполнителя")
+    try:
+        return await code_sandbox_service.evaluate_question_code(
+            question_code=code,
+            candidate_code=data.code,
+            timeout_seconds=data.timeout_seconds,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
 
 

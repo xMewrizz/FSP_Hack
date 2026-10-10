@@ -1,8 +1,4 @@
-"""Изолированный исполнитель кода с контролем времени и ресурсов (Task B-25).
-
-Запускает код кандидата в отдельном подпроцессе во временном каталоге
-с очищенным окружением и строгими лимитами времени выполнения (TLE) и вывода.
-"""
+"""Прототип проверки кода внутри отдельного контейнера (Task B-25)."""
 
 import json
 import os
@@ -235,6 +231,21 @@ def execute_in_sandbox(
         with open(runner_path, "w", encoding="utf-8") as f:
             f.write(RUNNER_SCRIPT_TEMPLATE)
 
+        process_options: dict[str, Any] = {}
+        if os.getenv("SANDBOX_CONTAINER_MODE") == "1":
+            # Родитель сохраняет результат, а код кандидата запускается с другим UID.
+            # У дочернего процесса нет доступа к сокету Docker и права менять тесты.
+            os.chmod(tmp_dir, 0o755)
+            for path in (sol_path, tests_path, runner_path):
+                os.chmod(path, 0o644)
+
+            def drop_privileges() -> None:
+                os.setgroups([])
+                os.setgid(65534)
+                os.setuid(65534)
+
+            process_options["preexec_fn"] = drop_privileges
+
         env = _get_isolated_env()
         start_time = time.perf_counter()
 
@@ -248,6 +259,7 @@ def execute_in_sandbox(
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                **process_options,
             )
             stdout_data, stderr_data = proc.communicate(timeout=timeout_seconds)
             elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
@@ -296,7 +308,9 @@ def execute_in_sandbox(
     clean_stderr = (stderr_data or "")[:MAX_OUTPUT_BYTES]
 
     report_payload: dict[str, Any] | None = None
-    for line in clean_stdout.splitlines():
+    # Решение может печатать строки с таким же префиксом. Итог раннера
+    # записывается после выполнения тестов, поэтому читаем вывод с конца.
+    for line in reversed(clean_stdout.splitlines()):
         if line.startswith("SANDBOX_RUNNER_SUCCESS:"):
             try:
                 report_payload = json.loads(line[len("SANDBOX_RUNNER_SUCCESS:"):])

@@ -244,15 +244,15 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 ---
 
-### 11. Открытые вопросы и прототип проверки кода (B-25, B-27) (`/api/v1/testing`)
+### 11. Открытые вопросы и проверка кода (B-25, B-27) (`/api/v1/testing`)
 
 | Метод | URL | Описание | Доступ | Тело / Параметры | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/testing/open-questions` | Список открытых вопросов с критериями, без эталонов и допустимых решений | Публичный | `specialization`, `grade` (опционально) | `200 OK`: `list[OpenQuestionResponse]` |
 | `GET` | `/testing/open-questions/{code}` | Просмотр открытого вопроса по коду | Публичный | — | `200 OK`: `OpenQuestionResponse` |
 | `POST` | `/testing/open-questions/{code}/submit` | Сдача ответа; код передаётся на оценку модели, но не исполняется в backend | `Bearer JWT` (Candidate) | `{ "answer_text": "..." }` | `201 Created`: `OpenQuestionSubmissionResponse` |
-| `POST` | `/testing/code-sandbox/execute` | Запуск отключён до подключения изолированного исполнителя | `Bearer JWT` (Candidate) | `{ "code": "...", "question_code": "...", "timeout_seconds": 3.0 }` | `503` |
-| `POST` | `/testing/open-questions/{code}/test-run` | Запуск отключён до подключения изолированного исполнителя | `Bearer JWT` (Candidate) | `{ "code": "...", "timeout_seconds": 3.0 }` | `503` |
+| `POST` | `/testing/code-sandbox/execute` | Запуск кода через отдельный Docker-исполнитель при включённом профиле `sandbox` | `Bearer JWT` (Candidate) | `{ "code": "...", "question_code": "...", "timeout_seconds": 3.0 }` | `200 OK`: результат тестов; `503`, если исполнитель недоступен |
+| `POST` | `/testing/open-questions/{code}/test-run` | Пробный запуск задания с кодом через отдельный исполнитель | `Bearer JWT` (Candidate) | `{ "code": "...", "timeout_seconds": 3.0 }` | `200 OK`: результат тестов; `503`, если исполнитель недоступен |
 | `GET` | `/testing/open-submissions` | История отправленных решений кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
 | `GET` | `/testing/open-submissions/pending-review` | Список решений, ожидающих проверки | `Bearer JWT` (Admin) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
 | `POST` | `/testing/open-submissions/{id}/review` | Ручная оценка решения | `Bearer JWT` (Admin) | `{ "score": 0.9, "passed": true, "notes": "..." }` | `200 OK`: `OpenQuestionSubmissionResponse` |

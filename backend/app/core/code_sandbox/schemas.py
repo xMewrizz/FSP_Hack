@@ -1,7 +1,7 @@
 """Схемы данных для безопасной песочницы проверки кода (Task B-25)."""
 
 from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TestCaseResult(BaseModel):
@@ -12,8 +12,9 @@ class TestCaseResult(BaseModel):
 
 
 class SandboxExecutionRequest(BaseModel):
-    code: str = Field(..., description="Исходный код кандидата для проверки")
-    question_code: str | None = Field(None, description="Код вопроса из банка, если применимо")
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(..., min_length=1, max_length=20000, description="Исходный код кандидата для проверки")
+    question_code: str | None = Field(None, description="Код задания с закрытыми тестами")
     timeout_seconds: float = Field(3.0, ge=0.5, le=10.0, description="Лимит времени выполнения в секундах")
 
 

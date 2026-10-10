@@ -35,7 +35,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-change-me}
       ML_SERVICE_URL: http://ml-service:8001
+      SANDBOX_SERVICE_URL: ${SANDBOX_SERVICE_URL:-}
       FSP_MOCK_MODE: "true"
+    networks:
+      - default
+      - sandbox-control
     ports:
       - "${BACKEND_PORT:-8000}:8000"
 
@@ -53,6 +57,34 @@ services:
     ports:
       - "${ML_PORT:-8001}:8001"
 
+  sandbox-runner:
+    profiles: ["sandbox"]
+    build: ./backend
+    image: fsp-sandbox-runner:local
+    command: ["true"]
+    restart: "no"
+    network_mode: none
+
+  sandbox-controller:
+    profiles: ["sandbox"]
+    image: fsp-sandbox-runner:local
+    command: ["uvicorn", "app.core.code_sandbox.controller:app", "--host", "0.0.0.0", "--port", "8002"]
+    restart: unless-stopped
+    depends_on:
+      sandbox-runner:
+        condition: service_completed_successfully
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - sandbox-control
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
   frontend:
     build:
       context: ./frontend
@@ -66,3 +98,7 @@ services:
 
 volumes:
   pgdata:
+
+networks:
+  sandbox-control:
+    internal: true

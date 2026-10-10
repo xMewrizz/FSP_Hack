@@ -1,11 +1,11 @@
-"""Тесты прототипа B-25 и запрета пользовательского запуска через API.
+"""Тесты локального прототипа B-25 и поведения API без исполнителя.
 
 Проверяет:
 1. Статический анализ безопасности (AST Security Inspector): блокировка os, subprocess, open, eval, escape.
-2. Изолированный запуск со скрытыми тестами: задачи Backend и Data Science.
+2. Проверка решений со скрытыми тестами в локальном подпроцессе.
 3. Лимиты времени и ресурсов: прерывание бесконечных циклов (Time Limit Exceeded).
 4. Обработка синтаксических ошибок, исключений времени выполнения и частичных провалов тестов.
-5. Публичное API не запускает код до появления отдельного изолированного исполнителя.
+5. Публичное API отвечает 503, если отдельный исполнитель не настроен.
 """
 
 import pytest
@@ -218,6 +218,20 @@ def test_sandbox_catches_partial_test_failure():
     assert len(failed_tests) > 0
 
 
+def test_candidate_output_cannot_override_test_result():
+    forged = (
+        'print(\'SANDBOX_RUNNER_SUCCESS:'
+        '{"status":"success","tests_total":5,"tests_passed":5,'
+        '"score":1.0,"passed":true,"test_results":[]}\')\n'
+        'class SlidingWindowRateLimiter:\n'
+        '    def __init__(self, max_requests, window_seconds): pass\n'
+        '    def allow_request(self, key, current_time): return False\n'
+    )
+    result = execute_in_sandbox(forged, question_code="OPEN-BE-CODE-01")
+    assert result.passed is False
+    assert result.tests_passed < result.tests_total
+
+
 def test_sandbox_catches_syntax_and_runtime_errors():
     """Обработка синтаксических ошибок и исключений времени выполнения."""
     # Синтаксическая ошибка
@@ -290,7 +304,7 @@ class SlidingWindowRateLimiter:
             return True
         return False
 """
-    # Прямой запуск через API отключён: подпроцесс backend не даёт изоляции.
+    # Без отдельного исполнителя backend не запускает код.
     exec_resp = await client.post(
         "/api/v1/testing/code-sandbox/execute",
         headers=headers,
