@@ -1,8 +1,6 @@
 """Оценка развернутых ответов и кода: Qwen3 / Ollama с детерминированным fallback (B-27).
 
-Политика хакатона (docs/05-backlog.md):
-Если LLM недоступна или ответ спорный, выставляется эвристическая оценка,
-но результат помечается needs_manual_review = True, требуя подтверждения экспертом.
+Если LLM недоступна, эвристический результат требует проверки человеком.
 """
 
 import ast
@@ -311,7 +309,7 @@ async def evaluate_open_answer(
 
     should_close_client = False
     if client is None:
-        client = httpx.AsyncClient(timeout=80.0)
+        client = httpx.AsyncClient(timeout=120.0)
         should_close_client = True
 
     try:
@@ -361,7 +359,7 @@ async def evaluate_open_answer(
             feedback=feedback_text,
             criterion_scores=crit_scores,
             evaluator="llm_openrouter_qwen3_14b" if provider_name() == "openrouter" else "llm_qwen3",
-            needs_manual_review=(0.60 <= clamped_score <= 0.75) or has_injection_attempt,
+            needs_manual_review=has_injection_attempt,
         )
 
     except (httpx.HTTPError, KeyError, ValueError, ValidationError):

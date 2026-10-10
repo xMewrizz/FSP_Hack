@@ -1,8 +1,8 @@
 import ast
-from datetime import datetime, timezone
 import re
 from typing import Any
 import uuid
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import HTTPException
@@ -127,6 +127,32 @@ def _local_fallback_eval(
     }
 
 
+async def _evaluate_with_ml(
+    question: dict[str, Any], answer_text: str, client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    payload = {
+        "question_code": question["code"],
+        "question_type": question["question_type"],
+        "question_text": question["question_text"],
+        "reference_solution": question["reference_solution"],
+        "rubric_criteria": question["rubric_criteria"],
+        "candidate_answer": answer_text,
+    }
+    own_client = client is None
+    if client is None:
+        client = httpx.AsyncClient(timeout=135.0)
+    try:
+        response = await client.post(f"{settings.ML_SERVICE_URL.rstrip('/')}/evaluate-open-answer", json=payload)
+        if response.status_code == 200:
+            return response.json()
+        return _local_fallback_eval(question, answer_text)
+    except (httpx.HTTPError, ValueError):
+        return _local_fallback_eval(question, answer_text)
+    finally:
+        if own_client:
+            await client.aclose()
+
+
 async def submit_open_question_answer(
     db: AsyncSession,
     user: User,
@@ -160,38 +186,13 @@ async def submit_open_question_answer(
         if existing:
             raise HTTPException(409, "Ответ на это задание уже отправлен")
 
-    ml_url = f"{settings.ML_SERVICE_URL.rstrip('/')}/evaluate-open-answer"
-    payload = {
-        "question_code": question["code"],
-        "question_type": question["question_type"],
-        "question_text": question["question_text"],
-        "reference_solution": question["reference_solution"],
-        "rubric_criteria": question["rubric_criteria"],
-        "candidate_answer": answer_text,
-    }
+    eval_result = await _evaluate_with_ml(question, answer_text, client)
 
-    eval_result: dict[str, Any]
-    should_close_client = False
-    if client is None:
-        client = httpx.AsyncClient(timeout=90.0)
-        should_close_client = True
-
-    try:
-        response = await client.post(ml_url, json=payload)
-        if response.status_code == 200:
-            eval_result = response.json()
-        else:
-            eval_result = _local_fallback_eval(question, answer_text)
-    except (httpx.HTTPError, httpx.RequestError):
-        eval_result = _local_fallback_eval(question, answer_text)
-    finally:
-        if should_close_client:
-            await client.aclose()
-
-    # В подготовленном бенчмарке модель пропускала зачётные частичные ответы.
-    # Отрицательное решение по обязательному открытому заданию требует проверки человеком.
-    if assessment_id is not None and float(eval_result.get("score", 0.0)) < 0.75:
-        eval_result["needs_manual_review"] = True
+    if assessment_id is not None and eval_result.get("evaluator") == "fallback_heuristic":
+        raise HTTPException(
+            503,
+            "Проверка ответа сейчас недоступна. Ответ не отправлен; сохраните его текст и попробуйте позже.",
+        )
 
     if assessment_id is not None:
         assessment = await db.scalar(select(GradeAssessment).where(
@@ -265,6 +266,52 @@ async def get_open_submission_by_id(
         select(OpenQuestionSubmission).where(OpenQuestionSubmission.id == submission_id)
     )
     return result.scalar_one_or_none()
+
+
+async def retry_open_submission_evaluation(
+    db: AsyncSession, user: User, submission_id: uuid.UUID,
+    client: httpx.AsyncClient | None = None,
+) -> OpenQuestionSubmission:
+    submission = await db.scalar(select(OpenQuestionSubmission).where(
+        OpenQuestionSubmission.id == submission_id,
+        OpenQuestionSubmission.user_id == user.id,
+    ))
+    if submission is None:
+        raise HTTPException(404, "Ответ не найден")
+    if not submission.needs_manual_review or submission.assessment_id is None:
+        raise HTTPException(409, "Этот ответ не ожидает повторной проверки")
+    assessment = await db.get(GradeAssessment, submission.assessment_id)
+    from app.services.roadmap_service import assessment_is_expired, roadmap_service
+    if assessment is None or assessment.status not in ("in_progress", "pending_review") or assessment_is_expired(assessment):
+        raise HTTPException(409, "Набор уже завершён или срок истёк")
+    question = get_open_question_by_code(submission.question_code)
+    if question is None:
+        raise HTTPException(404, "Задание больше не найдено")
+    result = await _evaluate_with_ml(question, submission.answer_text, client)
+    if result.get("needs_manual_review") or result.get("evaluator") == "fallback_heuristic":
+        raise HTTPException(503, "Автоматическая проверка пока недоступна. Попробуйте позже.")
+
+    submission = await db.scalar(select(OpenQuestionSubmission).where(
+        OpenQuestionSubmission.id == submission_id,
+        OpenQuestionSubmission.user_id == user.id,
+    ).with_for_update())
+    if submission is None or not submission.needs_manual_review:
+        raise HTTPException(409, "Ответ уже проверен")
+    submission.score = result["score"]
+    submission.passed = result["passed"]
+    submission.feedback = result["feedback"]
+    submission.criterion_scores = result["criterion_scores"]
+    submission.evaluator = result["evaluator"]
+    submission.needs_manual_review = False
+    profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
+    sessions = (await db.execute(select(TestSession).where(
+        TestSession.assessment_id == assessment.id, TestSession.status == "completed",
+    ).order_by(TestSession.created_at.desc()))).scalars().all()
+    if profile and {item.skill_code for item in sessions} >= set(assessment.required_skills):
+        await roadmap_service.finish_skill(db, sessions[0], profile)
+    await db.commit()
+    await db.refresh(submission)
+    return submission
 
 
 async def review_open_submission(

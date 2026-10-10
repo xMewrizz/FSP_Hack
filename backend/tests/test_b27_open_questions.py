@@ -170,8 +170,8 @@ async def test_submit_open_architecture_answer(client: AsyncClient):
     assert body["question_code"] == "OPEN-BE-ARCH-01"
     assert body["score"] >= 0.70
     assert body["passed"] is True
-    assert body["evaluator"] in ("llm_qwen3", "fallback_heuristic")
-    assert body["needs_manual_review"] is True or body["evaluator"] == "llm_qwen3"
+    assert body["evaluator"] in ("llm_qwen3", "llm_openrouter_qwen3_14b", "fallback_heuristic")
+    assert body["needs_manual_review"] is True or body["evaluator"] in ("llm_qwen3", "llm_openrouter_qwen3_14b")
     assert len(body["criterion_scores"]) >= 3
 
     # Проверяем историю отправок
@@ -407,13 +407,8 @@ async def test_assigned_open_answers_gate_grade_and_reject_reuse(client: AsyncCl
 
 
 @pytest.mark.asyncio
-async def test_low_model_score_waits_for_manual_review_before_grade(client: AsyncClient, monkeypatch):
+async def test_low_model_score_finishes_grade_without_manual_queue(client: AsyncClient, monkeypatch):
     from app.services import open_question_service
-    from app.core.constants import UserRole
-    from app.models.user import User
-    from sqlalchemy import select
-    from conftest import TestingSessionLocal
-
     class FakeMLClient:
         async def post(self, _url, json):
             low = json["question_code"].endswith("ARCH-JR-01")
@@ -442,22 +437,87 @@ async def test_low_model_score_waits_for_manual_review_before_grade(client: Asyn
         )
         assert response.status_code == 201, response.text
         submissions.append(response.json())
-    assert submissions[0]["needs_manual_review"] is True
-    pending = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
-    assert pending["status"] == "pending_review"
-    assert pending["verified_grade"] is None
-
-    reviewer_headers = await open_test_candidate_headers(client, "grade-reviewer@example.com")
-    async with TestingSessionLocal() as db:
-        reviewer = await db.scalar(select(User).where(User.email == "grade-reviewer@example.com"))
-        reviewer.role = UserRole.ADMIN
-        await db.commit()
-    reviewed = await client.post(
-        f"/api/v1/testing/open-submissions/{submissions[0]['id']}/review", headers=reviewer_headers,
-        json={"score": 1.0, "passed": True, "notes": "Проверено вручную"},
-    )
-    assert reviewed.status_code == 200, reviewed.text
+    assert submissions[0]["needs_manual_review"] is False
     complete = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
     assert complete["status"] == "completed"
-    assert complete["verified_grade"] == "junior"
+    assert complete["verified_grade"] is None
+    assert complete["passed"] is False
+
+
+@pytest.mark.asyncio
+async def test_unavailable_evaluator_does_not_lock_assessment_answer(client: AsyncClient, monkeypatch):
+    from app.services import open_question_service
+
+    class FakeMLClient:
+        async def post(self, *_args, **_kwargs):
+            return httpx.Response(503)
+
+        async def aclose(self):
+            pass
+
+    monkeypatch.setattr(open_question_service.httpx, "AsyncClient", lambda **_kwargs: FakeMLClient())
+    headers = await open_test_candidate_headers(client, "retry-open@example.com")
+    created = (await client.post("/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"})).json()
+    assessment_id = created["id"]
+    code = created["open_questions"][0]["code"]
+    for _ in range(2):
+        response = await client.post(
+            f"/api/v1/testing/open-questions/{code}/submit", headers=headers,
+            json={"assessment_id": assessment_id, "answer_text": "Описание технического решения"},
+        )
+        assert response.status_code == 503
+    roadmap = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert roadmap["open_questions"][0]["status"] == "not_started"
+
+
+@pytest.mark.asyncio
+async def test_candidate_can_recheck_legacy_pending_answer(client: AsyncClient, monkeypatch):
+    from app.services import open_question_service
+
+    class FakeMLClient:
+        pending = True
+
+        async def post(self, *_args, **_kwargs):
+            return httpx.Response(200, json={
+                "score": 0.75 if self.pending else 1.0,
+                "passed": True,
+                "feedback": "Проверено",
+                "criterion_scores": {},
+                "evaluator": "llm_test",
+                "needs_manual_review": self.pending,
+            })
+
+        async def aclose(self):
+            pass
+
+    fake = FakeMLClient()
+    monkeypatch.setattr(open_question_service.httpx, "AsyncClient", lambda **_kwargs: fake)
+    headers = await open_test_candidate_headers(client, "recheck-open@example.com")
+    created = (await client.post("/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"})).json()
+    assessment_id = created["id"]
+    await complete_choices(client, headers, assessment_id, created["skills"])
+    saved = []
+    for item in created["open_questions"]:
+        response = await client.post(
+            f"/api/v1/testing/open-questions/{item['code']}/submit", headers=headers,
+            json={"assessment_id": assessment_id, "answer_text": "Описание технического решения"},
+        )
+        assert response.status_code == 201
+        saved.append(response.json())
+    assert (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()["status"] == "pending_review"
+    stranger = await open_test_candidate_headers(client, "other-recheck@example.com")
+    denied = await client.post(
+        f"/api/v1/testing/open-submissions/{saved[0]['id']}/retry-evaluation", headers=stranger,
+    )
+    assert denied.status_code == 404
+    fake.pending = False
+    for item in saved:
+        response = await client.post(
+            f"/api/v1/testing/open-submissions/{item['id']}/retry-evaluation", headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["needs_manual_review"] is False
+    roadmap = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert roadmap["status"] == "completed"
+    assert roadmap["verified_grade"] == "junior"
 

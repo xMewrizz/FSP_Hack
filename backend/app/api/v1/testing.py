@@ -23,6 +23,7 @@ from app.services.open_question_service import (
     get_pending_open_submissions,
     get_public_open_questions,
     review_open_submission,
+    retry_open_submission_evaluation,
     submit_open_question_answer,
 )
 from app.core.open_question_bank import get_open_question_by_code
@@ -245,6 +246,19 @@ async def list_pending_open_submissions(
     db: AsyncSession = Depends(get_db),
 ):
     return await get_pending_open_submissions(db)
+
+
+@router.post(
+    "/open-submissions/{submission_id}/retry-evaluation",
+    response_model=OpenQuestionSubmissionResponse,
+    summary="Повторить автоматическую проверку сохранённого ответа",
+)
+async def retry_open_submission(
+    submission_id: uuid.UUID,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await retry_open_submission_evaluation(db, current_user, submission_id)
 
 
 @router.post(

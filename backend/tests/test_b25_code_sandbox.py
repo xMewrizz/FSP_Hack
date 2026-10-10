@@ -332,6 +332,6 @@ class SlidingWindowRateLimiter:
     )
     assert submit_resp.status_code == 201
     submit_data = submit_resp.json()
-    assert submit_data["evaluator"] == "fallback_heuristic"
-    assert submit_data["needs_manual_review"] is True
+    assert submit_data["evaluator"] in ("fallback_heuristic", "llm_qwen3", "llm_openrouter_qwen3_14b")
+    assert submit_data["needs_manual_review"] is (submit_data["evaluator"] == "fallback_heuristic")
     assert "Скрытые тесты пройдены" not in submit_data["feedback"]

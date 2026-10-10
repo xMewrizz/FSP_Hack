@@ -3432,8 +3432,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             </div>
             {roadmap ? <>
               <div className="assessment-roadmap__meta">
-                <span><Icon name="school" size={15} /> {roadmap.skills.length} обязательных компетенции</span>
-                <span><Icon name="clock" size={15} /> Доступен 3 дня</span>
+                <span><Icon name="school" size={15} /> {roadmap.skills.length} {roadmap.skills.length % 10 === 1 && roadmap.skills.length % 100 !== 11 ? "обязательная компетенция" : roadmap.skills.length % 10 >= 2 && roadmap.skills.length % 10 <= 4 && (roadmap.skills.length % 100 < 12 || roadmap.skills.length % 100 > 14) ? "обязательные компетенции" : "обязательных компетенций"}</span>
+                {roadmap.status === "in_progress" || roadmap.status === "pending_review" ? <span><Icon name="clock" size={15} /> Набор доступен 3 дня с открытия</span> : null}
                 {roadmap.expires_at && roadmap.status === "in_progress" && <span className="assessment-roadmap__deadline">До {new Date(roadmap.expires_at).toLocaleDateString("ru-RU")}</span>}
               </div>
               <div className="skill-roadmap" aria-label="Этапы подтверждения грейда">

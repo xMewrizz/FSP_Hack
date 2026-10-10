@@ -76,10 +76,33 @@ class OpenEvaluatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.evaluator, "llm_qwen3")
         self.assertAlmostEqual(result.score, 0.67, places=2)
         self.assertFalse(result.passed)
-        self.assertTrue(result.needs_manual_review)
+        self.assertFalse(result.needs_manual_review)
         self.assertIn("Отличный", result.feedback)
         self.assertEqual(result.criterion_scores[criteria[0]], 1.0)
         self.assertEqual(result.criterion_scores[criteria[2]], 0.0)
+
+    async def test_valid_75_percent_result_is_not_sent_to_manual_review(self):
+        criteria = [f"Критерий {index}" for index in range(4)]
+
+        def reply(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "score": 0.75, "passed": True,
+                "criteria_breakdown": [
+                    {"criterion": criterion, "met": index < 3, "explanation": "Проверено"}
+                    for index, criterion in enumerate(criteria)
+                ],
+                "general_feedback": "Три критерия из четырёх выполнены.",
+            })}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            result = await evaluate_open_answer(
+                question_code="OPEN-DS-ARCH-01", question_type="free_text",
+                question_text="Опишите решение", reference_solution="Эталон",
+                rubric_criteria=criteria, candidate_answer="Техническое решение кандидата",
+                client=client,
+            )
+        self.assertEqual(result.score, 0.75)
+        self.assertFalse(result.needs_manual_review)
 
     async def test_llm_failure_triggers_deterministic_fallback(self):
         criteria = [

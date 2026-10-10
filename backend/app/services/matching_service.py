@@ -1,6 +1,7 @@
 """Выдача кандидатов работодателю по подтверждённой категории."""
 
 import uuid
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, func, or_, select
