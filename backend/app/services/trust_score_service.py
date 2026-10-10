@@ -1,8 +1,13 @@
 from datetime import datetime, timezone
+from typing import Any
 from app.models.candidate import CandidateProfile
 from app.services.resume_sanity import resume_warnings
 
-def calculate_trust_score(candidate: CandidateProfile) -> tuple[float, list[dict]]:
+def calculate_trust_score(
+    candidate: CandidateProfile,
+    for_employer: bool = False,
+    external_audit: Any | None = None,
+) -> tuple[float, list[dict]]:
     """Returns (score, flags) where score is 0.0-1.0 and flags explain the score."""
     score = 0.0
     flags = []
@@ -119,5 +124,24 @@ def calculate_trust_score(candidate: CandidateProfile) -> tuple[float, list[dict
             "detail": "Профиль заполнен частично или давно не обновлялся"
         })
     score += profile_score
+
+    # 5. External experience verification signal (только для работодателя)
+    if for_employer and external_audit is not None:
+        status_val = getattr(external_audit, "status", None)
+        status_str = status_val.value if hasattr(status_val, "value") else str(status_val)
+        if status_str == "возможно крутит опыт" or getattr(external_audit, "is_flagged_for_inflation", False):
+            flags.append({
+                "label": "Внешний опыт",
+                "status": "warning",
+                "detail": "Возможно крутит опыт: заявленный стаж расходится с внешними источниками",
+            })
+            score = max(0.0, score - 0.15)
+        elif status_str == "расхождений не найдено" and getattr(external_audit, "verified_formal_experience_months", 0) > 0:
+            flags.append({
+                "label": "Внешний опыт",
+                "status": "verified",
+                "detail": "Опыт подтверждён на внешних площадках (Хабр Карьера / Careerist)",
+            })
+            score = min(1.0, score + 0.05)
 
     return round(score, 2), flags

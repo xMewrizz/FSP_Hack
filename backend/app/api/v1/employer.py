@@ -21,6 +21,8 @@ from app.schemas.employer import (
 )
 from app.services.employer_service import employer_service
 from app.services.employer_workspace_service import employer_workspace_service
+from app.services.parsers.schemas import ExperienceVerificationAudit
+from app.services.experience_audit_service import experience_audit_service
 
 router = APIRouter(tags=["Employer"])
 
@@ -189,3 +191,57 @@ async def cancel_team_invitation(
     db: AsyncSession = Depends(get_db),
 ):
     return await employer_workspace_service.cancel_team_invitation(db, current_user, invitation_id)
+
+
+@router.get(
+    "/candidates/{candidate_id}/experience-audit",
+    response_model=ExperienceVerificationAudit,
+    summary="Аудит опыта кандидата и сравнение с внешними площадками (Хабр Карьера, Careerist, Профи.ру)",
+)
+async def get_candidate_experience_audit(
+    candidate_id: uuid.UUID,
+    current_user: User = Depends(get_current_employer),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.scalar(
+        select(CandidateProfile).where(CandidateProfile.id == candidate_id)
+    )
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Кандидат не найден")
+
+    # Доступ разрешён, если профиль публичен или есть связь с компанией работодателя
+    is_public = profile.agreed_publication and profile.visibility_public
+    if not is_public:
+        employer = await db.scalar(
+            select(EmployerProfile).where(EmployerProfile.user_id == current_user.id)
+        )
+        has_interaction = False
+        if employer:
+            employer_ids = [employer.id]
+            if employer.organization_id:
+                org_emps = (await db.scalars(
+                    select(EmployerProfile.id).where(EmployerProfile.organization_id == employer.organization_id)
+                )).all()
+                employer_ids = list(org_emps)
+
+            has_app = await db.scalar(
+                select(VacancyApplication.id)
+                .join(Vacancy, Vacancy.id == VacancyApplication.vacancy_id)
+                .where(
+                    VacancyApplication.candidate_id == candidate_id,
+                    Vacancy.employer_id.in_(employer_ids),
+                )
+            )
+            has_inv = await db.scalar(
+                select(Invitation.id).where(
+                    Invitation.candidate_id == candidate_id,
+                    Invitation.employer_id.in_(employer_ids),
+                )
+            )
+            has_interaction = bool(has_app or has_inv)
+
+        if not has_interaction:
+            raise HTTPException(status_code=404, detail="Кандидат не найден")
+
+    return experience_audit_service.audit_candidate(profile)
+
