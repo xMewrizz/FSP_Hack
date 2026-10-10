@@ -79,6 +79,39 @@ class OpenRouterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.criterion_scores[criterion], 1.0)
         self.assertFalse(result.needs_manual_review)
 
+    async def test_reasoning_switch_and_usage_metrics(self):
+        criterion = "Названа проверка входных данных"
+        requests = []
+
+        def reply(request: httpx.Request) -> httpx.Response:
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json={
+                "id": "gen-test", "model": "qwen/qwen3-14b",
+                "usage": {"prompt_tokens": 100, "completion_tokens": 30,
+                          "completion_tokens_details": {"reasoning_tokens": 10}},
+                "choices": [{"message": {"content": json.dumps({
+                    "score": 1.0, "passed": True,
+                    "criteria_breakdown": [{"criterion": criterion, "met": True, "explanation": "Есть"}],
+                    "general_feedback": "Проверка указана.",
+                })}}],
+            })
+
+        with patch.dict(os.environ, {"LLM_PROVIDER": "openrouter", "OPENROUTER_API_KEY": "test-key"}):
+            async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+                for enabled in (True, False):
+                    metrics = {}
+                    result = await evaluate_open_answer(
+                        "OPEN-BE-01", "free_text", "Вопрос", "Эталон", [criterion],
+                        "Ответ кандидата", client, reasoning_enabled=enabled, metrics=metrics,
+                    )
+                    self.assertEqual(result.score, 1.0)
+                    self.assertEqual(metrics["generation_id"], "gen-test")
+                    self.assertEqual(metrics["prompt_tokens"], 100)
+                    self.assertEqual(metrics["reasoning_tokens"], 10)
+                    self.assertGreaterEqual(metrics["request_ms"], 0)
+        self.assertEqual([payload["reasoning"] for payload in requests],
+                         [{"enabled": True}, {"enabled": False}])
+
     async def test_openrouter_http_failure_requires_review(self):
         with patch.dict(os.environ, {"LLM_PROVIDER": "openrouter", "OPENROUTER_API_KEY": "test-key"}):
             async with httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(429))) as client:

@@ -192,6 +192,7 @@ class OpenQuestionSubmissionResponse(BaseModel):
     criterion_scores: dict[str, Any]
     evaluator: str
     needs_manual_review: bool
+    evaluation_status: str
     created_at: datetime
     manual_reviewer_notes: str | None = None
     reviewed_at: datetime | None = None

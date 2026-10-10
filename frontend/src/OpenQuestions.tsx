@@ -16,11 +16,13 @@ type Submission = {
   id: string;
   question_code: string;
   assessment_id: string | null;
+  answer_text: string;
   score: number;
   feedback: string;
   criterion_scores: Record<string, number>;
   evaluator: string;
   needs_manual_review: boolean;
+  evaluation_status: "queued" | "evaluating" | "completed" | "failed" | "manual_review";
   reviewed_at: string | null;
   manual_reviewer_notes: string | null;
   created_at: string;
@@ -62,6 +64,21 @@ export default function OpenQuestions({ specialization, grade, assessmentId, ass
   }, [sending, retrying]);
 
   useEffect(() => {
+    if (!submissions.some((item) => item.assessment_id === assessmentId && ["queued", "evaluating"].includes(item.evaluation_status))) return;
+    const timer = window.setInterval(() => {
+      void apiGet<Submission[]>("/testing/open-submissions").then((updated) => {
+        setSubmissions(updated);
+        if (updated.some((item) => item.assessment_id === assessmentId &&
+          ["completed", "failed", "manual_review"].includes(item.evaluation_status) &&
+          submissions.some((previous) => previous.id === item.id && ["queued", "evaluating"].includes(previous.evaluation_status)))) {
+          onSaved();
+        }
+      }).catch(() => undefined);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [assessmentId, submissions]);
+
+  useEffect(() => {
     if (!specialization || !grade) return;
     let cancelled = false;
     setLoading(true);
@@ -76,7 +93,8 @@ export default function OpenQuestions({ specialization, grade, assessmentId, ass
       const assigned = available.filter((item) => assignedCodes.includes(item.code));
       setQuestions(assigned);
       setSubmissions(history);
-      setSelectedCode(assigned[0]?.code ?? null);
+      setSelectedCode(assigned.find((item) => !history.some((entry) =>
+        entry.assessment_id === assessmentId && entry.question_code === item.code))?.code ?? null);
     }).catch((error: unknown) => {
       if (!cancelled) onNotify(error instanceof Error ? error.message : "Не удалось загрузить задания", "error");
     }).finally(() => { if (!cancelled) setLoading(false); });
@@ -84,7 +102,6 @@ export default function OpenQuestions({ specialization, grade, assessmentId, ass
   }, [specialization, grade, assessmentId, assignedCodes.join("|")]);
 
   const selected = questions.find((item) => item.code === selectedCode);
-  const latest = submissions.find((item) => item.question_code === selectedCode && item.assessment_id === assessmentId);
 
   const refreshResult = async () => {
     try {
@@ -100,10 +117,15 @@ export default function OpenQuestions({ specialization, grade, assessmentId, ass
     setWaitSeconds(0);
     setSending(true);
     try {
-      const saved = await apiPost<Submission>(`/testing/open-questions/${encodeURIComponent(selected.code)}/submit`, { answer_text: answer.trim(), assessment_id: assessmentId });
+      const saved = await apiPost<Submission>(`/testing/open-questions/${encodeURIComponent(selected.code)}/queue`, { answer_text: answer.trim(), assessment_id: assessmentId });
       setSubmissions((current) => [saved, ...current]);
+      setAnswer("");
+      setRunResult(null);
+      const next = questions.find((item) => item.code !== selected.code &&
+        !submissions.some((existing) => existing.assessment_id === assessmentId && existing.question_code === item.code));
+      setSelectedCode(next?.code ?? null);
       onSaved();
-      onNotify("Ответ сохранён. Оценка показана ниже.");
+      onNotify("Ответ сохранён и проверяется. Можно перейти к следующему заданию.");
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось отправить ответ", "error");
     } finally {
@@ -130,10 +152,10 @@ export default function OpenQuestions({ specialization, grade, assessmentId, ass
     setRetrying(true);
     setWaitSeconds(0);
     try {
-      const checked = await apiPost<Submission>(`/testing/open-submissions/${submission.id}/retry-evaluation`, {});
+      const checked = await apiPost<Submission>(`/testing/open-submissions/${submission.id}/queue-retry`, {});
       setSubmissions((current) => current.map((item) => item.id === checked.id ? checked : item));
       onSaved();
-      onNotify("Ответ проверен повторно.");
+      onNotify(checked.evaluation_status === "queued" ? "Ответ снова поставлен на проверку." : "Ответ проверен повторно.");
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Повторная проверка недоступна", "error");
     } finally {
@@ -146,23 +168,39 @@ export default function OpenQuestions({ specialization, grade, assessmentId, ass
 
   return <section className="feature-card open-questions">
     <div className="feature-head"><div><span>РАЗВЁРНУТЫЕ ЗАДАНИЯ</span><strong>{specialization} · {grade}</strong></div></div>
-    <p className="feature-description feature-description--left">Для подтверждения грейда нужно выполнить все развёрнутые задания набора ({assignedCodes.length}). Каждый ответ даёт до 10 баллов. Если проверка временно недоступна, ответ останется в форме для повторной отправки.</p>
-    {loading ? <div className="empty-state">Загружаем задания…</div> : questions.length === 0 ? <div className="empty-state">Для этого направления и грейда открытых заданий пока нет.</div> : <>
-      <label className="field field--flush"><span>ЗАДАНИЕ</span><select value={selectedCode ?? ""} onChange={(event) => { setSelectedCode(event.target.value); setAnswer(""); setRunResult(null); }}>
-        {questions.map((item) => <option key={item.code} value={item.code}>{item.skill} · {item.title}</option>)}
-      </select></label>
-      {selected && <>
-        <div className="open-questions__task"><span>{selected.question_type === "code" ? "Задание с кодом" : "Развёрнутый ответ"} · {selected.skill}</span><h3>{selected.title}</h3><p>{selected.question_text}</p></div>
-        <details className="assessment-info"><summary>Что проверяется</summary><ul>{selected.rubric_criteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul></details>
-        {!latest && <><label className="field field--flush"><span>{selected.question_type === "code" ? "ВАШ КОД" : "ВАШ ОТВЕТ"}</span><textarea value={answer} maxLength={12000} rows={selected.question_type === "code" ? 14 : 9} spellCheck={selected.question_type !== "code"} onChange={(event) => { setAnswer(event.target.value); setRunResult(null); }} placeholder={selected.question_type === "code" ? "Напишите решение здесь…" : "Опишите решение и объясните основные шаги…"} /></label>
-        <div className="open-questions__actions">
-          {RUNNABLE_CODE_TASKS.has(selected.code) && <button type="button" className="button button--outline" disabled={!answer.trim() || running || sending} onClick={() => void testCode()}>{running ? "Проверяем код…" : "Пробный запуск"}</button>}
-          <button type="button" className="button button--primary" disabled={!answer.trim() || sending || running} onClick={() => void submit()}>{sending ? "Отправляем…" : "Отправить ответ"}</button>
-        </div></>}
-        {sending && <div className="notice-box" role="status" aria-live="polite">Проверяем ответ моделью · {waitSeconds} с. Проверка может занять несколько минут. Дождитесь результата перед переходом на другую страницу.</div>}
-        {runResult && <div className="notice-box" role="status">Пробный запуск: {runResult.tests_passed} из {runResult.tests_total} проверок. {runResult.feedback}</div>}
-        {latest && <div className="open-questions__result" role="status"><strong>{latest.reviewed_at ? "Оценка проверена вручную" : latest.needs_manual_review ? "Ожидает проверки" : "Автоматическая оценка"}</strong><p>{latest.needs_manual_review ? "Итоговый балл появится после проверки ответа." : `${Math.round(latest.score * 100)}% · ${latest.feedback}`}</p>{latest.manual_reviewer_notes && <p>Комментарий проверяющего: {latest.manual_reviewer_notes}</p>}{!latest.needs_manual_review && <details className="assessment-info"><summary>Результат по критериям</summary><ul>{Object.entries(latest.criterion_scores).map(([criterion, score]) => <li key={criterion}>{criterion}: {Math.round(score * 100)}%</li>)}</ul></details>}{latest.needs_manual_review && assessmentId && <button type="button" className="button button--outline" disabled={retrying} onClick={() => void retryEvaluation(latest)}>{retrying ? `Проверяем · ${waitSeconds} с` : "Повторить автоматическую проверку"}</button>}<button type="button" className="button button--outline" onClick={() => void refreshResult()}>Обновить результат</button></div>}
-      </>}
-    </>}
+    <p className="feature-description feature-description--left">Для подтверждения грейда нужно выполнить все развёрнутые задания набора ({assignedCodes.length}). Каждый ответ даёт до 10 баллов. После отправки ответ сохраняется; следующие задания можно решать, пока идёт проверка.</p>
+    {loading ? <div className="empty-state">Загружаем задания…</div> : questions.length === 0 ? <div className="empty-state">Для этого направления и грейда открытых заданий пока нет.</div> : questions.map((item, index) => {
+      const saved = submissions.find((entry) => entry.assessment_id === assessmentId && entry.question_code === item.code);
+      const isSelected = selectedCode === item.code;
+      const isPending = saved && ["queued", "evaluating"].includes(saved.evaluation_status);
+      const hasScore = saved && saved.evaluation_status === "completed" && !saved.needs_manual_review;
+      return <div className="open-questions__task" key={item.code}>
+        <span>ЗАДАНИЕ {index + 1} ИЗ {questions.length} · {item.question_type === "code" ? "Код" : "Развёрнутый ответ"} · {item.skill}</span>
+        <h3>{item.title}</h3>
+        <p>{item.question_text}</p>
+        <details className="assessment-info"><summary>Что проверяется</summary><ul>{item.rubric_criteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul></details>
+        {saved ? <div className="open-questions__result" role="status">
+          <strong>Ваш ответ</strong><p>{saved.answer_text}</p>
+          <strong>{hasScore ? `Баллы: ${Number((saved.score * 10).toFixed(1))} из 10` : isPending ? "Баллы: проверяется" : saved.evaluation_status === "failed" ? "Баллы: проверка не удалась" : "Баллы: ожидается проверка"}</strong>
+          {hasScore && saved.feedback && <p>{saved.feedback}</p>}
+          {saved.evaluation_status === "failed" && saved.feedback && <p>{saved.feedback}</p>}
+          {saved.manual_reviewer_notes && <p>Комментарий проверяющего: {saved.manual_reviewer_notes}</p>}
+          {hasScore && Object.keys(saved.criterion_scores).length > 0 && <details className="assessment-info"><summary>Результат по критериям</summary><ul>{Object.entries(saved.criterion_scores).map(([criterion, score]) => <li key={criterion}>{criterion}: {Math.round(score * 100)}%</li>)}</ul></details>}
+          {(saved.evaluation_status === "failed" || saved.evaluation_status === "manual_review") && assessmentId && <button type="button" className="button button--outline" disabled={retrying} onClick={() => void retryEvaluation(saved)}>{retrying ? `Проверяем · ${waitSeconds} с` : "Повторить автоматическую проверку"}</button>}
+          {!hasScore && <button type="button" className="button button--outline" onClick={() => void refreshResult()}>Обновить результат</button>}
+        </div> : <>
+          {!isSelected && <button type="button" className="button button--outline" onClick={() => { setSelectedCode(item.code); setAnswer(""); setRunResult(null); }}>Ответить на задание</button>}
+          {isSelected && <>
+            <label className="field field--flush"><span>{item.question_type === "code" ? "ВАШ КОД" : "ВАШ ОТВЕТ"}</span><textarea value={answer} maxLength={12000} rows={item.question_type === "code" ? 14 : 9} spellCheck={item.question_type !== "code"} onChange={(event) => { setAnswer(event.target.value); setRunResult(null); }} placeholder={item.question_type === "code" ? "Напишите решение здесь…" : "Опишите решение и объясните основные шаги…"} /></label>
+            <div className="open-questions__actions">
+              {RUNNABLE_CODE_TASKS.has(item.code) && <button type="button" className="button button--outline" disabled={!answer.trim() || running || sending} onClick={() => void testCode()}>{running ? "Проверяем код…" : "Пробный запуск"}</button>}
+              <button type="button" className="button button--primary" disabled={!answer.trim() || sending || running} onClick={() => void submit()}>{sending ? "Отправляем…" : "Отправить ответ"}</button>
+            </div>
+            {sending && <div className="notice-box" role="status" aria-live="polite">Сохраняем ответ…</div>}
+            {runResult && <div className="notice-box" role="status">Пробный запуск: {runResult.tests_passed} из {runResult.tests_total} проверок. {runResult.feedback}</div>}
+          </>}
+        </>}
+      </div>;
+    })}
   </section>;
 }

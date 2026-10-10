@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -139,6 +140,15 @@ async def lifespan(app: FastAPI):
         )
         if "assessment_id" not in open_submission_columns:
             await conn.execute(text("ALTER TABLE open_question_submissions ADD COLUMN assessment_id UUID"))
+        if "evaluation_status" not in open_submission_columns:
+            await conn.execute(text(
+                "ALTER TABLE open_question_submissions ADD COLUMN evaluation_status VARCHAR(30) "
+                "NOT NULL DEFAULT 'completed'"
+            ))
+            await conn.execute(text(
+                "UPDATE open_question_submissions SET evaluation_status = 'manual_review' "
+                "WHERE needs_manual_review = TRUE"
+            ))
         await conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_open_question_submissions_assessment_id "
             "ON open_question_submissions (assessment_id)"
@@ -173,7 +183,16 @@ async def lifespan(app: FastAPI):
         await conn.execute(text(
             "UPDATE candidate_profiles SET visibility_public = FALSE WHERE agreed_publication = FALSE AND visibility_public = TRUE"
         ))
-    yield
+    from app.services.open_question_queue import run_evaluation_worker
+    worker = asyncio.create_task(run_evaluation_worker())
+    try:
+        yield
+    finally:
+        worker.cancel()
+        try:
+            await worker
+        except asyncio.CancelledError:
+            pass
     await engine.dispose()
 
 

@@ -418,6 +418,94 @@ async def test_assigned_open_answers_gate_grade_and_reject_reuse(client: AsyncCl
 
 
 @pytest.mark.asyncio
+async def test_queued_answers_survive_navigation_and_grade_waits_for_evaluation(client: AsyncClient, monkeypatch):
+    import uuid
+    from app.services import open_question_queue
+    from conftest import TestingSessionLocal
+    from app.models.test import OpenQuestionSubmission
+
+    monkeypatch.setattr(open_question_queue, "AsyncSessionLocal", TestingSessionLocal)
+
+    async def fake_evaluate(_question, _answer):
+        return {
+            "score": 0.8, "passed": True, "feedback": "Проверено",
+            "criterion_scores": {}, "evaluator": "llm_test", "needs_manual_review": False,
+        }
+
+    monkeypatch.setattr(open_question_queue, "_evaluate_with_ml", fake_evaluate)
+    headers = await open_test_candidate_headers(client, "queued-open@example.com")
+    created = (await client.post("/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"})).json()
+    assessment_id = created["id"]
+    codes = [item["code"] for item in created["open_questions"]]
+    assert len(codes) > 1
+    queued = []
+    for code in codes:
+        response = await client.post(
+            f"/api/v1/testing/open-questions/{code}/queue", headers=headers,
+            json={"assessment_id": assessment_id, "answer_text": f"Ответ на {code}"},
+        )
+        assert response.status_code == 202, response.text
+        assert response.json()["evaluation_status"] == "queued"
+        queued.append(response.json())
+    history = (await client.get("/api/v1/testing/open-submissions", headers=headers)).json()
+    assert {item["id"] for item in queued} <= {item["id"] for item in history}
+    await complete_choices(client, headers, assessment_id, created["skills"])
+    before = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert before["verified_grade"] is None
+    assert all(item["status"] == "queued" for item in before["open_questions"])
+
+    for item in queued:
+        async with TestingSessionLocal() as db:
+            submission = await db.get(OpenQuestionSubmission, uuid.UUID(item["id"]))
+            submission.evaluation_status = "evaluating"
+            await db.commit()
+        await open_question_queue.process_queued_submission(submission.id)
+    after = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert after["verified_grade"] == "junior"
+    assert all(item["status"] == "completed" for item in after["open_questions"])
+
+
+@pytest.mark.asyncio
+async def test_failed_background_check_keeps_answer_for_retry(client: AsyncClient, monkeypatch):
+    import uuid
+    from app.services import open_question_queue
+    from app.services.open_question_service import _local_fallback_eval
+    from app.models.test import OpenQuestionSubmission
+    from conftest import TestingSessionLocal
+
+    monkeypatch.setattr(open_question_queue, "AsyncSessionLocal", TestingSessionLocal)
+
+    async def unavailable(question, answer):
+        return _local_fallback_eval(question, answer)
+
+    monkeypatch.setattr(open_question_queue, "_evaluate_with_ml", unavailable)
+    headers = await open_test_candidate_headers(client, "queued-fail@example.com")
+    created = (await client.post("/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"})).json()
+    code = created["open_questions"][0]["code"]
+    response = await client.post(
+        f"/api/v1/testing/open-questions/{code}/queue", headers=headers,
+        json={"assessment_id": created["id"], "answer_text": "Мой сохранённый ответ"},
+    )
+    assert response.status_code == 202
+    submission_id = uuid.UUID(response.json()["id"])
+    async with TestingSessionLocal() as db:
+        submission = await db.get(OpenQuestionSubmission, submission_id)
+        submission.evaluation_status = "evaluating"
+        await db.commit()
+    await open_question_queue.process_queued_submission(submission_id)
+    history = (await client.get("/api/v1/testing/open-submissions", headers=headers)).json()
+    saved = next(item for item in history if item["id"] == str(submission_id))
+    assert saved["answer_text"] == "Мой сохранённый ответ"
+    assert saved["evaluation_status"] == "failed"
+    assert saved["score"] == 0
+    retried = await client.post(
+        f"/api/v1/testing/open-submissions/{submission_id}/queue-retry", headers=headers,
+    )
+    assert retried.status_code == 202
+    assert retried.json()["evaluation_status"] == "queued"
+
+
+@pytest.mark.asyncio
 async def test_low_model_score_finishes_grade_without_manual_queue(client: AsyncClient, monkeypatch):
     from app.services import open_question_service
     class FakeMLClient:

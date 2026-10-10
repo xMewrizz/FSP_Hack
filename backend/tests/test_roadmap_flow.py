@@ -145,21 +145,38 @@ async def test_data_science_full_roadmap_has_six_skills_and_open_work(client: As
 @pytest.mark.asyncio
 @pytest.mark.parametrize("specialization", ("Backend", "Data Science / ML"))
 @pytest.mark.parametrize("grade", ("junior", "middle", "senior"))
-async def test_full_retake_uses_other_open_tasks(client: AsyncClient, specialization: str, grade: str):
+async def test_failed_skill_retake_uses_other_questions_and_keeps_open_tasks(client: AsyncClient, specialization: str, grade: str):
     headers = await candidate(client, f"retake-{specialization[:2]}-{grade}@example.com", grade, specialization)
     first = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     await finish_skill(client, headers, first["id"], first["skills"][0]["code"], 3)
-    second = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
-    assert len(first["open_questions"]) == len(second["open_questions"])
-    assert not {item["code"] for item in first["open_questions"]} & {item["code"] for item in second["open_questions"]}
+    failed_code = first["skills"][0]["code"]
+    blocked = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
+    assert blocked.status_code == 409
+    started = await client.post(
+        f"/api/v1/testing/roadmap/{first['id']}/skills/{failed_code}/start", headers=headers,
+    )
+    assert started.status_code == 201
+    second = (await client.get(f"/api/v1/testing/roadmap/{first['id']}", headers=headers)).json()
+    assert second["id"] == first["id"]
+    assert second["retake_used"] is True
+    assert second["status"] == "in_progress"
+    assert second["skills"][0]["status"] == "in_progress"
+    assert second["open_questions"] == first["open_questions"]
     async with TestingSessionLocal() as db:
         original = await db.get(GradeAssessment, uuid.UUID(first["id"]))
-        retake = await db.get(GradeAssessment, uuid.UUID(second["id"]))
-        for skill in original.required_skills:
-            first_texts = {item["question_text"] for item in original.question_snapshots[skill]}
-            second_texts = {item["question_text"] for item in retake.question_snapshots[skill]}
-            assert len(first_texts) == len(second_texts) == 10
-            assert not first_texts & second_texts
+        first_texts = {item["question_text"] for item in original.question_snapshots[failed_code]}
+        second_texts = {item["question_text"] for item in started.json()["questions"]}
+        assert len(first_texts) == len(second_texts) == 10
+        assert not first_texts & second_texts
+        if specialization == "Data Science / ML":
+            first_by_family = {item["family_code"]: item for item in original.question_snapshots[failed_code]}
+            second_by_family = {item["family_code"]: item for item in original.retake_question_snapshots[failed_code]}
+            assert first_by_family.keys() == second_by_family.keys()
+            for family_code, first_question in first_by_family.items():
+                second_question = second_by_family[family_code]
+                assert {option["text"] for option in first_question["options"]} != {
+                    option["text"] for option in second_question["options"]
+                }
 
 
 @pytest.mark.asyncio
@@ -180,54 +197,76 @@ async def test_one_weak_skill_blocks_grade_even_when_overall_above_75(client: As
     assert complete["passed"] is False
     assert complete["retake_used"] is False
 
-    one_skill_again = await client.post(
+    retake = await client.post(
         f"/api/v1/testing/roadmap/{assessment_id}/skills/reliability/start", headers=headers,
     )
-    assert one_skill_again.status_code == 409
-    retake = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
-    assert retake["id"] != assessment_id
-    assert retake["retake_used"] is True
-    assert all(skill["status"] == "not_started" for skill in retake["skills"])
+    assert retake.status_code == 201
+    refreshed = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert refreshed["retake_used"] is True
+    assert [skill["percentage"] for skill in refreshed["skills"][:3]] == [100.0, 100.0, 100.0]
+    assert refreshed["skills"][-1]["status"] == "in_progress"
     async with TestingSessionLocal() as db:
         original = await db.get(GradeAssessment, uuid.UUID(assessment_id))
-        second = await db.get(GradeAssessment, uuid.UUID(retake["id"]))
-        assert second.retake_of_id == original.id
-        assert second.question_snapshots == original.retake_question_snapshots
-    for skill in retake["skills"]:
-        result = await finish_skill(client, headers, retake["id"], skill["code"], 10)
+        assert original.scoring_policy["skill_retry_used"] is True
+    result = await finish_skill(client, headers, assessment_id, "reliability", 10)
     assert result["grade_confirmed"] is False
-    await finish_open_assessment(retake["id"])
+    await finish_open_assessment(assessment_id)
     assert (await client.get("/api/v1/candidates/profile", headers=headers)).json()["verified_grade"] == "middle"
 
 
 @pytest.mark.asyncio
-async def test_only_one_full_retake_is_allowed(client: AsyncClient):
+async def test_first_skill_retry_continues_same_roadmap(client: AsyncClient):
+    headers = await candidate(client, "retry-one-skill@example.com")
+    roadmap = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
+    assessment_id = roadmap["id"]
+    await finish_skill(client, headers, assessment_id, "backend_python", 2)
+    retry = await client.post(
+        f"/api/v1/testing/roadmap/{assessment_id}/skills/backend_python/start", headers=headers,
+    )
+    assert retry.status_code == 201
+    ongoing = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert ongoing["status"] == "in_progress"
+    assert ongoing["skills"][0]["status"] == "in_progress"
+    await finish_skill(client, headers, assessment_id, "backend_python", 10)
+    for skill_code in ("sql", "api", "reliability"):
+        await finish_skill(client, headers, assessment_id, skill_code, 10)
+    await finish_open_assessment(assessment_id)
+    complete = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
+    assert complete["passed"] is True
+    assert complete["retake_used"] is True
+    assert [skill["percentage"] for skill in complete["skills"]] == [100.0] * 4
+
+
+@pytest.mark.asyncio
+async def test_only_one_failed_skill_retake_is_allowed(client: AsyncClient):
     headers = await candidate(client, "single-retake@example.com")
     roadmap = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     failed = await finish_skill(client, headers, roadmap["id"], "backend_python", 3)
-    assert "Набор завершён досрочно" in failed["feedback"]
+    assert "Набор приостановлен" in failed["feedback"]
     remaining = await client.post(
         f"/api/v1/testing/roadmap/{roadmap['id']}/skills/sql/start", headers=headers,
     )
     assert remaining.status_code == 409
     assert (await client.get(f"/api/v1/testing/roadmap/{roadmap['id']}", headers=headers)).json()["stopped_early"] is True
 
-    second = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
-    assert second["id"] != roadmap["id"]
+    second = await client.post(
+        f"/api/v1/testing/roadmap/{roadmap['id']}/skills/backend_python/start", headers=headers,
+    )
+    assert second.status_code == 201
     assert (await client.get(f"/api/v1/testing/roadmap/{roadmap['id']}", headers=headers)).json()["retake_used"] is True
-    await finish_skill(client, headers, second["id"], "backend_python", 1)
+    await finish_skill(client, headers, roadmap["id"], "backend_python", 1)
     third = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
     assert third.status_code == 409
     assert "через неделю" in third.json()["detail"]
-    status = (await client.get(f"/api/v1/testing/roadmap/{second['id']}", headers=headers)).json()
+    status = (await client.get(f"/api/v1/testing/roadmap/{roadmap['id']}", headers=headers)).json()
     assert status["retry_available_at"] is not None
     async with TestingSessionLocal() as db:
-        stored = await db.get(GradeAssessment, uuid.UUID(second["id"]))
+        stored = await db.get(GradeAssessment, uuid.UUID(roadmap["id"]))
         stored.completed_at = datetime.now(timezone.utc) - timedelta(days=8)
         await db.commit()
     next_cycle = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
     assert next_cycle.status_code == 201
-    assert next_cycle.json()["id"] != second["id"]
+    assert next_cycle.json()["id"] != roadmap["id"]
     assert next_cycle.json()["retake_used"] is False
 
 
@@ -250,15 +289,18 @@ async def test_existing_open_roadmap_with_weak_skill_is_closed_on_refresh(client
 
 
 @pytest.mark.asyncio
-async def test_lower_grade_is_suggested_after_failed_full_retake(client: AsyncClient):
+async def test_lower_grade_is_suggested_after_failed_skill_retake(client: AsyncClient):
     headers = await candidate(client, "lower-after-weak@example.com", "middle")
     middle = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     failed = await finish_skill(client, headers, middle["id"], "backend_python", 1)
     assert failed["suggested_grade"] is None
-    second = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
-    failed = await finish_skill(client, headers, second["id"], "backend_python", 1)
+    second = await client.post(
+        f"/api/v1/testing/roadmap/{middle['id']}/skills/backend_python/start", headers=headers,
+    )
+    assert second.status_code == 201
+    failed = await finish_skill(client, headers, middle["id"], "backend_python", 1)
     assert failed["suggested_grade"] == "junior"
-    assert (await client.get(f"/api/v1/testing/roadmap/{second['id']}", headers=headers)).json()["suggested_grade"] == "junior"
+    assert (await client.get(f"/api/v1/testing/roadmap/{middle['id']}", headers=headers)).json()["suggested_grade"] == "junior"
     lower = await client.post(
         "/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"},
     )
@@ -270,7 +312,7 @@ async def test_lower_grade_is_suggested_after_failed_full_retake(client: AsyncCl
     async with TestingSessionLocal() as db:
         profile = await db.scalar(select(CandidateProfile))
         profile.verified_grade_updated_at = datetime.now(timezone.utc) - timedelta(days=91)
-        for assessment_id in (middle["id"], second["id"]):
+        for assessment_id in (middle["id"],):
             old = await db.get(GradeAssessment, uuid.UUID(assessment_id))
             old.created_at = datetime.now(timezone.utc) - timedelta(days=100)
         await db.commit()

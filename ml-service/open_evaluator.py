@@ -261,6 +261,9 @@ async def evaluate_open_answer(
     rubric_criteria: list[str],
     candidate_answer: str,
     client: httpx.AsyncClient | None = None,
+    *,
+    reasoning_enabled: bool | None = None,
+    metrics: dict | None = None,
 ) -> OpenEvaluationResult:
     """Оценка через выбранную модель с переходом на ручную проверку при сбое."""
     stripped_answer = candidate_answer.strip()
@@ -323,6 +326,8 @@ async def evaluate_open_answer(
             schema_name="open_answer_evaluation",
             ollama_url=host,
             ollama_model=model,
+            reasoning_enabled=reasoning_enabled,
+            metrics=metrics,
         )
         if raw_content.startswith("```"):
             raw_content = re.sub(r"^```(?:json)?\s*", "", raw_content, flags=re.IGNORECASE)

@@ -6,9 +6,11 @@ from app.core.assessment_catalog_ds import DS_QUESTION_CODES, DS_TARGET_QUESTION
 
 from app.core.question_bank_ds import (
     DS_FAMILIES,
+    DS_RETAKE,
     ds_base_questions,
     ds_prepared_variants,
 )
+from app.core.question_bank_ds_retake import RETAKE_ROWS
 
 
 def test_ds_families_count_and_grades():
@@ -54,18 +56,36 @@ def test_every_ds_question_has_three_distinct_versions():
         assert len({v["question_text"] for v in variants}) == 3, code
         assert all(v["family_code"] == code for v in variants)
         assert all(v["specialization"] == "Data Science / ML" for v in variants)
-        assert all(v["skill"] == family["skill"] for v in variants)
-        assert all(v["rubric"] == family["rubric"] for v in variants)
+        assert variants[0]["skill"] == variants[2]["skill"] == family["skill"]
+        assert variants[0]["rubric"] == variants[2]["rubric"] == family["rubric"]
+        assert variants[1]["skill_code"] == family["skill_code"]
         assert all(v["source_url"].startswith("https://") for v in variants)
 
 
 def test_ds_variant_answers_match_expected_text_after_rotation():
     for code, family in DS_FAMILIES.items():
-        for variant, (_, answer_idx, _) in zip(ds_prepared_variants(code), family["cases"]):
-            expected_text = family["options"][answer_idx]
+        for version, (variant, (_, answer_idx, _)) in enumerate(zip(ds_prepared_variants(code), family["cases"]), 1):
+            expected_text = DS_RETAKE[code][1] if version == 2 and code in DS_RETAKE else family["options"][answer_idx]
             correct_key = variant["correct_answers"][0]
             selected_text = next(o["text"] for o in variant["options"] if o["id"] == correct_key)
             assert selected_text == expected_text, f"Key mismatch in {variant['code']}"
+
+
+def test_retake_bank_has_independent_questions_for_every_required_ds_skill():
+    assert len(RETAKE_ROWS) == 18
+    assert len(DS_RETAKE) == 180
+    for grade, groups in DS_QUESTION_CODES.items():
+        for skill_code, codes in groups.items():
+            assert len(codes) == 10
+            for code in codes:
+                first, retake = ds_prepared_variants(code)[:2]
+                assert retake["question_text"] != first["question_text"]
+                assert set(option["text"] for option in retake["options"]) != set(option["text"] for option in first["options"])
+                assert next(option["text"] for option in retake["options"] if option["id"] == retake["correct_answers"][0]) not in {
+                    option["text"] for option in first["options"]
+                }
+                assert len({option["text"] for option in retake["options"]}) == 4
+                assert retake["source_url"].startswith("https://")
 
 
 def test_ds_options_and_structure_validity():

@@ -150,6 +150,7 @@ class OpenQuestionSubmission(Base, TimestampMixin):
     criterion_scores: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     evaluator: Mapped[str] = mapped_column(String(50), default="fallback_heuristic", nullable=False)
     needs_manual_review: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    evaluation_status: Mapped[str] = mapped_column(String(30), default="completed", nullable=False)
 
     manual_reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

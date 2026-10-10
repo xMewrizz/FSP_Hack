@@ -9,6 +9,7 @@ import hashlib
 from typing import Any
 
 from app.core.question_bank_ds_full import SOURCES as EXPANSION_SOURCES, expanded_rows
+from app.core.question_bank_ds_retake import RETAKE_ROWS
 
 DS_SOURCES: dict[str, str] = {
     "pandas-vectorization": "https://pandas.pydata.org/docs/user_guide/enhancingperf.html",
@@ -23,6 +24,9 @@ DS_SOURCES: dict[str, str] = {
     "sklearn-leakage": "https://scikit-learn.org/stable/common_pitfalls.html#data-leakage",
     "sklearn-metrics": "https://scikit-learn.org/stable/modules/model_evaluation.html#precision-recall-f-measure-metrics",
     "sklearn-calibration": "https://scikit-learn.org/stable/modules/calibration.html",
+    "python-copy": "https://docs.python.org/3/library/copy.html",
+    "python-asyncio": "https://docs.python.org/3/library/asyncio-task.html#sleeping",
+    "python-os": "https://docs.python.org/3/library/os.html#os.replace",
 }
 DS_SOURCES.update(EXPANSION_SOURCES)
 
@@ -290,12 +294,32 @@ DS_FAMILIES: dict[str, dict[str, Any]] = _rows_to_ds_families(
     DS_JUNIOR_ROWS + DS_MIDDLE_ROWS + DS_SENIOR_ROWS + expanded_rows()
 )
 
+DS_RETAKE: dict[str, tuple[str, str, str, str, str, str, str]] = {}
+for (grade_tag, skill_code), rows in RETAKE_ROWS.items():
+    codes = sorted(
+        code for code, family in DS_FAMILIES.items()
+        if code.split("-")[1] == grade_tag and family["skill_code"] == skill_code
+    )
+    if len(codes) != len(rows):
+        raise ValueError(f"Incomplete Data Science retake bank: {grade_tag}/{skill_code}")
+    DS_RETAKE.update(zip(codes, rows, strict=True))
+
 
 def _make_ds_question(code: str, family: dict[str, Any], version: int) -> dict[str, Any]:
     text, answer, explanation = family["cases"][version - 1]
     grade_tag = code.split("-")[1]
     grade = {"JR": "junior", "MID": "middle", "SR": "senior"}[grade_tag]
     options = family["options"]
+    source_url = family.get("source_url")
+    skill = family["skill"]
+    rubric = family["rubric"]
+    if version == 2 and code in DS_RETAKE:
+        text, correct, wrong1, wrong2, wrong3, explanation, source_key = DS_RETAKE[code]
+        options = [correct, wrong1, wrong2, wrong3]
+        answer = 0
+        source_url = DS_SOURCES[source_key]
+        skill = DS_TOPICS[family["skill_code"]]
+        rubric = explanation
     offset = hashlib.sha256(code.encode("ascii")).digest()[0] % len(options)
     shift = (answer + offset + version) % len(options)
     rotated_options = options[shift:] + options[:shift]
@@ -307,10 +331,10 @@ def _make_ds_question(code: str, family: dict[str, Any], version: int) -> dict[s
         "specialization": "Data Science / ML",
         "grade": grade,
         "topic": family["topic"],
-        "skill": family["skill"],
+        "skill": skill,
         "skill_code": family.get("skill_code"),
-        "rubric": family["rubric"],
-        "source_url": family.get("source_url"),
+        "rubric": rubric,
+        "source_url": source_url,
         "question_type": "single_choice",
         "question_text": text,
         "options": [{"id": chr(65 + idx), "text": opt} for idx, opt in enumerate(rotated_options)],

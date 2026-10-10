@@ -221,6 +221,7 @@ async def submit_open_question_answer(
         criterion_scores=eval_result.get("criterion_scores", {}),
         evaluator=eval_result.get("evaluator", "fallback_heuristic"),
         needs_manual_review=eval_result.get("needs_manual_review", True),
+        evaluation_status="manual_review" if eval_result.get("needs_manual_review", True) else "completed",
     )
     db.add(submission)
     await db.flush()
@@ -231,6 +232,47 @@ async def submit_open_question_answer(
         ).order_by(TestSession.created_at.desc()))).scalars().all()
         if {item.skill_code for item in completed_sessions} >= set(assessment.required_skills):
             await roadmap_service.finish_skill(db, completed_sessions[0], profile)
+    await db.commit()
+    await db.refresh(submission)
+    return submission
+
+
+async def queue_open_question_answer(
+    db: AsyncSession, user: User, profile: CandidateProfile,
+    question_code: str, answer_text: str, assessment_id: uuid.UUID | None,
+) -> OpenQuestionSubmission:
+    """Save the answer before contacting the model so navigation cannot lose it."""
+    question = get_open_question_by_code(question_code)
+    if question is None:
+        raise HTTPException(404, "Открытое задание не найдено")
+    if not answer_text.strip():
+        raise HTTPException(400, "Напишите ответ перед отправкой")
+    if assessment_id is None:
+        raise HTTPException(400, "Для отправки нужен открытый набор тестов")
+    assessment = await db.scalar(select(GradeAssessment).where(
+        GradeAssessment.id == assessment_id, GradeAssessment.user_id == user.id,
+    ).with_for_update())
+    from app.services.roadmap_service import assessment_is_expired
+    if assessment is None:
+        raise HTTPException(404, "Набор тестов не найден")
+    if assessment.status not in ("in_progress", "pending_review") or assessment_is_expired(assessment):
+        raise HTTPException(409, "Срок набора истёк или он уже завершён")
+    if question_code not in assessment.scoring_policy.get("open_codes", []):
+        raise HTTPException(400, "Задание не входит в этот набор")
+    existing = await db.scalar(select(OpenQuestionSubmission.id).where(
+        OpenQuestionSubmission.assessment_id == assessment_id,
+        OpenQuestionSubmission.question_code == question_code,
+    ))
+    if existing:
+        raise HTTPException(409, "Ответ на это задание уже отправлен")
+    submission = OpenQuestionSubmission(
+        user_id=user.id, candidate_profile_id=profile.id, assessment_id=assessment_id,
+        question_code=question_code, question_type=question["question_type"],
+        answer_text=answer_text, score=0.0, passed=False, feedback="",
+        criterion_scores={}, evaluator="pending", needs_manual_review=False,
+        evaluation_status="queued",
+    )
+    db.add(submission)
     await db.commit()
     await db.refresh(submission)
     return submission
@@ -253,7 +295,7 @@ async def get_pending_open_submissions(
     """Получить список решений, требующих проверки экспертом (B-27)."""
     result = await db.execute(
         select(OpenQuestionSubmission)
-        .where(OpenQuestionSubmission.needs_manual_review == True)  # noqa: E712
+        .where(OpenQuestionSubmission.evaluation_status == "manual_review")
         .order_by(OpenQuestionSubmission.created_at.asc())
     )
     return list(result.scalars().all())
@@ -303,6 +345,7 @@ async def retry_open_submission_evaluation(
     submission.criterion_scores = result["criterion_scores"]
     submission.evaluator = result["evaluator"]
     submission.needs_manual_review = False
+    submission.evaluation_status = "completed"
     profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
     sessions = (await db.execute(select(TestSession).where(
         TestSession.assessment_id == assessment.id, TestSession.status == "completed",
@@ -339,6 +382,7 @@ async def review_open_submission(
     submission.reviewed_by = reviewer_id
     submission.reviewed_at = datetime.now(timezone.utc)
     submission.needs_manual_review = False
+    submission.evaluation_status = "completed"
 
     if submission.assessment_id is not None:
         from app.services.roadmap_service import roadmap_service

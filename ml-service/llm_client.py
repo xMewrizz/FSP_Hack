@@ -1,6 +1,7 @@
 """Единый вызов JSON-ответов через локальную Ollama или OpenRouter."""
 
 import os
+import time
 from copy import deepcopy
 
 import httpx
@@ -40,6 +41,8 @@ async def chat_json(
     schema_name: str,
     ollama_url: str,
     ollama_model: str,
+    reasoning_enabled: bool | None = None,
+    metrics: dict | None = None,
 ) -> str:
     """Вернуть строку JSON; проверка содержимого остаётся за вызывающим кодом."""
     if provider_name() == "openrouter":
@@ -47,22 +50,40 @@ async def chat_json(
         if not api_key:
             raise ValueError("Для OpenRouter нужен OPENROUTER_API_KEY")
         base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
-        response = await client.post(
-            f"{base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "model": os.getenv("OPENROUTER_MODEL", "qwen/qwen3-14b"),
-                "messages": messages,
-                "temperature": 0,
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": {"name": schema_name, "strict": True, "schema": _strict_schema(schema)},
-                },
-                "provider": {"require_parameters": True},
+        request_body = {
+            "model": os.getenv("OPENROUTER_MODEL", "qwen/qwen3-14b"),
+            "messages": messages,
+            "temperature": 0,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": schema_name, "strict": True, "schema": _strict_schema(schema)},
             },
-        )
+            "provider": {"require_parameters": True},
+        }
+        if reasoning_enabled is not None:
+            request_body["reasoning"] = {"enabled": reasoning_enabled}
+        started = time.perf_counter()
+        try:
+            response = await client.post(
+                f"{base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=request_body,
+            )
+        finally:
+            if metrics is not None:
+                metrics["request_ms"] = round((time.perf_counter() - started) * 1000, 1)
         response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
+        body = response.json()
+        if metrics is not None:
+            usage = body.get("usage") or {}
+            metrics.update({
+                "generation_id": body.get("id"),
+                "model": body.get("model"),
+                "prompt_tokens": usage.get("prompt_tokens"),
+                "completion_tokens": usage.get("completion_tokens"),
+                "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens"),
+            })
+        content = body["choices"][0]["message"]["content"]
     else:
         response = await client.post(
             f"{ollama_url.rstrip('/')}/api/chat",

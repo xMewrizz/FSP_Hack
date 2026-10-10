@@ -125,9 +125,10 @@ class RoadmapService:
             return
         sessions = (await db.execute(select(TestSession).where(
             TestSession.assessment_id == assessment.id,
-            TestSession.status == "completed",
         ).order_by(TestSession.created_at.desc()))).scalars().all()
-        failed = next((item for item in sessions if item.skill_code in assessment.required_skills
+        latest_by_skill = {item.skill_code: item for item in reversed(sessions)}
+        failed = next((item for item in latest_by_skill.values() if item.status == "completed"
+                       and item.skill_code in assessment.required_skills
                        and item.percentage < assessment.scoring_policy["skill"] * 100), None)
         if failed is not None:
             await RoadmapService.finish_skill(db, failed, profile)
@@ -215,8 +216,20 @@ class RoadmapService:
                 completed_query.order_by(GradeAssessment.created_at.desc()).limit(1)
             )
             retake_of_id = None
-            if previous_completed is not None:
-                if previous_completed.retake_of_id is not None:
+            if previous_completed is not None and not previous_completed.passed:
+                retry_used = previous_completed.scoring_policy.get("skill_retry_used", False)
+                if not retry_used and previous_completed.retake_of_id is None and datetime.now(timezone.utc) < assessment_expires_at(previous_completed):
+                    completed_sessions = (await db.execute(select(TestSession).where(
+                        TestSession.assessment_id == previous_completed.id,
+                        TestSession.status == "completed",
+                    ).order_by(TestSession.created_at.desc()))).scalars().all()
+                    latest_by_skill = {item.skill_code: item for item in reversed(completed_sessions)}
+                    failed_code = next((code for code, item in latest_by_skill.items()
+                        if code in previous_completed.required_skills
+                        and item.percentage < previous_completed.scoring_policy["skill"] * 100), None)
+                    if failed_code:
+                        raise HTTPException(409, f"Пересдайте только навык «{SKILL_LABELS.get(failed_code, failed_code)}» в текущем наборе")
+                if previous_completed.retake_of_id is not None or retry_used:
                     available_at = (
                         previous_completed.completed_at + JUNIOR_RETRY_COOLDOWN
                         if grade == "junior" and not previous_completed.passed and previous_completed.completed_at
@@ -362,7 +375,7 @@ class RoadmapService:
         for session in sessions:
             if session.skill_code not in by_skill:
                 by_skill[session.skill_code] = session
-        retake_used = assessment.retake_of_id is not None or await db.scalar(select(GradeAssessment.id).where(
+        retake_used = assessment.scoring_policy.get("skill_retry_used", False) or assessment.retake_of_id is not None or await db.scalar(select(GradeAssessment.id).where(
             GradeAssessment.retake_of_id == assessment.id,
         )) is not None
         skills = []
@@ -389,8 +402,11 @@ class RoadmapService:
                 code=code,
                 title=question["title"] if question else code,
                 question_type=question["question_type"] if question else "free_text",
-                status=("review_pending" if submission.needs_manual_review else "completed") if submission else "not_started",
-                score=submission.score if submission and not submission.needs_manual_review else None,
+                status=(
+                    "review_pending" if submission.evaluation_status == "manual_review"
+                    else submission.evaluation_status
+                ) if submission else "not_started",
+                score=submission.score if submission and submission.evaluation_status == "completed" else None,
                 submission_id=submission.id if submission else None,
             ))
         failed_skill = next((skill for skill in skills if skill.percentage is not None
@@ -429,7 +445,7 @@ class RoadmapService:
             retake_used=retake_used,
             retry_available_at=(
                 (_utc(assessment.completed_at) + JUNIOR_RETRY_COOLDOWN)
-                if assessment.retake_of_id is not None and assessment.target_grade == "junior"
+                if (assessment.retake_of_id is not None or assessment.scoring_policy.get("skill_retry_used", False)) and assessment.target_grade == "junior"
                 and assessment.status == "completed" and not assessment.passed and assessment.completed_at
                 else None
             ),
@@ -453,8 +469,10 @@ class RoadmapService:
             raise HTTPException(404, "Набор тестов не найден")
         profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
         await RoadmapService.reconcile_failed_skill(db, assessment, profile)
-        if assessment.status != "in_progress":
+        if assessment.status not in ("in_progress", "completed"):
             raise HTTPException(409, "Набор уже завершён")
+        if assessment.status == "completed" and datetime.now(timezone.utc) >= assessment_expires_at(assessment):
+            raise HTTPException(409, "Срок набора истёк. Результаты навыков сохранены в истории")
         if assessment_is_expired(assessment):
             assessment.status = "expired"
             await db.execute(update(TestSession).where(
@@ -474,9 +492,32 @@ class RoadmapService:
         existing = skill_sessions[0] if skill_sessions else None
         if existing is not None:
             if existing.status != "completed":
-                return RoadmapService.session_response(existing)
-            raise HTTPException(409, "Навык уже завершён. Пересдача возможна только для всего набора после всех шагов")
-        frozen_snapshot = assessment.question_snapshots.get(skill_code, [])
+                if assessment.status == "in_progress" and existing.status == "in_progress":
+                    return RoadmapService.session_response(existing)
+                raise HTTPException(409, "Начатый тест навыка уже закрыт")
+            can_retry = (
+                assessment.status == "completed"
+                and not assessment.passed
+                and existing.percentage < assessment.scoring_policy["skill"] * 100
+                and not assessment.scoring_policy.get("skill_retry_used", False)
+                and assessment.retake_of_id is None
+            )
+            if not can_retry:
+                raise HTTPException(409, "Этот навык уже завершён или единственная пересдача использована")
+            frozen_snapshot = assessment.retake_question_snapshots.get(skill_code, [])
+            if not frozen_snapshot:
+                raise HTTPException(409, "Для пересдачи навыка не сохранены запасные задания")
+            assessment.scoring_policy = {**assessment.scoring_policy, "skill_retry_used": True}
+            assessment.status = "in_progress"
+            assessment.completed_at = None
+            assessment.suggested_grade = None
+            assessment.score = 0
+            assessment.max_score = 0
+            assessment.percentage = 0
+        else:
+            if assessment.status != "in_progress":
+                raise HTTPException(409, "Набор уже завершён")
+            frozen_snapshot = assessment.question_snapshots.get(skill_code, [])
         if not frozen_snapshot:
             raise HTTPException(409, "Для этого навыка пока нет полного набора заданий")
         return await RoadmapService._create_skill_session(
@@ -683,7 +724,7 @@ class RoadmapService:
         open_weight = float(policy.get("open_weight", 10))
         for code in open_codes:
             submission = open_by_code.get(code)
-            if submission and not submission.needs_manual_review:
+            if submission and submission.evaluation_status == "completed":
                 results.append(SkillResult(code, submission.score * open_weight, open_weight))
         decision = assess_grade(
             tuple(assessment.required_skills) + open_codes, results,
@@ -702,9 +743,8 @@ class RoadmapService:
             assessment.max_score = len(assessment.required_skills) * 10 + len(open_codes) * open_weight
             assessment.percentage = round(assessment.score / assessment.max_score * 100, 1)
             index = GRADE_ORDER.index(assessment.target_grade)
-            assessment.suggested_grade = (
-                GRADE_ORDER[index - 1] if assessment.retake_of_id is not None and index > 0 else None
-            )
+            retry_used = assessment.retake_of_id is not None or policy.get("skill_retry_used", False)
+            assessment.suggested_grade = GRADE_ORDER[index - 1] if retry_used and index > 0 else None
             await db.execute(update(TestSession).where(
                 TestSession.assessment_id == assessment.id,
                 TestSession.status == "in_progress",
@@ -714,19 +754,22 @@ class RoadmapService:
                 "Пересдача использована. Можно попробовать полный набор на уровень ниже."
                 if assessment.suggested_grade else
                 "Пересдача использована. Новый набор Junior доступен через неделю."
-                if assessment.retake_of_id is not None else
-                "Доступна одна пересдача всего набора этого грейда."
+                if retry_used else
+                f"Можно один раз пересдать только навык «{weak}» в этом наборе."
             )
             return False, assessment.suggested_grade, (
-                f"Набор завершён досрочно: {weak} — результат ниже 50%. " + next_step
+                f"Набор {'завершён досрочно' if retry_used else 'приостановлен'}: {weak} — результат ниже 50%. " + next_step
             )
         if not decision.complete:
             if all(code in latest_by_skill for code in assessment.required_skills):
                 if all(code in open_by_code for code in open_codes) and any(
-                    open_by_code[code].needs_manual_review for code in open_codes
+                    open_by_code[code].evaluation_status == "manual_review" for code in open_codes
                 ):
                     assessment.status = "pending_review"
                     return False, None, "Открытый ответ ждёт ручной проверки. Грейд пока не присвоен."
+                if any(open_by_code[code].evaluation_status in ("queued", "evaluating", "failed")
+                       for code in open_codes if code in open_by_code):
+                    return False, None, "Развёрнутые ответы сохранены. Дождитесь автоматической проверки."
                 return False, None, "Обязательные навыки пройдены. Решите развёрнутые задания для итоговой оценки."
             return False, assessment.suggested_grade, "Результат навыка сохранён. Продолжите остальные обязательные шаги."
 
@@ -756,13 +799,12 @@ class RoadmapService:
             feedback = f"Все обязательные навыки пройдены. Общий результат {assessment.percentage}%; грейд {assessment.target_grade} подтверждён."
         else:
             index = GRADE_ORDER.index(assessment.target_grade)
-            assessment.suggested_grade = (
-                GRADE_ORDER[index - 1] if assessment.retake_of_id is not None and index > 0 else None
-            )
+            retry_used = assessment.retake_of_id is not None or policy.get("skill_retry_used", False)
+            assessment.suggested_grade = GRADE_ORDER[index - 1] if retry_used and index > 0 else None
             weak = ", ".join(SKILL_LABELS.get(code, get_open_question_by_code(code)["title"] if get_open_question_by_code(code) else code) for code in decision.below_minimum)
             reason = f" Ниже 50%: {weak}." if weak else ""
             next_step = " Можно один раз пересдать весь набор этого грейда."
-            if assessment.retake_of_id is not None:
+            if retry_used:
                 next_step = (
                     " Пересдача использована. Новый набор Junior доступен через неделю."
                     if assessment.target_grade == "junior"

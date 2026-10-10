@@ -28,6 +28,7 @@ from app.services.open_question_service import (
     get_public_open_questions,
     review_open_submission,
     retry_open_submission_evaluation,
+    queue_open_question_answer,
     submit_open_question_answer,
 )
 from app.core.open_question_bank import get_open_question_by_code
@@ -275,6 +276,26 @@ async def submit_open_question(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.post(
+    "/open-questions/{code}/queue",
+    response_model=OpenQuestionSubmissionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Сохранить ответ и поставить его в очередь проверки",
+)
+async def queue_open_question(
+    code: str,
+    data: OpenQuestionSubmitRequest,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = current_user.candidate_profile
+    if not profile:
+        raise HTTPException(400, "Профиль кандидата не найден")
+    return await queue_open_question_answer(
+        db, current_user, profile, code, data.answer_text, data.assessment_id,
+    )
+
+
 @router.get(
     "/open-submissions",
     response_model=list[OpenQuestionSubmissionResponse],
@@ -313,6 +334,42 @@ async def retry_open_submission(
     db: AsyncSession = Depends(get_db),
 ):
     return await retry_open_submission_evaluation(db, current_user, submission_id)
+
+
+@router.post(
+    "/open-submissions/{submission_id}/queue-retry",
+    response_model=OpenQuestionSubmissionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Повторить проверку сохранённого ответа",
+)
+async def queue_retry_open_submission(
+    submission_id: uuid.UUID,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    from app.models.test import GradeAssessment, OpenQuestionSubmission
+    from app.services.roadmap_service import assessment_is_expired
+    submission = await db.scalar(select(OpenQuestionSubmission).where(
+        OpenQuestionSubmission.id == submission_id,
+        OpenQuestionSubmission.user_id == current_user.id,
+    ).with_for_update())
+    if submission is None:
+        raise HTTPException(404, "Ответ не найден")
+    if submission.evaluation_status not in ("failed", "manual_review"):
+        raise HTTPException(409, "Повторная проверка этого ответа сейчас недоступна")
+    assessment = await db.get(GradeAssessment, submission.assessment_id) if submission.assessment_id else None
+    if assessment is None or assessment.status not in ("in_progress", "pending_review") or assessment_is_expired(assessment):
+        raise HTTPException(409, "Набор завершён или срок истёк")
+    submission.evaluation_status = "queued"
+    submission.feedback = ""
+    submission.score = 0
+    submission.passed = False
+    submission.criterion_scores = {}
+    submission.needs_manual_review = False
+    await db.commit()
+    await db.refresh(submission)
+    return submission
 
 
 @router.post(
