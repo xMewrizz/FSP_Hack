@@ -50,6 +50,23 @@ def assessment_is_expired(assessment: GradeAssessment) -> bool:
 
 class RoadmapService:
     @staticmethod
+    async def reconcile_failed_skill(
+        db: AsyncSession, assessment: GradeAssessment, profile: CandidateProfile,
+    ) -> None:
+        """Закрыть ранее начатый набор, если в нём уже есть навык ниже порога."""
+        if assessment.status not in ("in_progress", "pending_review") or assessment_is_expired(assessment):
+            return
+        sessions = (await db.execute(select(TestSession).where(
+            TestSession.assessment_id == assessment.id,
+            TestSession.status == "completed",
+        ).order_by(TestSession.created_at.desc()))).scalars().all()
+        failed = next((item for item in sessions if item.skill_code in assessment.required_skills
+                       and item.percentage < assessment.scoring_policy["skill"] * 100), None)
+        if failed is not None:
+            await RoadmapService.finish_skill(db, failed, profile)
+            await db.commit()
+
+    @staticmethod
     async def start(db: AsyncSession, user: User, data: TestStartRequest) -> GradeAssessmentResponse:
         profile = await db.scalar(select(CandidateProfile).where(CandidateProfile.user_id == user.id).with_for_update())
         if profile is None:
@@ -87,6 +104,10 @@ class RoadmapService:
                 GradeAssessment.status.in_(("in_progress", "pending_review")),
             ).order_by(GradeAssessment.created_at.desc()).limit(1)
         )
+        if assessment is not None:
+            await RoadmapService.reconcile_failed_skill(db, assessment, profile)
+            if assessment.status == "completed":
+                assessment = None
         if assessment is not None and assessment_is_expired(assessment):
             assessment.status = "expired"
             await db.execute(update(TestSession).where(
@@ -207,6 +228,7 @@ class RoadmapService:
         )
         if assessment is None:
             return None
+        await RoadmapService.reconcile_failed_skill(db, assessment, profile)
         return await RoadmapService.response(db, assessment, profile)
 
     @staticmethod
@@ -217,6 +239,7 @@ class RoadmapService:
         if assessment is None:
             raise HTTPException(404, "Набор тестов не найден")
         profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
+        await RoadmapService.reconcile_failed_skill(db, assessment, profile)
         return await RoadmapService.response(db, assessment, profile)
 
     @staticmethod
@@ -280,6 +303,12 @@ class RoadmapService:
                 score=submission.score if submission and not submission.needs_manual_review else None,
                 submission_id=submission.id if submission else None,
             ))
+        failed_skill = next((skill for skill in skills if skill.percentage is not None
+                             and skill.percentage < assessment.scoring_policy["skill"] * 100), None)
+        stopped_early = assessment.status == "completed" and failed_skill is not None and (
+            any(skill.status != "completed" for skill in skills)
+            or any(item.status != "completed" for item in open_questions)
+        )
         promotion_at = profile.verified_grade_updated_at
         if promotion_at is not None and promotion_at.tzinfo is None:
             promotion_at = promotion_at.replace(tzinfo=timezone.utc)
@@ -291,8 +320,10 @@ class RoadmapService:
             status="expired" if assessment_is_expired(assessment) else assessment.status,
             skills=skills,
             open_questions=open_questions,
-            percentage=assessment.percentage if assessment.status == "completed" else None,
+            percentage=assessment.percentage if assessment.status == "completed" and not stopped_early else None,
             passed=assessment.passed if assessment.status == "completed" else None,
+            stopped_early=stopped_early,
+            failed_skill=failed_skill.label if stopped_early else None,
             grade_confirmed=assessment.status == "completed" and assessment.passed,
             verified_grade=profile.verified_grade,
             suggested_grade=assessment.suggested_grade,
@@ -324,6 +355,8 @@ class RoadmapService:
         ).with_for_update())
         if assessment is None:
             raise HTTPException(404, "Набор тестов не найден")
+        profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
+        await RoadmapService.reconcile_failed_skill(db, assessment, profile)
         if assessment.status != "in_progress":
             raise HTTPException(409, "Набор уже завершён")
         if assessment_is_expired(assessment):
@@ -334,7 +367,6 @@ class RoadmapService:
             ).values(status="expired"))
             await db.commit()
             raise HTTPException(409, "Срок набора истёк. Откройте новый набор тестов")
-        profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
         if profile is None or profile.specialization != assessment.specialization or (profile.programming_language or "Python") != assessment.programming_language:
             raise HTTPException(409, "Специализация профиля изменилась. Начните новый набор тестов")
         if skill_code not in assessment.required_skills:
@@ -541,6 +573,32 @@ class RoadmapService:
             if code in latest_by_skill
             and latest_by_skill[code].score / latest_by_skill[code].max_score < policy["skill"]
         )
+        if weak_skills:
+            assessment.status = "completed"
+            assessment.passed = False
+            assessment.completed_at = datetime.now(timezone.utc)
+            assessment.score = sum(item.earned for item in results)
+            assessment.max_score = len(assessment.required_skills) * 10 + len(open_codes) * open_weight
+            assessment.percentage = round(assessment.score / assessment.max_score * 100, 1)
+            index = GRADE_ORDER.index(assessment.target_grade)
+            assessment.suggested_grade = (
+                GRADE_ORDER[index - 1] if assessment.retake_of_id is not None and index > 0 else None
+            )
+            await db.execute(update(TestSession).where(
+                TestSession.assessment_id == assessment.id,
+                TestSession.status == "in_progress",
+            ).values(status="cancelled"))
+            weak = ", ".join(SKILL_LABELS.get(code, code) for code in weak_skills)
+            next_step = (
+                "Пересдача использована. Можно попробовать полный набор на уровень ниже."
+                if assessment.suggested_grade else
+                "Пересдача использована. Новый набор Junior доступен через неделю."
+                if assessment.retake_of_id is not None else
+                "Доступна одна пересдача всего набора этого грейда."
+            )
+            return False, assessment.suggested_grade, (
+                f"Набор завершён досрочно: {weak} — результат ниже 50%. " + next_step
+            )
         if not decision.complete:
             if all(code in latest_by_skill for code in assessment.required_skills):
                 if all(code in open_by_code for code in open_codes) and any(
@@ -549,8 +607,6 @@ class RoadmapService:
                     assessment.status = "pending_review"
                     return False, None, "Открытый ответ ждёт ручной проверки. Грейд пока не присвоен."
                 return False, None, "Обязательные навыки пройдены. Решите два развёрнутых задания для итоговой оценки."
-            if session.percentage < 50:
-                return False, assessment.suggested_grade, "Навык набрал меньше 50%. Завершите остальные шаги; затем можно будет один раз пересдать весь набор."
             return False, assessment.suggested_grade, "Результат навыка сохранён. Продолжите остальные обязательные шаги."
 
         assessment.score = sum(item.earned for item in results)

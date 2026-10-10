@@ -10918,6 +10918,10 @@ select,
   background: linear-gradient(105deg, rgba(19, 131, 91, 0.07), var(--surface));
 }
 
+.app-shell .skill-roadmap__step.is-failed {
+  border-color: var(--red);
+}
+
 .app-shell .skill-roadmap__marker {
   display: grid;
   width: 2.35rem;
@@ -10943,6 +10947,11 @@ select,
   border-color: rgba(19, 131, 91, 0.3);
   background: var(--green);
   color: #fff;
+}
+
+.app-shell .skill-roadmap__step.is-failed .skill-roadmap__marker {
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .app-shell .skill-roadmap__body,
@@ -10991,6 +11000,11 @@ select,
 
 .app-shell .skill-roadmap__result.is-complete {
   color: var(--green);
+  font-weight: 800;
+}
+
+.app-shell .skill-roadmap__result.is-failed {
+  color: var(--red);
   font-weight: 800;
 }
 

@@ -130,6 +130,8 @@ class GradeAssessmentResponse(BaseModel):
     open_questions: list[AssessmentOpenQuestionProgress] = Field(default_factory=list)
     percentage: float | None = None
     passed: bool | None = None
+    stopped_early: bool = False
+    failed_skill: str | None = None
     grade_confirmed: bool = False
     verified_grade: str | None = None
     suggested_grade: str | None = None

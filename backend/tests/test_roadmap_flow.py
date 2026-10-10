@@ -92,10 +92,11 @@ async def test_one_weak_skill_blocks_grade_even_when_overall_above_75(client: As
         result = await finish_skill(client, headers, assessment_id, code, score)
     assert result["grade_confirmed"] is False
     assert result["suggested_grade"] is None
-    await finish_open_assessment(assessment_id)
     complete = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
     assert complete["status"] == "completed"
-    assert complete["percentage"] == pytest.approx(90.0)
+    assert complete["stopped_early"] is True
+    assert complete["failed_skill"] == complete["skills"][-1]["label"]
+    assert complete["percentage"] is None
     assert complete["passed"] is False
     assert complete["retake_used"] is False
 
@@ -123,20 +124,18 @@ async def test_one_weak_skill_blocks_grade_even_when_overall_above_75(client: As
 async def test_only_one_full_retake_is_allowed(client: AsyncClient):
     headers = await candidate(client, "single-retake@example.com")
     roadmap = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
-    await finish_skill(client, headers, roadmap["id"], "backend_python", 1)
-    await finish_skill(client, headers, roadmap["id"], "sql", 1)
-    premature = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
-    assert premature.json()["id"] == roadmap["id"]
-    for code in ("api", "reliability"):
-        await finish_skill(client, headers, roadmap["id"], code, 1)
-    await finish_open_assessment(roadmap["id"])
+    failed = await finish_skill(client, headers, roadmap["id"], "backend_python", 3)
+    assert "Набор завершён досрочно" in failed["feedback"]
+    remaining = await client.post(
+        f"/api/v1/testing/roadmap/{roadmap['id']}/skills/sql/start", headers=headers,
+    )
+    assert remaining.status_code == 409
+    assert (await client.get(f"/api/v1/testing/roadmap/{roadmap['id']}", headers=headers)).json()["stopped_early"] is True
 
     second = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     assert second["id"] != roadmap["id"]
     assert (await client.get(f"/api/v1/testing/roadmap/{roadmap['id']}", headers=headers)).json()["retake_used"] is True
-    for skill in second["skills"]:
-        await finish_skill(client, headers, second["id"], skill["code"], 1)
-    await finish_open_assessment(second["id"])
+    await finish_skill(client, headers, second["id"], "backend_python", 1)
     third = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
     assert third.status_code == 409
     assert "через неделю" in third.json()["detail"]
@@ -153,18 +152,32 @@ async def test_only_one_full_retake_is_allowed(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_existing_open_roadmap_with_weak_skill_is_closed_on_refresh(client: AsyncClient):
+    headers = await candidate(client, "legacy-weak@example.com", "senior")
+    roadmap = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
+    await finish_skill(client, headers, roadmap["id"], "backend_python", 3)
+    async with TestingSessionLocal() as db:
+        stored = await db.get(GradeAssessment, uuid.UUID(roadmap["id"]))
+        stored.status = "in_progress"
+        stored.completed_at = None
+        await db.commit()
+
+    refreshed = await client.get("/api/v1/testing/roadmap/current", headers=headers)
+    assert refreshed.status_code == 200
+    assert refreshed.json()["status"] == "completed"
+    assert refreshed.json()["stopped_early"] is True
+    assert refreshed.json()["failed_skill"] == refreshed.json()["skills"][0]["label"]
+
+
+@pytest.mark.asyncio
 async def test_lower_grade_is_suggested_after_failed_full_retake(client: AsyncClient):
     headers = await candidate(client, "lower-after-weak@example.com", "middle")
     middle = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
-    for skill in middle["skills"]:
-        failed = await finish_skill(client, headers, middle["id"], skill["code"], 1)
+    failed = await finish_skill(client, headers, middle["id"], "backend_python", 1)
     assert failed["suggested_grade"] is None
-    await finish_open_assessment(middle["id"])
     second = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
-    for skill in second["skills"]:
-        failed = await finish_skill(client, headers, second["id"], skill["code"], 1)
-    assert failed["suggested_grade"] is None
-    await finish_open_assessment(second["id"])
+    failed = await finish_skill(client, headers, second["id"], "backend_python", 1)
+    assert failed["suggested_grade"] == "junior"
     assert (await client.get(f"/api/v1/testing/roadmap/{second['id']}", headers=headers)).json()["suggested_grade"] == "junior"
     lower = await client.post(
         "/api/v1/testing/roadmap", headers=headers, json={"target_grade": "junior"},
