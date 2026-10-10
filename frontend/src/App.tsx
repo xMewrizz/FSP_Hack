@@ -359,7 +359,7 @@ function pageForRole(page: string, role: "employer" | "candidate") {
 
 function pageLabel(page: string, role: "employer" | "candidate") {
   if (role !== "employer") return page;
-  if (page === "Потребности") return "Кого ищем";
+  if (page === "Потребности") return "Потребность";
   if (page === "Приглашения") return "Приглашённые кандидаты";
   if (page === "Вакансии компании") return "Мои вакансии";
   return page;
@@ -1348,7 +1348,7 @@ const pageCopy: Record<string, { eyebrow: string; title: string }> = {
   Обзор: { eyebrow: "РАБОЧЕЕ ПРОСТРАНСТВО", title: "Обзор платформы" },
   Подборка: { eyebrow: "ПОДБОР КАНДИДАТОВ", title: "Подборка кандидатов" },
   "Банк кандидатов": { eyebrow: "ВЕРИФИЦИРОВАННАЯ БАЗА", title: "Банк кандидатов" },
-  Потребности: { eyebrow: "ЗАПРОС НА ПОДБОР", title: "Кого ищем" },
+  Потребности: { eyebrow: "ЗАПРОС НА ПОДБОР", title: "Потребность" },
   Приглашения: { eyebrow: "REVERSE RECRUITING", title: "Приглашения" },
   Диалоги: { eyebrow: "СООБЩЕСТВО И НЕТВОРКИНГ", title: "Диалоги" },
   Аналитика: { eyebrow: "КАЧЕСТВО ПОДБОРА", title: "Аналитика" },
@@ -2229,7 +2229,7 @@ function EmployerScreen({
         <div className="dashboard-grid">
           <section className="feature-card feature-card--wide">
             <div className="feature-head">
-              <div><span>АКТИВНЫЙ ПОДБОР</span><strong>Кого ищем</strong></div>
+              <div><span>АКТИВНЫЙ ПОДБОР</span><strong>Потребность</strong></div>
               <Button variant="ghost" onClick={() => onNavigate("Потребности")}>Все запросы</Button>
             </div>
             {needs.filter((need) => need.is_active).map((need) => (
