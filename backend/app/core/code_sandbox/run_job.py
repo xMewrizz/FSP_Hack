@@ -319,7 +319,8 @@ def _failed(status: str, total: int, started: float, feedback: str) -> SandboxEx
     )
 
 
-def grade_code(code: str, question_code: str, timeout_seconds: float) -> SandboxExecutionResponse:
+def grade_code(code: str, question_code: str, timeout_seconds: float,
+               private_contract: dict | None = None) -> SandboxExecutionResponse:
     audit = audit_code_safety(code)
     if not audit.is_safe:
         status = "syntax_error" if audit.violation_node == "SyntaxError" else "security_violation"
@@ -329,7 +330,10 @@ def grade_code(code: str, question_code: str, timeout_seconds: float) -> Sandbox
             feedback=audit.error_message or "Код не прошёл проверку",
         )
 
-    cases = build_cases(question_code)
+    cases = (
+        [({"args": item["args"]}, item["expected"]) for item in private_contract["cases"]]
+        if private_contract else build_cases(question_code)
+    )
     started = time.perf_counter()
     with tempfile.TemporaryDirectory(prefix="fsp_job_") as temporary:
         os.chmod(temporary, 0o755)
@@ -351,6 +355,7 @@ def grade_code(code: str, question_code: str, timeout_seconds: float) -> Sandbox
         payload = json.dumps({
             "question_code": question_code,
             "cases": [case for case, _ in cases],
+            "private_function_name": private_contract["function_name"] if private_contract else None,
         })
         with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
             process = subprocess.Popen(
@@ -383,11 +388,11 @@ def grade_code(code: str, question_code: str, timeout_seconds: float) -> Sandbox
     tests = []
     for index, (_, expected) in enumerate(cases):
         actual = actual_results[index] if index < len(actual_results) else None
-        if question_code == "OPEN-BE-CODE-01":
+        if private_contract is None and question_code == "OPEN-BE-CODE-01":
             passed = (isinstance(actual, list) and len(actual) == len(expected)
                       and all(type(value) is bool and value == target
                               for value, target in zip(actual, expected)))
-        elif question_code == "OPEN-BE-CODE-02":
+        elif private_contract is None and question_code == "OPEN-BE-CODE-02":
             if isinstance(actual, list):
                 actual = [None if value == -1 and target is None else value
                           for value, target in zip(actual, expected)]
@@ -411,10 +416,13 @@ def grade_code(code: str, question_code: str, timeout_seconds: float) -> Sandbox
 
 def main() -> None:
     code = base64.b64decode(os.environ["SANDBOX_CODE_B64"], validate=True).decode("utf-8")
+    contract_b64 = os.environ.get("SANDBOX_CONTRACT_B64")
+    private_contract = json.loads(base64.b64decode(contract_b64, validate=True)) if contract_b64 else None
     result = grade_code(
         code=code,
         question_code=os.environ["SANDBOX_QUESTION_CODE"],
         timeout_seconds=float(os.environ["SANDBOX_TIMEOUT_SECONDS"]),
+        private_contract=private_contract,
     )
     print(RESULT_PREFIX + result.model_dump_json(), flush=True)
 

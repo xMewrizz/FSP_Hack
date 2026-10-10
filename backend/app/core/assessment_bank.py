@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -151,3 +152,15 @@ def validate_private_bank_coverage() -> None:
                 or not isinstance(critical, list)
                 or any(type(index) is not int or index < 1 or index > len(criteria) for index in critical)):
             raise RuntimeError(f"Неполное открытое задание {code}")
+        if question["question_type"] == "code":
+            contract = question.get("sandbox_contract")
+            if (not isinstance(contract, dict)
+                    or not isinstance(contract.get("function_name"), str)
+                    or not re.fullmatch(r"[a-z][a-z0-9_]*", contract["function_name"])
+                    or not isinstance(contract.get("cases"), list)
+                    or len(contract["cases"]) < 5
+                    or any(not isinstance(case, dict)
+                           or not isinstance(case.get("args"), list)
+                           or "expected" not in case
+                           for case in contract["cases"])):
+                raise RuntimeError(f"У задания {code} нет закрытого контракта проверки кода")

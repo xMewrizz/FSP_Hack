@@ -6,3 +6,9 @@ services:
       ASSESSMENT_BANK_FILE: /run/assessment-bank/assessment-bank.json
     volumes:
       - ${ASSESSMENT_BANK_HOST_FILE:?Set ASSESSMENT_BANK_HOST_FILE to an unpublished JSON bank}:/run/assessment-bank/assessment-bank.json:ro
+  sandbox-controller:
+    environment:
+      ASSESSMENT_BANK_MODE: private
+      ASSESSMENT_BANK_FILE: /run/assessment-bank/assessment-bank.json
+    volumes:
+      - ${ASSESSMENT_BANK_HOST_FILE:?Set ASSESSMENT_BANK_HOST_FILE to an unpublished JSON bank}:/run/assessment-bank/assessment-bank.json:ro

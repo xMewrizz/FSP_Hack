@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import json
 import logging
 import os
 
@@ -26,6 +27,14 @@ job_slots = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
 
 def container_spec(data: SandboxExecutionRequest) -> dict:
     """Ограничения задаются сервером и не зависят от полей запроса."""
+    question = get_open_question_by_code(data.question_code or "")
+    private_contract = (question or {}).get("sandbox_contract")
+    contract_env = (
+        ["SANDBOX_CONTRACT_B64=" + base64.b64encode(
+            json.dumps(private_contract, ensure_ascii=False).encode("utf-8")
+        ).decode("ascii")]
+        if private_contract else []
+    )
     return {
         "Image": RUNNER_IMAGE,
         "Labels": {"app": "fsp-sandbox-job"},
@@ -41,6 +50,7 @@ def container_spec(data: SandboxExecutionRequest) -> dict:
             "SANDBOX_QUESTION_CODE=" + (data.question_code or ""),
             "SANDBOX_TIMEOUT_SECONDS=" + str(data.timeout_seconds),
             "SANDBOX_CONTAINER_MODE=1",
+            *contract_env,
             "OPENBLAS_NUM_THREADS=1",
             "OMP_NUM_THREADS=1",
             "MKL_NUM_THREADS=1",

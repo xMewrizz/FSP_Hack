@@ -31,11 +31,18 @@ def example_pack() -> dict:
         for selected in grades.values()
         for code in selected
     }
+    questions = [deepcopy(q) for q in OPEN_QUESTIONS if q["code"] in open_codes]
+    for question in questions:
+        if question["question_type"] == "code":
+            question["sandbox_contract"] = {
+                "function_name": "identity",
+                "cases": [{"args": [number], "expected": number} for number in range(5)],
+            }
     return {
         "version": 1,
         "bank_id": "test-private-v1",
         "closed_variants": {code: deepcopy(prepared_variants(code)) for code in sorted(codes)},
-        "open_questions": [deepcopy(q) for q in OPEN_QUESTIONS if q["code"] in open_codes],
+        "open_questions": questions,
     }
 
 
@@ -63,6 +70,48 @@ def test_private_bank_rejects_incomplete_variant(monkeypatch):
     pack["closed_variants"]["BE-JR-02"][1].pop("variant_id")
     with pytest.raises(RuntimeError, match="Неверная семья"):
         assessment_bank.validate_private_bank_coverage()
+
+
+def test_private_bank_requires_code_contract(monkeypatch):
+    pack = example_pack()
+    monkeypatch.setattr(assessment_bank, "private_bank", lambda: pack)
+    next(q for q in pack["open_questions"] if q["code"] == "OPEN-BE-CODE-JR-01").pop("sandbox_contract")
+    with pytest.raises(RuntimeError, match="контракта проверки кода"):
+        assessment_bank.validate_private_bank_coverage()
+
+
+def test_private_code_worker_uses_new_function(tmp_path: Path):
+    (tmp_path / "solution.py").write_text("def double(value):\n    return value * 2\n", encoding="utf-8")
+    payload = {
+        "question_code": "OPEN-BE-CODE-JR-01",
+        "private_function_name": "double",
+        "cases": [{"args": [3]}, {"args": [0]}],
+    }
+    result = subprocess.run(
+        [sys.executable, "-m", "app.core.code_sandbox.candidate_worker"],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1])},
+        input=json.dumps(payload), capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout.split("SANDBOX_WORKER_RESULT:", 1)[1])["results"] == [6, 0]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Sandbox worker uses POSIX privilege dropping")
+def test_private_contract_overrides_legacy_question_grader():
+    from app.core.code_sandbox.run_job import grade_code
+
+    contract = {
+        "function_name": "double",
+        "cases": [{"args": [value], "expected": value * 2} for value in range(5)],
+    }
+    result = grade_code(
+        code="def double(value):\n    return value * 2\n",
+        question_code="OPEN-BE-CODE-01",
+        timeout_seconds=5.0,
+        private_contract=contract,
+    )
+    assert result.passed and result.tests_passed == 5
 
 
 def test_private_mode_rejects_demo_assessment_history(monkeypatch):

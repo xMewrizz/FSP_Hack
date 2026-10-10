@@ -14,7 +14,10 @@ def main() -> None:
 
         for case in payload["cases"]:
             try:
-                if payload["question_code"] == "OPEN-BE-CODE-01":
+                if payload.get("private_function_name"):
+                    function = getattr(solution, payload["private_function_name"])
+                    result = function(*case["args"])
+                elif payload["question_code"] == "OPEN-BE-CODE-01":
                     instance = solution.SlidingWindowRateLimiter(
                         max_requests=case["max_requests"],
                         window_seconds=case["window_seconds"],
