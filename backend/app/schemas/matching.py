@@ -30,6 +30,12 @@ class CandidateAdditionalSpecialization(BaseModel):
     verified_grade: str | None = None
 
 
+class TrustFlagItem(BaseModel):
+    label: str
+    status: str
+    detail: str
+
+
 class CandidateMatchItem(BaseModel):
     candidate_id: uuid.UUID
     first_name: str
@@ -62,6 +68,9 @@ class CandidateMatchItem(BaseModel):
     match_explanation: MatchExplanation
     requested_skill_tests: list[RequestedSkillTestResult] = Field(default_factory=list)
     additional_specializations: list[CandidateAdditionalSpecialization] = Field(default_factory=list)
+    trust_score: float | None = None
+    trust_flags: list[TrustFlagItem] | None = None
+    profile_updated_at: datetime | None = None
 
 
 class MatchingCandidatesResponse(BaseModel):

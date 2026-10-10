@@ -137,6 +137,9 @@ def _match_item(
         summary.append("Учтено достижение ФСП.")
     top_achievement = next((item for item in candidate.fsp_achievements if item.verified), None)
 
+    from app.services.trust_score_service import calculate_trust_score
+    trust_score_val, trust_flags_val = calculate_trust_score(candidate)
+
     return CandidateMatchItem(
         candidate_id=candidate.id,
         first_name=candidate.first_name,
@@ -177,6 +180,9 @@ def _match_item(
         ),
         requested_skill_tests=requested_skill_tests,
         additional_specializations=additional_specializations,
+        trust_score=trust_score_val,
+        trust_flags=trust_flags_val,
+        profile_updated_at=candidate.updated_at,
     )
 
 
@@ -228,9 +234,8 @@ class MatchingService:
             select(CandidateProfile)
             .options(
                 joinedload(CandidateProfile.fsp_achievements),
-                defer(CandidateProfile.resume_text),
+                selectinload(CandidateProfile.test_sessions),
                 defer(CandidateProfile.resume_url),
-                defer(CandidateProfile.bio),
                 defer(CandidateProfile.github_url),
                 defer(CandidateProfile.phone),
                 defer(CandidateProfile.telegram),
@@ -404,9 +409,8 @@ class MatchingService:
             select(CandidateProfile)
             .options(
                 joinedload(CandidateProfile.fsp_achievements),
-                defer(CandidateProfile.resume_text),
+                selectinload(CandidateProfile.test_sessions),
                 defer(CandidateProfile.resume_url),
-                defer(CandidateProfile.bio),
                 defer(CandidateProfile.github_url),
                 defer(CandidateProfile.phone),
                 defer(CandidateProfile.telegram),
@@ -459,47 +463,55 @@ class MatchingService:
                     )
                 ]
 
+        from app.services.trust_score_service import calculate_trust_score
         additional_specializations = await _additional_specializations_by_candidate(db, candidates)
-        return [
-            CandidateMatchItem(
-                candidate_id=candidate.id,
-                first_name=candidate.first_name,
-                last_name=candidate.last_name,
-                specialization=candidate.specialization,
-                verified_grade=candidate.verified_grade,
-                declared_grade=candidate.declared_grade,
-                city=candidate.city,
-                work_format=candidate.work_format,
-                fsp_id=candidate.fsp_id,
-                fsp_verified=candidate.fsp_verified,
-                fsp_sport_category=candidate.fsp_achievements[0].sport_category if candidate.fsp_achievements else None,
-                fsp_rating=candidate.fsp_achievements[0].score_or_rating if candidate.fsp_achievements else None,
-                achievements_count=len(candidate.fsp_achievements),
-                skills=candidate.skills or [],
-                bio=candidate.bio,
-                hobbies=candidate.hobbies,
-                education_level=candidate.education_level,
-                university_course=candidate.university_course,
-                birth_year=candidate.birth_year,
-                photo_url=f"/candidate/{candidate.id}/photo" if candidate.photo_filename else None,
-                github_url=candidate.github_url,
-                resume_text=candidate.resume_text,
-                resume_url=candidate.resume_url,
-                salary_expectation=candidate.salary_expectation,
-                salary_tax_type=candidate.salary_tax_type,
-                test_percentage=None,
-                match_score=0,
-                match_explanation=MatchExplanation(
-                    grade_match=True,
-                    matched_skills=[],
-                    missing_skills=[],
-                    fsp_bonus=bool(candidate.fsp_verified and candidate.fsp_achievements),
-                    summary="Кандидат с подтверждённой категорией. Балл для конкретной потребности здесь не рассчитывается.",
-                ),
-                additional_specializations=additional_specializations.get(candidate.id, []),
+        items = []
+        for candidate in candidates:
+            trust_score_val, trust_flags_val = calculate_trust_score(candidate)
+            items.append(
+                CandidateMatchItem(
+                    candidate_id=candidate.id,
+                    first_name=candidate.first_name,
+                    last_name=candidate.last_name,
+                    specialization=candidate.specialization,
+                    verified_grade=candidate.verified_grade,
+                    declared_grade=candidate.declared_grade,
+                    city=candidate.city,
+                    work_format=candidate.work_format,
+                    fsp_id=candidate.fsp_id,
+                    fsp_verified=candidate.fsp_verified,
+                    fsp_sport_category=candidate.fsp_achievements[0].sport_category if candidate.fsp_achievements else None,
+                    fsp_rating=candidate.fsp_achievements[0].score_or_rating if candidate.fsp_achievements else None,
+                    achievements_count=len(candidate.fsp_achievements),
+                    skills=candidate.skills or [],
+                    bio=candidate.bio,
+                    hobbies=candidate.hobbies,
+                    education_level=candidate.education_level,
+                    university_course=candidate.university_course,
+                    birth_year=candidate.birth_year,
+                    photo_url=f"/candidate/{candidate.id}/photo" if candidate.photo_filename else None,
+                    github_url=candidate.github_url,
+                    resume_text=candidate.resume_text,
+                    resume_url=candidate.resume_url,
+                    salary_expectation=candidate.salary_expectation,
+                    salary_tax_type=candidate.salary_tax_type,
+                    test_percentage=None,
+                    activity_status=_candidate_activity_status(candidate.last_active_at),
+                    match_score=0,
+                    match_explanation=MatchExplanation(
+                        grade_match=True,
+                        matched_skills=[],
+                        missing_skills=[],
+                        fsp_bonus=bool(candidate.fsp_verified and candidate.fsp_achievements),
+                        summary="Кандидат с подтверждённой категорией. Балл для конкретной потребности здесь не рассчитывается.",
+                    ),
+                    additional_specializations=additional_specializations.get(candidate.id, []),
+                    trust_score=trust_score_val,
+                    trust_flags=trust_flags_val,
+                    profile_updated_at=candidate.updated_at,
+                )
             )
-            for candidate in candidates
-        ]
+        return items
 
 
 matching_service = MatchingService()
