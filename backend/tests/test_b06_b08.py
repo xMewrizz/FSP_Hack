@@ -1,7 +1,9 @@
 import io
 import pytest
 from httpx import AsyncClient
-from pypdf import PdfReader
+from pypdf import PdfReader, PdfWriter
+
+from app.services.pdf_service import EMPTY_RESUME_TEXT
 
 
 @pytest.mark.asyncio
@@ -190,3 +192,47 @@ async def test_b22_resume_upload_and_parse(client: AsyncClient):
     unchanged = await client.get("/api/v1/candidate/profile", headers=cand_headers)
     assert unchanged.status_code == 200
     assert unchanged.json()["skills"] == []
+
+
+@pytest.mark.asyncio
+async def test_b22_pdf_without_text_does_not_change_profile(client: AsyncClient):
+    """Скан без текстового слоя не считается распознанным резюме и не пишет навыки."""
+    cand_reg = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "scan.resume@fsp.ru", "password": "Password123!", "role": "candidate"},
+    )
+    code = cand_reg.json()["verification_code"]
+    cand_ver = await client.post(
+        "/api/v1/auth/verify-email",
+        json={"email": "scan.resume@fsp.ru", "code": code},
+    )
+    cand_headers = {"Authorization": f"Bearer {cand_ver.json()['access_token']}"}
+    await client.post(
+        "/api/v1/candidates/onboarding",
+        headers=cand_headers,
+        json={
+            "first_name": "Скан",
+            "last_name": "Пустой",
+            "city": "Казань",
+            "specialization": "Backend",
+            "declared_grade": "junior",
+            "agreed_152_fz": True,
+        },
+    )
+
+    buffer = io.BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    writer.write(buffer)
+
+    upload_resp = await client.post(
+        "/api/v1/candidates/resume/upload",
+        headers=cand_headers,
+        files={"file": ("scan.pdf", buffer.getvalue(), "application/pdf")},
+    )
+    assert upload_resp.status_code == 400
+    assert upload_resp.json()["detail"] == EMPTY_RESUME_TEXT
+    profile = await client.get("/api/v1/candidate/profile", headers=cand_headers)
+    assert profile.status_code == 200
+    assert profile.json()["skills"] == []
+    assert profile.json()["first_name"] == "Скан"

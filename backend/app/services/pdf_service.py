@@ -13,6 +13,12 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from app.models.candidate import CandidateProfile
 from app.schemas.resume import ResumeParsedData
+from app.services.resume_sanity import resume_warnings
+
+EMPTY_RESUME_TEXT = (
+    "Не удалось найти текст в PDF. Возможно, это скан, "
+    "загрузите пдф с выделяемым текстом или заполните профиль вручную"
+)
 
 KNOWN_TECH_SKILLS = [
     "Python", "FastAPI", "Django", "PostgreSQL", "Redis", "Docker", "Kubernetes",
@@ -33,7 +39,7 @@ class PDFService:
             raise HTTPException(status_code=400, detail=f"Не удалось прочитать PDF файл: {str(e)}")
 
         if not full_text:
-            return ResumeParsedData(text_preview="Пустой документ или скан без текстового слоя")
+            raise HTTPException(status_code=400, detail=EMPTY_RESUME_TEXT)
 
         # Regex extractors
         email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", full_text)
@@ -44,6 +50,8 @@ class PDFService:
 
         tg_match = re.search(r"@([A-Za-z0-9_]{4,32})|t\.me/([A-Za-z0-9_]{4,32})", full_text)
         telegram = tg_match.group(0) if tg_match else None
+        if telegram and email and telegram.lstrip("@") in email:
+            telegram = None
 
         # Skill extractor
         lower_text = full_text.lower()
@@ -80,6 +88,7 @@ class PDFService:
             suggested_grade=suggested_grade,
             extracted_skills=extracted_skills,
             text_preview=preview,
+            warnings=resume_warnings(full_text),
         )
 
     @staticmethod
