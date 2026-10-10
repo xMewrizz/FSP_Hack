@@ -11,7 +11,7 @@ from conftest import TestingSessionLocal
 from open_assessment_helpers import finish_open_assessment
 
 
-async def candidate(client: AsyncClient, email: str, grade: str = "junior") -> dict[str, str]:
+async def candidate(client: AsyncClient, email: str, grade: str = "junior", specialization: str = "Backend") -> dict[str, str]:
     registered = await client.post("/api/v1/auth/register", json={
         "email": email, "password": "Password123!", "role": "candidate",
     })
@@ -21,7 +21,7 @@ async def candidate(client: AsyncClient, email: str, grade: str = "junior") -> d
     headers = {"Authorization": f"Bearer {verified.json()['access_token']}"}
     onboarded = await client.post("/api/v1/candidates/onboarding", headers=headers, json={
         "first_name": "Иван", "last_name": "Иванов", "city": "Москва",
-        "specialization": "Backend", "declared_grade": grade, "agreed_152_fz": True,
+        "specialization": specialization, "declared_grade": grade, "agreed_152_fz": True,
     })
     assert onboarded.status_code == 200
     return headers
@@ -80,6 +80,50 @@ async def test_roadmap_assigns_grade_only_after_four_skills_and_open_answers(cli
     assert complete.json()["passed"] is True
     assert [item["level_out_of_ten"] for item in complete.json()["skills"]] == [10.0, 7.0, 7.0, 6.0]
     assert [item["status"] for item in complete.json()["open_questions"]] == ["completed", "completed"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("grade", ("junior", "middle", "senior"))
+async def test_data_science_full_roadmap_has_six_skills_and_open_work(client: AsyncClient, grade: str):
+    headers = await candidate(client, f"ds-roadmap-{grade}@example.com", grade, "Data Science / ML")
+    created = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
+    assert created.status_code == 201, created.text
+    roadmap = created.json()
+    assert roadmap["specialization"] == "Data Science / ML"
+    assert roadmap["programming_language"] == "Python"
+    assert len(roadmap["skills"]) == 6
+    assert len(roadmap["open_questions"]) == (2 if grade == "junior" else 3)
+    assert any(item["question_type"] == "code" for item in roadmap["open_questions"])
+    if grade != "junior":
+        assert any("WORK" in item["code"] for item in roadmap["open_questions"])
+    for skill in roadmap["skills"]:
+        await finish_skill(client, headers, roadmap["id"], skill["code"], 10)
+    pending = (await client.get(f"/api/v1/testing/roadmap/{roadmap['id']}", headers=headers)).json()
+    assert pending["verified_grade"] is None
+    await finish_open_assessment(roadmap["id"])
+    complete = (await client.get(f"/api/v1/testing/roadmap/{roadmap['id']}", headers=headers)).json()
+    assert complete["verified_grade"] == grade
+    assert complete["percentage"] == 100.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("specialization", ("Backend", "Data Science / ML"))
+@pytest.mark.parametrize("grade", ("junior", "middle", "senior"))
+async def test_full_retake_uses_other_open_tasks(client: AsyncClient, specialization: str, grade: str):
+    headers = await candidate(client, f"retake-{specialization[:2]}-{grade}@example.com", grade, specialization)
+    first = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
+    await finish_skill(client, headers, first["id"], first["skills"][0]["code"], 3)
+    second = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
+    assert len(first["open_questions"]) == len(second["open_questions"])
+    assert not {item["code"] for item in first["open_questions"]} & {item["code"] for item in second["open_questions"]}
+    async with TestingSessionLocal() as db:
+        original = await db.get(GradeAssessment, uuid.UUID(first["id"]))
+        retake = await db.get(GradeAssessment, uuid.UUID(second["id"]))
+        for skill in original.required_skills:
+            first_texts = {item["question_text"] for item in original.question_snapshots[skill]}
+            second_texts = {item["question_text"] for item in retake.question_snapshots[skill]}
+            assert len(first_texts) == len(second_texts) == 10
+            assert not first_texts & second_texts
 
 
 @pytest.mark.asyncio

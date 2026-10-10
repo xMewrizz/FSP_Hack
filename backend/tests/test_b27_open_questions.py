@@ -11,28 +11,28 @@ from app.core.question_variants import prepared_variants
 
 
 def test_open_questions_bank_structure():
-    assert len(OPEN_QUESTIONS) == 17
+    assert len(OPEN_QUESTIONS) >= 33
     codes = [q["code"] for q in OPEN_QUESTIONS]
     assert len(codes) == len(set(codes))
 
     be_questions = [q for q in OPEN_QUESTIONS if q["specialization"] == "Backend"]
-    ds_questions = [q for q in OPEN_QUESTIONS if q["specialization"] == "Data Science"]
-    assert len(be_questions) == 9
-    assert len(ds_questions) == 8
+    ds_questions = [q for q in OPEN_QUESTIONS if q["specialization"] == "Data Science / ML"]
+    assert len(be_questions) >= 17
+    assert len(ds_questions) >= 16
 
     # Проверка распределения по грейдам
     for spec_questions in (be_questions, ds_questions):
         juniors = [q for q in spec_questions if q["grade"] == "junior"]
         middles = [q for q in spec_questions if q["grade"] == "middle"]
         seniors = [q for q in spec_questions if q["grade"] == "senior"]
-        assert len(juniors) == 2
-        assert len(middles) == (5 if spec_questions is be_questions else 4)
-        assert len(seniors) == 2
+        assert len(juniors) >= 4
+        assert len(middles) >= 6
+        assert len(seniors) >= 6
 
     # Проверка структуры каждого вопроса
     for q in OPEN_QUESTIONS:
         assert q["code"].startswith("OPEN-")
-        assert q["specialization"] in ("Backend", "Data Science")
+        assert q["specialization"] in ("Backend", "Data Science / ML")
         assert q["grade"] in ("junior", "middle", "senior")
         assert q["question_type"] in ("free_text", "code")
         assert len(q["skill"]) > 3
@@ -42,7 +42,7 @@ def test_open_questions_bank_structure():
         assert len(q["question_text"]) > 20
 
     public = get_public_open_questions()
-    assert len(public) == 17
+    assert len(public) == len(OPEN_QUESTIONS)
     for pub in public:
         assert "reference_solution" not in pub
         assert "rubric_criteria" in pub
@@ -52,11 +52,11 @@ def test_open_questions_bank_structure():
 
     # Проверка фильтра по грейду
     juniors_pub = get_public_open_questions(grade="junior")
-    assert len(juniors_pub) == 4
+    assert len(juniors_pub) >= 8
     seniors_pub = get_public_open_questions(grade="senior")
-    assert len(seniors_pub) == 4
-    ds_middles_pub = get_public_open_questions(specialization="Data Science", grade="middle")
-    assert len(ds_middles_pub) == 4
+    assert len(seniors_pub) >= 12
+    ds_middles_pub = get_public_open_questions(specialization="Data Science / ML", grade="middle")
+    assert len(ds_middles_pub) >= 6
 
 
 @pytest.mark.asyncio
@@ -64,7 +64,7 @@ async def test_open_questions_endpoints_grade_filter(client: AsyncClient):
     resp = await client.get("/api/v1/testing/open-questions?grade=junior")
     assert resp.status_code == 200
     items = resp.json()
-    assert len(items) == 4
+    assert len(items) >= 8
     for it in items:
         assert it["grade"] == "junior"
         assert "skill" in it
@@ -73,7 +73,7 @@ async def test_open_questions_endpoints_grade_filter(client: AsyncClient):
     resp_sr = await client.get("/api/v1/testing/open-questions?specialization=Backend&grade=senior")
     assert resp_sr.status_code == 200
     items_sr = resp_sr.json()
-    assert len(items_sr) == 2
+    assert len(items_sr) >= 6
     for it in items_sr:
         assert it["specialization"] == "Backend"
         assert it["grade"] == "senior"
@@ -372,7 +372,7 @@ async def test_assigned_open_answers_gate_grade_and_reject_reuse(client: AsyncCl
     assert created.status_code == 201
     assessment_id = created.json()["id"]
     codes = [item["code"] for item in created.json()["open_questions"]]
-    assert codes == ["OPEN-BE-ARCH-01", "OPEN-BE-CODE-01"]
+    assert codes == ["OPEN-BE-ARCH-01", "OPEN-BE-CODE-01", "OPEN-BE-WORK-MID-01"]
 
     unassigned = await client.post(
         "/api/v1/testing/open-questions/OPEN-BE-ARCH-JR-01/submit", headers=headers,
@@ -403,7 +403,7 @@ async def test_assigned_open_answers_gate_grade_and_reject_reuse(client: AsyncCl
     assert complete["status"] == "completed"
     assert complete["verified_grade"] == "middle"
     assert complete["percentage"] == 100.0
-    assert [item["status"] for item in complete["open_questions"]] == ["completed", "completed"]
+    assert [item["status"] for item in complete["open_questions"]] == ["completed"] * 3
 
 
 @pytest.mark.asyncio

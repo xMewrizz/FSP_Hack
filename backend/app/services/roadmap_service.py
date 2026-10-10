@@ -9,9 +9,10 @@ from app.core.assessment_catalog import (
     BACKEND_QUESTION_CODES, BACKEND_REQUIRED_SKILLS, SKILL_LABELS,
     SKILL_QUESTION_CODES, available_extra_skills,
 )
+from app.core.assessment_catalog_ds import DS_QUESTION_CODES, DS_REQUIRED_SKILLS
 from app.core.catalog import CatalogError, validate_test_pair
 from app.core.grade_policy import OVERALL_MINIMUM, SKILL_MINIMUM, SkillResult, assess_grade
-from app.core.open_question_bank import BACKEND_GRADE_OPEN_CODES, get_open_question_by_code
+from app.core.open_question_bank import GRADE_OPEN_CODES, GRADE_RETAKE_OPEN_CODES, get_open_question_by_code
 from app.core.question_variants import variant_for_attempt
 from app.models.candidate import CandidateProfile
 from app.models.test import GradeAssessment, OpenQuestionSubmission, Question, TestSession
@@ -78,11 +79,11 @@ class RoadmapService:
             raise HTTPException(400, str(error)) from error
         if specialization != profile.specialization:
             raise HTTPException(400, "Специализация теста должна совпадать с текущим профилем")
-        if specialization != "Backend":
-            raise HTTPException(400, "Для этой специализации пока нет набора обязательных навыков")
+        required_skills = BACKEND_REQUIRED_SKILLS if specialization == "Backend" else DS_REQUIRED_SKILLS
+        question_codes = BACKEND_QUESTION_CODES if specialization == "Backend" else DS_QUESTION_CODES
         language = profile.programming_language or "Python"
         if language != "Python":
-            raise HTTPException(400, "Для Backend пока подготовлен только базовый тест на Python")
+            raise HTTPException(400, "Для этой специализации пока подготовлен только базовый тест на Python")
 
         # Подтверждённый грейд можно пересдать или повысить ровно на ступень.
         if profile.verified_specialization == specialization and profile.verified_grade in GRADE_ORDER:
@@ -169,13 +170,13 @@ class RoadmapService:
             if previous_completed is not None:
                 retake_of_id = previous_completed.id
                 frozen_snapshots = previous_completed.retake_question_snapshots
-                if set(frozen_snapshots) != {code for code, _ in BACKEND_REQUIRED_SKILLS}:
+                if set(frozen_snapshots) != {code for code, _ in required_skills}:
                     raise HTTPException(409, "Для пересдачи не сохранён полный запасной набор заданий")
                 retake_snapshots = {}
             else:
                 frozen_snapshots = {}
                 retake_snapshots = {}
-                for skill_code, _ in BACKEND_REQUIRED_SKILLS:
+                for skill_code, _ in required_skills:
                     previous_attempts = await db.scalar(select(func.count(TestSession.id)).where(
                         TestSession.candidate_profile_id == profile.id,
                         TestSession.target_grade == grade,
@@ -183,11 +184,11 @@ class RoadmapService:
                     )) or 0
                     frozen_snapshots[skill_code] = [
                         RoadmapService._snapshot_question(code, previous_attempts)
-                        for code in BACKEND_QUESTION_CODES[grade][skill_code]
+                        for code in question_codes[grade][skill_code]
                     ]
                     retake_snapshots[skill_code] = [
                         RoadmapService._snapshot_question(code, previous_attempts + 1)
-                        for code in BACKEND_QUESTION_CODES[grade][skill_code]
+                        for code in question_codes[grade][skill_code]
                     ]
             assessment = GradeAssessment(
                 user_id=user.id,
@@ -196,16 +197,19 @@ class RoadmapService:
                 specialization=specialization,
                 programming_language=language,
                 target_grade=grade,
-                required_skills=[code for code, _ in BACKEND_REQUIRED_SKILLS],
+                required_skills=[code for code, _ in required_skills],
                 question_codes={
-                    code: list(BACKEND_QUESTION_CODES[grade][code])
-                    for code, _ in BACKEND_REQUIRED_SKILLS
+                    code: list(question_codes[grade][code])
+                    for code, _ in required_skills
                 },
                 question_snapshots=frozen_snapshots,
                 retake_question_snapshots=retake_snapshots,
                 scoring_policy={
                     "overall": OVERALL_MINIMUM, "skill": SKILL_MINIMUM,
-                    "open_codes": list(BACKEND_GRADE_OPEN_CODES[grade]), "open_weight": 10,
+                    "open_codes": list(
+                        GRADE_RETAKE_OPEN_CODES[specialization][grade]
+                        if retake_of_id else GRADE_OPEN_CODES[specialization][grade]
+                    ), "open_weight": 10,
                 },
             )
             db.add(assessment)
@@ -606,7 +610,7 @@ class RoadmapService:
                 ):
                     assessment.status = "pending_review"
                     return False, None, "Открытый ответ ждёт ручной проверки. Грейд пока не присвоен."
-                return False, None, "Обязательные навыки пройдены. Решите два развёрнутых задания для итоговой оценки."
+                return False, None, "Обязательные навыки пройдены. Решите развёрнутые задания для итоговой оценки."
             return False, assessment.suggested_grade, "Результат навыка сохранён. Продолжите остальные обязательные шаги."
 
         assessment.score = sum(item.earned for item in results)

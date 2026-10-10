@@ -53,7 +53,7 @@ def test_every_ds_question_has_three_distinct_versions():
         assert [v["variant_id"] for v in variants] == ["v1", "v2", "v3"]
         assert len({v["question_text"] for v in variants}) == 3, code
         assert all(v["family_code"] == code for v in variants)
-        assert all(v["specialization"] == "Data Science" for v in variants)
+        assert all(v["specialization"] == "Data Science / ML" for v in variants)
         assert all(v["skill"] == family["skill"] for v in variants)
         assert all(v["rubric"] == family["rubric"] for v in variants)
         assert all(v["source_url"].startswith("https://") for v in variants)

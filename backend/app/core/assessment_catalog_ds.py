@@ -1,4 +1,4 @@
-"""Prepared Data Science question coverage; the grade roadmap is not enabled yet."""
+"""Обязательные навыки и вопросы базового набора Data Science / ML."""
 
 from app.core.question_bank_ds import DS_FAMILIES
 

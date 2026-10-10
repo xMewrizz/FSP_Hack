@@ -5,6 +5,7 @@
 """
 
 from typing import Any
+from app.core.open_question_alternates import PRACTICE_QUESTIONS
 
 OPEN_QUESTIONS: list[dict[str, Any]] = [
     # =========================================================================
@@ -165,6 +166,12 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
             "        self.window_seconds = window_seconds\n"
             "        self.requests = defaultdict(deque)\n\n"
             "    def allow_request(self, key: str, current_time: float) -> bool:\n"
+            "        for stale_key in list(self.requests):\n"
+            "            history = self.requests[stale_key]\n"
+            "            while history and history[0] <= current_time - self.window_seconds:\n"
+            "                history.popleft()\n"
+            "            if not history:\n"
+            "                del self.requests[stale_key]\n"
             "        timestamps = self.requests[key]\n"
             "        threshold = current_time - self.window_seconds\n"
             "        while timestamps and timestamps[0] <= threshold:\n"
@@ -398,7 +405,6 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
             "                    await task_func(*args)\n"
             "                self.failure_count = 0\n"
             "            except asyncio.CancelledError:\n"
-            "                self.queue.task_done()\n"
             "                raise\n"
             "            except Exception:\n"
             "                self.failure_count += 1\n"
@@ -421,7 +427,7 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
     {
         "code": "OPEN-DS-ARCH-JR-01",
         "title": "Проектирование схемы валидации для временных и группированных данных",
-        "specialization": "Data Science",
+        "specialization": "Data Science / ML",
         "grade": "junior",
         "question_type": "free_text",
         "skill": "Машинное обучение и валидация данных",
@@ -455,7 +461,7 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
     {
         "code": "OPEN-DS-CODE-JR-01",
         "title": "Оптимизация потребления памяти и векторизованная агрегация транзакций в Pandas",
-        "specialization": "Data Science",
+        "specialization": "Data Science / ML",
         "grade": "junior",
         "question_type": "code",
         "skill": "Python & Data Processing (NumPy, Pandas)",
@@ -509,7 +515,7 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
     {
         "code": "OPEN-DS-ARCH-01",
         "title": "Архитектура Real-Time ML Serving и мониторинга дрейфа данных",
-        "specialization": "Data Science",
+        "specialization": "Data Science / ML",
         "grade": "middle",
         "question_type": "free_text",
         "skill": "MLOps и архитектура инференса",
@@ -542,7 +548,7 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
     {
         "code": "OPEN-DS-CODE-01",
         "title": "Реализация честной кросс-валидации с препроцессингом без Data Leakage",
-        "specialization": "Data Science",
+        "specialization": "Data Science / ML",
         "grade": "middle",
         "question_type": "code",
         "skill": "Машинное обучение и валидация",
@@ -591,7 +597,7 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
     {
         "code": "OPEN-DS-ARCH-MID-02",
         "title": "Дизайн A/B эксперимента, диагностика Sample Ratio Mismatch (SRM) и множественное тестирование",
-        "specialization": "Data Science",
+        "specialization": "Data Science / ML",
         "grade": "middle",
         "question_type": "free_text",
         "skill": "Статистика и A/B тестирование (SRM & Дизайн)",
@@ -627,7 +633,7 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
     {
         "code": "OPEN-DS-CODE-MID-02",
         "title": "Реализация метода снижения дисперсии метрик CUPED для A/B тестирования",
-        "specialization": "Data Science",
+        "specialization": "Data Science / ML",
         "grade": "middle",
         "question_type": "code",
         "skill": "Статистика и A/B тестирование (CUPED)",
@@ -678,7 +684,7 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
     {
         "code": "OPEN-DS-ARCH-SR-01",
         "title": "Архитектура Enterprise Feature Store, Vector DB (HNSW) и Shadow Deployment",
-        "specialization": "Data Science",
+        "specialization": "Data Science / ML",
         "grade": "senior",
         "question_type": "free_text",
         "skill": "MLOps, High-Scale Feature Store & Vector Search",
@@ -712,14 +718,14 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
     },
     {
         "code": "OPEN-DS-CODE-SR-01",
-        "title": "Реализация кастомного sklearn-классификатора с калибровкой вероятностей и Brier Score",
-        "specialization": "Data Science",
+        "title": "Реализация sklearn-классификатора с калибровкой вероятностей и Brier Score",
+        "specialization": "Data Science / ML",
         "grade": "senior",
         "question_type": "code",
         "skill": "Scikit-Learn Architecture & Probability Calibration",
         "question_text": (
-            "Напишите класс `CalibratedCostSensitiveClassifier`, совместимый с API scikit-learn (`BaseEstimator`, `ClassifierMixin`). "
-            "Класс должен: 1) принимать базовый классификатор `base_estimator` и метод калибровки `method: str = 'isotonic'`, "
+            "Напишите класс `CalibratedBinaryClassifier`, совместимый с API scikit-learn (`BaseEstimator`, `ClassifierMixin`) для меток 0 и 1. "
+            "Класс должен: 1) принимать базовый классификатор `base_estimator` с predict_proba или decision_function, "
             "2) в методе `fit(X, y)` разбивать обучающие данные на две части (через внутренний честный сплит): на первой обучать `base_estimator`, "
             "на второй обучать калибратор вероятностей (`IsotonicRegression`), исключая переобучение и утечку данных, "
             "3) в методе `predict_proba(X)` возвращать откалиброванные вероятности обоих классов в виде массива формы (N, 2), "
@@ -740,13 +746,12 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
         ],
         "reference_solution": (
             "import numpy as np\n"
-            "from sklearn.base import BaseEstimator, ClassifierMixin\n"
+            "from sklearn.base import BaseEstimator, ClassifierMixin, clone\n"
             "from sklearn.isotonic import IsotonicRegression\n"
             "from sklearn.model_selection import train_test_split\n\n"
-            "class CalibratedCostSensitiveClassifier(BaseEstimator, ClassifierMixin):\n"
-            "    def __init__(self, base_estimator=None, method: str = 'isotonic', calib_size: float = 0.25, random_state: int = 42):\n"
+            "class CalibratedBinaryClassifier(BaseEstimator, ClassifierMixin):\n"
+            "    def __init__(self, base_estimator, calib_size: float = 0.25, random_state: int = 42):\n"
             "        self.base_estimator = base_estimator\n"
-            "        self.method = method\n"
             "        self.calib_size = calib_size\n"
             "        self.random_state = random_state\n\n"
             "    def fit(self, X, y):\n"
@@ -755,7 +760,9 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
             "        X_train, X_cal, y_train, y_cal = train_test_split(\n"
             "            X_arr, y_arr, test_size=self.calib_size, random_state=self.random_state, stratify=y_arr\n"
             "        )\n"
-            "        self.estimator_ = self.base_estimator\n"
+            "        if set(np.unique(y_arr)) != {0, 1}:\n"
+            "            raise ValueError('Expected binary labels 0 and 1')\n"
+            "        self.estimator_ = clone(self.base_estimator)\n"
             "        self.estimator_.fit(X_train, y_train)\n\n"
             "        if hasattr(self.estimator_, 'predict_proba'):\n"
             "            raw_cal_probs = self.estimator_.predict_proba(X_cal)[:, 1]\n"
@@ -788,11 +795,47 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
 
 # Один архитектурный ответ и одно решение с кодом на каждый грейд Backend.
 # Коды фиксируются при открытии полного набора и не меняются в ходе попытки.
+OPEN_QUESTIONS.extend(PRACTICE_QUESTIONS)
+
 BACKEND_GRADE_OPEN_CODES: dict[str, tuple[str, str]] = {
     "junior": ("OPEN-BE-ARCH-JR-01", "OPEN-BE-CODE-JR-01"),
     "middle": ("OPEN-BE-ARCH-01", "OPEN-BE-CODE-01"),
     "senior": ("OPEN-BE-ARCH-SR-01", "OPEN-BE-CODE-SR-01"),
 }
+
+GRADE_OPEN_CODES: dict[str, dict[str, tuple[str, ...]]] = {
+    "Backend": {
+        "junior": BACKEND_GRADE_OPEN_CODES["junior"],
+        "middle": (*BACKEND_GRADE_OPEN_CODES["middle"], "OPEN-BE-WORK-MID-01"),
+        "senior": (*BACKEND_GRADE_OPEN_CODES["senior"], "OPEN-BE-WORK-SR-01"),
+    },
+    "Data Science / ML": {
+        "junior": ("OPEN-DS-ARCH-JR-01", "OPEN-DS-CODE-JR-01"),
+        "middle": ("OPEN-DS-ARCH-01", "OPEN-DS-CODE-01", "OPEN-DS-WORK-MID-01"),
+        "senior": ("OPEN-DS-ARCH-SR-01", "OPEN-DS-CODE-SR-01", "OPEN-DS-WORK-SR-01"),
+    },
+}
+
+GRADE_RETAKE_OPEN_CODES: dict[str, dict[str, tuple[str, ...]]] = {
+    "Backend": {
+        "junior": ("OPEN-BE-ARCH-JR-RE", "OPEN-BE-CODE-JR-RE"),
+        "middle": ("OPEN-BE-ARCH-MID-02", "OPEN-BE-CODE-MID-02", "OPEN-BE-WORK-MID-RE"),
+        "senior": ("OPEN-BE-ARCH-SR-RE", "OPEN-BE-CODE-SR-RE", "OPEN-BE-WORK-SR-RE"),
+    },
+    "Data Science / ML": {
+        "junior": ("OPEN-DS-ARCH-JR-RE", "OPEN-DS-CODE-JR-RE"),
+        "middle": ("OPEN-DS-ARCH-MID-02", "OPEN-DS-CODE-MID-02", "OPEN-DS-WORK-MID-RE"),
+        "senior": ("OPEN-DS-ARCH-SR-RE", "OPEN-DS-CODE-SR-RE", "OPEN-DS-WORK-SR-RE"),
+    },
+}
+
+assert len({q["code"] for q in OPEN_QUESTIONS}) == len(OPEN_QUESTIONS)
+for spec, grades in GRADE_OPEN_CODES.items():
+    for grade, codes in grades.items():
+        retake = GRADE_RETAKE_OPEN_CODES[spec][grade]
+        assert len(codes) == len(retake) and not set(codes) & set(retake)
+        assert all(any(q["code"] == code and q["specialization"] == spec and q["grade"] == grade
+                       for q in OPEN_QUESTIONS) for code in (*codes, *retake))
 
 
 def get_open_questions(specialization: str | None = None, grade: str | None = None) -> list[dict[str, Any]]:

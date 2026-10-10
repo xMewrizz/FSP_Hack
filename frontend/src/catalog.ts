@@ -6,7 +6,7 @@
 // Правила MVP:
 // - Грейд подтверждает ТОЛЬКО тест. Достижения ФСП на порядок влияют,
 //   но грейд не подтверждают.
-// - Тест доступен: Backend × junior/middle/senior.
+// - Тест доступен для Backend и Data Science / ML на junior/middle/senior.
 // - Остальные специализации и lead из данных НЕ удалены, но для теста скрыты.
 
 export const ALL_SPECIALIZATIONS: string[] = [
@@ -28,11 +28,11 @@ export const ALL_GRADES: Array<{ value: string; label: string }> = [
   { value: "lead", label: "Lead" },
 ];
 
-export const TESTABLE_SPECIALIZATIONS: string[] = ["Backend"];
+export const TESTABLE_SPECIALIZATIONS: string[] = ["Backend", "Data Science / ML"];
 export const TESTABLE_GRADES: string[] = ["junior", "middle", "senior"];
 
 export const TEST_AVAILABILITY_HINT =
-  "Сейчас тест доступен для Backend (Junior / Middle / Senior): по десять вопросов на каждый обязательный навык. Пороги и сложность вопросов пока проверяются.";
+  "Сейчас тест доступен для Backend и Data Science / ML (Junior / Middle / Senior). Пороги и сложность вопросов пока проверяются.";
 
 export function normalizeGrade(value: string | null | undefined): string | null {
   if (!value) return null;

@@ -5,6 +5,7 @@
 """
 
 from app.core.question_bank import PREDEFINED_QUESTIONS
+from app.core.assessment_catalog_ds import DS_REQUIRED_SKILLS
 
 
 BACKEND_REQUIRED_SKILLS: tuple[tuple[str, str], ...] = (
@@ -17,6 +18,7 @@ TARGET_QUESTIONS_PER_REQUIRED_SKILL = 10
 
 SKILL_LABELS = {
     **dict(BACKEND_REQUIRED_SKILLS),
+    **dict(DS_REQUIRED_SKILLS),
     "git": "Git и контроль версий",
 }
 

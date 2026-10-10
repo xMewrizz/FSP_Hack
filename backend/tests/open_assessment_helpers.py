@@ -14,12 +14,13 @@ from app.services.roadmap_service import roadmap_service
 from conftest import TestingSessionLocal
 
 
-async def finish_open_assessment(assessment_id: str, scores: tuple[float, float] = (1.0, 1.0)) -> None:
+async def finish_open_assessment(assessment_id: str, scores: tuple[float, ...] | None = None) -> None:
     async with TestingSessionLocal() as db:
         assessment = await db.get(GradeAssessment, uuid.UUID(assessment_id))
         assert assessment is not None
         codes = assessment.scoring_policy["open_codes"]
-        assert len(codes) == len(scores) == 2
+        scores = scores if scores is not None else (1.0,) * len(codes)
+        assert len(codes) == len(scores)
         profile = await db.get(CandidateProfile, assessment.candidate_profile_id)
         session = await db.scalar(select(TestSession).where(
             TestSession.assessment_id == assessment.id, TestSession.status == "completed",

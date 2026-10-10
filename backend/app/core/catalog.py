@@ -7,7 +7,7 @@
 Правила MVP (см. docs/00-tz-keypoints.md, docs/02-testing-matching.md):
 - Грейд подтверждает ТОЛЬКО тест. Достижения ФСП влияют на порядок внутри
   категории, но грейд не подтверждают и не меняют.
-- Первый рабочий сценарий: специализация Backend + грейды junior/middle/senior.
+- Тест доступен для Backend и Data Science / ML на грейдах junior/middle/senior.
 - Остальные специализации и грейд lead из данных НЕ удаляются (профиль,
   потребность и фильтры их знают), но как доступные для прохождения теста
   не показываются, пока для них нет проверенного банка заданий.
@@ -30,17 +30,17 @@ class CatalogError(ValueError):
 ALL_SPECIALIZATIONS: list[str] = list(SPECIALIZATIONS)
 ALL_GRADES: list[str] = ["junior", "middle", "senior", "lead"]
 
-# Доступное для прохождения теста прямо сейчас (первый сценарий B-01).
+# Доступное для прохождения теста прямо сейчас.
 # Frontend/DevOps-строки в question_bank.py существуют, но как набор для запуска
 # не заявлены: проверку банка делает B-02, до неё банк проверенным не называем.
-TESTABLE_SPECIALIZATIONS: list[str] = ["Backend"]
+TESTABLE_SPECIALIZATIONS: list[str] = ["Backend", "Data Science / ML"]
 TESTABLE_GRADES: list[str] = ["junior", "middle", "senior"]
 
 TESTABLE_PAIRS: set[tuple[str, str]] = {
     (spec, grade) for spec in TESTABLE_SPECIALIZATIONS for grade in TESTABLE_GRADES
 }
 
-# Текущее покрытие каждого доступного Backend-грейда.
+# Минимальное покрытие каждой доступной пары.
 MIN_QUESTIONS_PER_PAIR = 12
 
 GRADE_LABELS_RU: dict[str, str] = {
@@ -116,7 +116,7 @@ def validate_test_pair(specialization: str | None, grade: str | None) -> tuple[s
     if (spec, grd) not in TESTABLE_PAIRS:
         raise CatalogError(
             f"Тест для пары «{spec} / {grd}» пока недоступен: задания первого сценария "
-            "подготовлены только для Backend junior/middle/senior. "
+            "подготовлены только для Backend и Data Science / ML на грейдах junior/middle/senior. "
             + available_for_test_hint()
             + " Вопросы другой специализации или уровня не подставляются."
         )

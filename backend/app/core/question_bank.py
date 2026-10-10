@@ -329,3 +329,6 @@ PREDEFINED_QUESTIONS.extend(curriculum_base_questions())
 from app.core.question_bank_sources import source_base_questions
 
 PREDEFINED_QUESTIONS.extend(source_base_questions())
+
+from app.core.question_bank_ds import ds_base_questions
+PREDEFINED_QUESTIONS.extend(ds_base_questions())

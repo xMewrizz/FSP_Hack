@@ -28,6 +28,9 @@ def test_testable_pairs_match_first_scenario():
         ("Backend", "junior"),
         ("Backend", "middle"),
         ("Backend", "senior"),
+        ("Data Science / ML", "junior"),
+        ("Data Science / ML", "middle"),
+        ("Data Science / ML", "senior"),
     }
 
 

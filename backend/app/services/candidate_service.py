@@ -50,9 +50,10 @@ class CandidateService:
         profile.bio = data.bio
         profile.github_url = data.github_url
 
-        new_language = data.programming_language or ("Python" if data.specialization == "Backend" else None)
-        if data.specialization == "Backend" and new_language != "Python":
-            raise HTTPException(400, "Для Backend пока подготовлен только базовый тест на Python")
+        has_python_roadmap = data.specialization in ("Backend", "Data Science / ML")
+        new_language = data.programming_language or ("Python" if has_python_roadmap else None)
+        if has_python_roadmap and new_language != "Python":
+            raise HTTPException(400, "Для этой специализации пока подготовлен только базовый тест на Python")
         if profile.specialization and (profile.specialization != data.specialization or profile.programming_language != new_language):
             profile.verified_grade = None
             profile.verified_specialization = None
@@ -168,10 +169,10 @@ class CandidateService:
         target_language = update_dict.get("programming_language", profile.programming_language)
         if target_specialization != profile.specialization and "programming_language" not in update_dict:
             target_language = None
-        if target_specialization == "Backend":
+        if target_specialization in ("Backend", "Data Science / ML"):
             target_language = target_language or "Python"
             if target_language != "Python":
-                raise HTTPException(400, "Для Backend пока подготовлен только базовый тест на Python")
+                raise HTTPException(400, "Для этой специализации пока подготовлен только базовый тест на Python")
         if target_specialization != profile.specialization or target_language != profile.programming_language:
             profile.verified_grade = None
             profile.verified_specialization = None
