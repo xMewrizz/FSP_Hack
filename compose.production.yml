@@ -90,6 +90,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: /api/v1
+        VITE_PUBLIC_TEST_STAND: "true"
     restart: unless-stopped
 
   gateway:

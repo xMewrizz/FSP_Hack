@@ -4,6 +4,8 @@ COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 ARG VITE_API_URL=http://localhost:8000/api/v1
 ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_PUBLIC_TEST_STAND=false
+ENV VITE_PUBLIC_TEST_STAND=$VITE_PUBLIC_TEST_STAND
 COPY . .
 RUN pnpm build
 

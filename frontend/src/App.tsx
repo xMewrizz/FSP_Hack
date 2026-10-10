@@ -4649,10 +4649,11 @@ function AuthScreen({
   onVerify: (email: string, code: string) => Promise<void>;
   onDemoLogin: (role: "candidate" | "employer") => Promise<void>;
 }) {
+  const publicTestStand = import.meta.env.VITE_PUBLIC_TEST_STAND === "true";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [selectedRole, setSelectedRole] = useState<"employer" | "candidate">("candidate");
-  const [email, setEmail] = useState<string>(DEMO_ACCOUNTS.candidate);
-  const [password, setPassword] = useState<string>(DEMO_PASSWORD);
+  const [email, setEmail] = useState<string>(publicTestStand ? "" : DEMO_ACCOUNTS.candidate);
+  const [password, setPassword] = useState<string>(publicTestStand ? "" : DEMO_PASSWORD);
   const [emailSent, setEmailSent] = useState(false);
   const [code, setCode] = useState("");
   const [demoCode, setDemoCode] = useState("");
@@ -4734,22 +4735,22 @@ function AuthScreen({
         ) : (
           <div className="email-confirm">
             <div className="result-check"><Icon name="send" /></div>
-            <strong>Письмо отправлено</strong>
-            <p>Введите код подтверждения для {email}.</p>
-            {demoCode && <div className="verification-code">Код для локального демо: <strong>{demoCode}</strong></div>}
+            <strong>{publicTestStand ? "Подтвердите регистрацию" : "Код подтверждения"}</strong>
+            <p>{publicTestStand ? "Для тестового стенда код показан ниже. Письмо на почту не отправляется." : `Введите код подтверждения для ${email}.`}</p>
+            {demoCode && <div className="verification-code">{publicTestStand ? "Ваш код" : "Код для локального демо"}: <strong>{demoCode}</strong></div>}
             <label className="field field--flush"><span>КОД ПОДТВЕРЖДЕНИЯ</span><input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" /></label>
             <Button className={busy || code.length < 4 ? "button--disabled" : ""} onClick={verifyEmail}>{busy ? "Проверяем…" : "Подтвердить и продолжить"}</Button>
             <button type="button" className="manual-link" onClick={() => setEmailSent(false)}>Изменить email</button>
           </div>
         )}
         {error && <div className="form-error" role="alert">{error}</div>}
-        <div className="demo-access">
+        {!publicTestStand && <div className="demo-access">
           <div className="demo-access__intro"><span>ДЕМО-ДОСТУП</span><small>Можно открыть демо-кабинет без регистрации.</small></div>
           <div>
             <Button variant="outline" disabled={busy} onClick={() => void signInToDemo("candidate")}><Icon name="users" /> {busy ? "Подключаем…" : "Войти как кандидат"}</Button>
             <Button variant="outline" disabled={busy} onClick={() => void signInToDemo("employer")}><Icon name="briefcase" /> {busy ? "Подключаем…" : "Войти как компания"}</Button>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

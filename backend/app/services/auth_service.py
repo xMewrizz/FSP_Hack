@@ -86,7 +86,7 @@ class AuthService:
         await db.commit()
 
         return {
-            "message": "Код подтверждения отправлен на email",
+            "message": "Код подтверждения сформирован",
             "email": user.email,
             "verification_code": code,
         }
