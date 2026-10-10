@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Собрать и запустить исполнитель
-        run: docker compose --profile sandbox up --build -d sandbox-controller
+        run: SANDBOX_DEBUG=1 docker compose --profile sandbox up --build -d sandbox-controller
       - name: Проверить решения через Docker API
         run: docker compose --profile sandbox exec -T sandbox-controller env PYTHONPATH=/app python tests/integration_b25_docker.py
       - name: Логи при ошибке

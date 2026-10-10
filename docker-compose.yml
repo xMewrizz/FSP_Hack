@@ -69,6 +69,8 @@ services:
     profiles: ["sandbox"]
     image: fsp-sandbox-runner:local
     command: ["uvicorn", "app.core.code_sandbox.controller:app", "--host", "0.0.0.0", "--port", "8002"]
+    environment:
+      SANDBOX_DEBUG: ${SANDBOX_DEBUG:-}
     restart: unless-stopped
     depends_on:
       sandbox-runner:

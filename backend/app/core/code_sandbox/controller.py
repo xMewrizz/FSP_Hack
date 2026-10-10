@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import logging
 import os
 
 import httpx
@@ -13,6 +14,7 @@ from app.core.open_question_bank import get_open_question_by_code
 
 
 app = FastAPI(title="FSP code runner")
+logger = logging.getLogger(__name__)
 DOCKER_SOCKET = "/var/run/docker.sock"
 DOCKER_API = "http://docker/v1.41"
 RUNNER_IMAGE = "fsp-sandbox-runner:local"
@@ -107,6 +109,19 @@ async def _run_in_container(data: SandboxExecutionRequest) -> SandboxExecutionRe
             logs.raise_for_status()
             return parse_result(logs.text)
     except (httpx.HTTPError, KeyError, ValueError) as exc:
+        logger.exception("Не удалось получить результат контейнера %s", container_id)
+        if container_id and os.getenv("SANDBOX_DEBUG") == "1":
+            async with httpx.AsyncClient(
+                transport=httpx.AsyncHTTPTransport(uds=DOCKER_SOCKET), timeout=5.0,
+            ) as debug_client:
+                try:
+                    debug_logs = await debug_client.get(
+                        f"{DOCKER_API}/containers/{container_id}/logs",
+                        params={"stdout": "1", "stderr": "1"},
+                    )
+                    logger.error("Диагностика контейнера: %s", debug_logs.text[-3000:])
+                except httpx.HTTPError:
+                    pass
         raise HTTPException(status_code=503, detail="Изолированный исполнитель не вернул результат") from exc
     finally:
         if container_id:
