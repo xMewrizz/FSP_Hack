@@ -16,6 +16,7 @@ from app.schemas.network import (
     NetworkConversationResponse,
     NetworkMessageCreate,
     NetworkMessageResponse,
+    NetworkStatsResponse,
 )
 
 router = APIRouter(prefix="/network", tags=["Networking and mentorship"])
@@ -23,6 +24,19 @@ router = APIRouter(prefix="/network", tags=["Networking and mentorship"])
 
 def _name(profile: CandidateProfile) -> str:
     return " ".join(part for part in (profile.first_name, profile.last_name) if part).strip() or "Ментор"
+
+
+@router.get("/stats", response_model=NetworkStatsResponse)
+async def get_network_stats(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    sent_count = await db.scalar(
+        select(func.count(NetworkConversation.id)).where(
+            NetworkConversation.requester_user_id == current_user.id
+        )
+    )
+    return NetworkStatsResponse(mentorship_requests_sent=sent_count or 0)
 
 
 async def _conversation_for_user(

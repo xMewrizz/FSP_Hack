@@ -46,8 +46,179 @@ button {
   color: inherit;
 }
 
+.task-workspace {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.task-workspace__hero {
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: linear-gradient(120deg, rgba(98, 84, 255, 0.14), rgba(27, 28, 33, 0.94) 58%);
+  padding: 1.5rem;
+}
+
+.task-workspace__hero > span,
+.task-workspace__task > div > span {
+  color: var(--muted);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+}
+
+.task-workspace__hero h2 {
+  margin: 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.task-workspace__hero p,
+.task-workspace__candidate-card > p {
+  max-width: 60rem;
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.task-workspace__layout {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.9fr) minmax(22rem, 1.1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.task-workspace__form,
+.task-workspace__candidate {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-workspace__form .field textarea,
+.task-workspace__submission .field textarea,
+.task-workspace__candidate-card .field textarea {
+  min-height: 6rem;
+}
+
+.task-workspace__files {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-workspace__upload,
+.task-workspace__file {
+  border: 1px dashed var(--line-bright);
+  border-radius: 0.375rem;
+  background: var(--surface-raised);
+  padding: 0.625rem 0.75rem;
+  color: var(--muted-light);
+  font-size: 0.6875rem;
+}
+
+.task-workspace__upload {
+  position: relative;
+  cursor: pointer;
+}
+
+.task-workspace__upload input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.task-workspace__file {
+  border-style: solid;
+  cursor: pointer;
+}
+
+.task-workspace__task {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid var(--line);
+  padding: 1rem 0;
+}
+
+.task-workspace__task > div {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.task-workspace__task strong,
+.task-workspace__submission > strong {
+  font-size: 0.8125rem;
+}
+
+.task-workspace__task small {
+  color: var(--muted);
+  font-size: 0.625rem;
+}
+
+.task-workspace__reviews {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.task-workspace__reviews h3 {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.task-workspace__submission {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  background: var(--surface-raised);
+  padding: 1rem;
+}
+
+.task-workspace__submission p {
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.task-workspace__invite {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.875rem;
+}
+
+.task-workspace__invite h4 {
+  margin: 0;
+  color: var(--green);
+  font-size: 0.6875rem;
+}
+
+.task-workspace__submission a,
+.task-workspace__candidate-card > a {
+  overflow-wrap: anywhere;
+  color: #a59dff;
+  font-size: 0.6875rem;
+}
+
+.task-workspace__candidate-card {
+  display: grid;
+  gap: 1rem;
+}
+
 .app-shell {
   min-height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .task-workspace__layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .sidebar {
@@ -12151,6 +12322,162 @@ select,
   justify-content: center;
 }
 
+.app-shell .vacancy-access {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 0.65rem;
+}
+
+.app-shell .vacancy-access__toggle {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 0.65rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.7rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.app-shell .vacancy-access__panel {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.6rem;
+}
+
+.app-shell .vacancy-access__panel > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.app-shell .vacancy-access__member {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  padding: 0.65rem 0.75rem;
+}
+
+.app-shell .vacancy-access__member > div {
+  display: grid;
+  min-width: 10rem;
+  flex: 1 1 12rem;
+  gap: 0.15rem;
+}
+
+.app-shell .vacancy-access__member > div span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .vacancy-access__member > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.app-shell .need-summary__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.app-shell .need-summary--collapsed {
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-block: 0.55rem;
+}
+
+.app-shell .need-summary--collapsed > .muted-label {
+  margin-right: auto;
+}
+
+.app-shell .profile-contact-access {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.app-shell .profile-contact-access > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.app-shell .profile-contact-access > div > span {
+  overflow-wrap: anywhere;
+}
+
+.app-shell .profile-contact-access > svg {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  color: var(--accent);
+}
+
+.app-shell .profile-contact-access strong {
+  color: var(--text);
+}
+
+.app-shell [data-resume-top] {
+  scroll-margin-top: 1rem;
+}
+
+.app-shell .candidate-review-section {
+  display: grid;
+  min-width: 0;
+  gap: 0.55rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.85rem;
+}
+
+.app-shell .candidate-review-section > .section-title {
+  margin: 0;
+}
+
+.app-shell .candidate-review-section > .candidate-review {
+  min-width: 0;
+  padding: 0.9rem;
+}
+
+@media (min-width: 64.001rem) {
+  .app-shell .toolbar {
+    display: grid;
+    grid-template-columns: minmax(12rem, 1fr) auto auto auto;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .app-shell .toolbar .search-field {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
+
 .app-shell .candidate-card__radar-preview {
   display: grid;
   width: min(100%, 13rem);
@@ -12220,6 +12547,605 @@ select,
   gap: 0.9rem;
 }
 
+.app-shell .content-grid {
+  grid-template-columns: minmax(17rem, 0.72fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: 1.25rem;
+}
+
+.app-shell .candidates-list {
+  display: grid;
+  max-height: calc(100vh - 15rem);
+  gap: 0.65rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0.1rem 0.35rem 0.35rem 0.1rem;
+  scrollbar-gutter: stable;
+}
+
+.app-shell .candidates-list > .list-head {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  background: var(--background);
+  padding: 0.5rem 0;
+}
+
+.app-shell .candidates-list > .list-head > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.app-shell .candidates-list > .list-head > div > strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+}
+
+.app-shell .candidates-list > .list-head > div > span {
+  color: var(--muted);
+  font-size: 0.79rem;
+  line-height: 1.4;
+}
+
+.app-shell .candidate-card--compact {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  cursor: pointer;
+}
+
+.app-shell .candidate-card--compact:focus-visible {
+  outline: 3px solid rgba(64, 47, 255, 0.48);
+  outline-offset: 2px;
+}
+
+.app-shell .candidate-card--compact .candidate-card__top {
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.app-shell .candidate-card--compact {
+  gap: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 1.05rem;
+  background:
+    radial-gradient(circle at 100% 0, rgba(64, 47, 255, 0.055), transparent 52%),
+    var(--surface);
+  box-shadow: 0 0.35rem 1.1rem rgba(25, 28, 55, 0.035);
+}
+
+.app-shell .candidate-card--compact .candidate-card__identity {
+  min-width: 0;
+}
+
+.app-shell .candidate-card--compact .candidate-card__identity > div:last-child {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .candidate-card--compact .candidate-card__name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .candidate-card--compact .match {
+  min-width: 4.2rem;
+}
+
+.app-shell .candidate-card--compact .match strong {
+  font-size: 1.05rem;
+}
+
+.app-shell .candidate-card--compact .match {
+  min-width: 4rem;
+  align-items: center;
+  gap: 0;
+  border: 1px solid rgba(64, 47, 255, 0.14);
+  border-radius: 0.8rem;
+  background: rgba(64, 47, 255, 0.06);
+  padding: 0.4rem 0.55rem;
+}
+
+.app-shell .candidate-card--compact .match strong {
+  color: var(--violet-brand);
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+}
+
+.app-shell .candidate-card--compact .match strong small {
+  margin-left: 0.08rem;
+  font-size: 0.7em;
+}
+
+.app-shell .candidate-card--compact .match span {
+  font-size: 0.6rem;
+}
+
+.app-shell .candidate-card__match-track {
+  height: 0.3rem;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--line);
+}
+
+.app-shell .candidate-card__match-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #402fff, #28b8dc);
+}
+
+.app-shell .candidate-card__quickfacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.app-shell .candidate-card__quickfacts > span {
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--surface) 80%, var(--background));
+  padding: 0.3rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.app-shell .candidate-card--compact .mini-tags {
+  gap: 0.35rem;
+}
+
+.app-shell .candidate-card--compact .mini-tags > span {
+  font-size: 0.73rem;
+}
+
+.app-shell .candidate-card--compact .candidate-card__footer {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 0.55rem;
+}
+
+.app-shell .candidate-card--compact .candidate-card__footer > span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.79rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .candidate-card--compact .candidate-card__footer button {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.875rem;
+}
+
+.app-shell .profile-panel {
+  display: grid;
+  min-width: 0;
+  max-height: calc(100vh - 13rem);
+  gap: 1rem;
+  overflow: auto;
+  padding: 1.1rem;
+  scrollbar-gutter: stable;
+}
+
+.app-shell .profile-panel__head {
+  margin: 0;
+  border-bottom: 0;
+  padding-bottom: 0;
+  color: var(--violet-brand);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.app-shell .profile-hero {
+  align-items: center;
+}
+
+.app-shell .candidate-panel-tabs {
+  position: sticky;
+  z-index: 3;
+  top: -1.1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 0.95rem;
+  background: var(--surface);
+  padding: 0.3rem;
+  box-shadow: 0 0.5rem 1.2rem rgba(25, 28, 55, 0.07);
+}
+
+.app-shell .candidate-panel-tabs > button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 2.8rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: transparent;
+  padding: 0.5rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.app-shell .candidate-panel-tabs > button.active {
+  background: linear-gradient(135deg, #402fff, #247dda);
+  color: #fff;
+  box-shadow: 0 0.35rem 0.8rem rgba(64, 47, 255, 0.2);
+}
+
+.app-shell .profile-resume__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.app-shell .profile-resume__meta > span,
+.app-shell .profile-resume__meta > a {
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 0.35rem 0.65rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.app-shell .profile-resume__meta > a {
+  color: var(--violet-brand);
+}
+
+.app-shell .profile-resume__section > p,
+.app-shell .profile-resume__text > p {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.app-shell .profile-resume__text {
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.85rem;
+}
+
+.app-shell .profile-resume__text summary {
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.app-shell .candidate-review {
+  gap: 0.85rem;
+  margin-top: 0;
+}
+
+.app-shell .candidate-review__privacy,
+.app-shell .candidate-review__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+.app-shell .candidate-review__setup {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid rgba(64, 47, 255, 0.18);
+  border-radius: 0.85rem;
+  background: rgba(64, 47, 255, 0.05);
+  padding: 0.9rem;
+}
+
+.app-shell .candidate-review__setup > div:first-child {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.app-shell .candidate-review__setup strong {
+  color: var(--text);
+}
+
+.app-shell .candidate-review__setup p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.app-shell .candidate-review__setup > .button {
+  width: 100%;
+  justify-content: center;
+}
+
+.app-shell .candidate-review__invite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  padding: 0.65rem;
+}
+
+.app-shell .candidate-review__invite > span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .candidate-review__invite > span > strong {
+  color: var(--text);
+}
+
+.app-shell .candidate-review__statuses {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.app-shell .candidate-review__statuses .field {
+  min-width: 0;
+  margin: 0;
+}
+
+.app-shell .candidate-review__statuses .field > span,
+.app-shell .candidate-review__notes > span {
+  font-size: 0.68rem;
+}
+
+.app-shell .candidate-review__statuses select {
+  min-height: 2.8rem;
+  font-size: 0.82rem;
+}
+
+.app-shell .candidate-review__notes {
+  margin: 0;
+}
+
+.app-shell .candidate-review__notes textarea,
+.app-shell .candidate-review__composer textarea {
+  min-height: 6.5rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.app-shell .candidate-review__save {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.app-shell .candidate-review__save > small {
+  color: var(--muted);
+}
+
+.app-shell .candidate-review__messages {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.9rem;
+}
+
+.app-shell .candidate-review__message-list {
+  display: grid;
+  max-height: 17rem;
+  gap: 0.6rem;
+  overflow: auto;
+}
+
+.app-shell .candidate-review__message-list article {
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  padding: 0.7rem;
+}
+
+.app-shell .candidate-review__message-list article > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.app-shell .candidate-review__message-list article strong {
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.app-shell .candidate-review__message-list time {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.app-shell .candidate-review__message-list p {
+  margin: 0.45rem 0 0;
+  color: var(--text);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .candidate-review__composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.app-shell .candidate-review__composer textarea {
+  min-height: 3rem;
+}
+
+.app-shell .employer-team {
+  display: grid;
+  gap: 0.9rem;
+  grid-column: 1 / -1;
+}
+
+.app-shell .employer-team__member,
+.app-shell .employer-team__invite,
+.app-shell .employer-team__pending {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.75rem;
+}
+
+.app-shell .employer-team__avatar {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.8rem;
+  background: rgba(64, 47, 255, 0.1);
+  color: var(--violet-brand);
+  font-weight: 750;
+}
+
+.app-shell .employer-team__member > div,
+.app-shell .employer-team__invite > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  margin-right: auto;
+}
+
+.app-shell .employer-team__member strong,
+.app-shell .employer-team__invite strong,
+.app-shell .employer-team__pending strong {
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.app-shell .employer-team__member span:not(.employer-team__avatar),
+.app-shell .employer-team__invite span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.app-shell .employer-team__member > small,
+.app-shell .employer-team__pending > span {
+  color: var(--violet-brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.app-shell .employer-team__invite-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.app-shell .employer-team__invite-form .field {
+  margin: 0;
+}
+
+.app-shell .employer-team__pending {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.app-shell .employer-team__note {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  border-radius: 0.8rem;
+  background: var(--surface-soft);
+  padding: 0.8rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.app-shell .button {
+  min-height: 2.75rem;
+  font-size: max(0.875rem, 13px);
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .candidate-directory-card__footer .button,
+.app-shell .candidate-card--compact .candidate-card__footer button {
+  min-height: 2.75rem;
+  font-size: max(0.875rem, 13px);
+}
+
+@media (max-width: 64rem) {
+  .app-shell .content-grid {
+    grid-template-columns: minmax(15rem, 0.8fr) minmax(0, 1.2fr);
+  }
+}
+
+@media (max-width: 48rem) {
+  .app-shell .content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell .candidates-list,
+  .app-shell .profile-panel {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .app-shell .candidates-list > .list-head {
+    position: static;
+  }
+
+  .app-shell .candidate-review__statuses {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell .candidate-review__composer,
+  .app-shell .employer-team__invite-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell .candidate-panel-tabs {
+    top: 0;
+  }
+
+  .app-shell .candidate-panel-tabs > button {
+    min-height: 2.75rem;
+    font-size: 0.82rem;
+  }
+
+  .app-shell .candidate-review__invite {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-shell .employer-team__invite {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .app-shell .application-conversation__note {
   display: flex;
   align-items: flex-start;
@@ -12244,6 +13170,268 @@ select,
 .app-shell .settings-layout .consent-large {
   margin-block: 0.45rem;
   padding-block: 0.65rem;
+}
+
+.app-shell .content-grid {
+  grid-template-columns: minmax(14rem, 0.72fr) minmax(0, 1.28fr);
+  gap: 0.9rem;
+  align-items: stretch;
+}
+
+.app-shell .candidates-list {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: min-content;
+  align-content: start;
+  max-height: calc(100dvh - 16rem);
+  gap: 0.5rem;
+  overflow-x: hidden;
+}
+
+.app-shell .candidates-list > .list-head {
+  align-items: center;
+  min-width: 0;
+}
+
+.app-shell .candidates-list > .list-head > strong {
+  color: var(--text);
+  font-size: 0.83rem;
+  letter-spacing: 0.04em;
+}
+
+.app-shell .candidates-list > .list-head > button {
+  min-height: 2rem;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  padding: 0.35rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0;
+}
+
+.app-shell .candidate-card--compact {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 4.5rem;
+  box-sizing: border-box;
+  border-radius: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+}
+
+.app-shell .candidate-card--compact .candidate-card__top {
+  display: flex;
+  min-width: 0;
+}
+
+.app-shell .candidate-card--compact .avatar {
+  width: 2.8rem;
+  height: 2.8rem;
+  font-size: 0.78rem;
+}
+
+.app-shell .candidate-card--compact .candidate-card__identity {
+  min-width: 0;
+  margin-left: 0;
+}
+
+.app-shell .candidate-card--compact .candidate-card__name,
+.app-shell .candidate-card--compact .candidate-card__identity > div:last-child {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .candidate-card--compact .candidate-card__name {
+  margin-bottom: 0.15rem;
+  font-size: 0.9rem;
+}
+
+.app-shell .candidate-card--compact .candidate-card__identity > div:last-child {
+  font-size: 0.78rem;
+}
+
+.app-shell .profile-panel {
+  min-width: 0;
+  max-height: calc(100dvh - 14rem);
+  gap: 0.7rem;
+  overflow-x: hidden;
+  padding: 0.85rem;
+}
+
+.app-shell .profile-panel__head {
+  min-height: 1.1rem;
+  font-size: 0.67rem;
+}
+
+.app-shell .profile-panel__back {
+  display: none;
+}
+
+.app-shell .profile-hero {
+  gap: 0.65rem;
+  padding: 0.1rem 0;
+}
+
+.app-shell .profile-hero .avatar--large {
+  width: 2.8rem;
+  height: 2.8rem;
+  font-size: 0.8rem;
+}
+
+.app-shell .profile-hero__name {
+  font-size: 1rem;
+}
+
+.app-shell .candidate-panel-tabs {
+  top: -0.85rem;
+}
+
+@media (min-width: 48.001rem) {
+  .app-shell .topbar--matching {
+    grid-template-columns: minmax(10rem, 0.65fr) minmax(0, 1.35fr);
+    gap: 0.65rem;
+    min-height: 5rem;
+    padding-block: 0.55rem;
+  }
+
+  .app-shell .topbar--matching .topbar__heading .eyebrow {
+    margin-bottom: 0.15rem;
+    font-size: 0.65rem;
+  }
+
+  .app-shell .topbar--matching .page-title {
+    font-size: clamp(1.15rem, 1rem + 0.5vw, 1.55rem);
+    line-height: 1.1;
+  }
+
+  .app-shell .topbar--matching .topbar__actions {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
+  .app-shell .topbar--matching .demo-mode-badge {
+    min-height: 1.8rem;
+    padding-inline: 0.4rem;
+    font-size: 0.5rem;
+  }
+
+  .app-shell .topbar--matching .role-switch {
+    width: 10.5rem;
+    min-width: 0;
+    flex: 0 1 10.5rem;
+    margin: 0;
+  }
+
+  .app-shell .topbar--matching .role-switch button {
+    min-width: 0;
+    gap: 0.25rem;
+    padding-inline: 0.35rem;
+    font-size: 0.75rem;
+  }
+
+  .app-shell .topbar--matching .theme-switch {
+    min-width: 2.7rem;
+    padding-inline: 0.45rem;
+    font-size: 0.75rem;
+  }
+
+  .app-shell .need-summary--compact {
+    min-height: 4.2rem;
+    gap: 0.7rem;
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.8rem;
+  }
+
+  .app-shell .need-summary--compact .need-summary__icon {
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 auto;
+  }
+
+  .app-shell .need-summary--compact .need-summary__top {
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+  }
+
+  .app-shell .need-summary--compact .need-summary__top > div {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.55rem;
+  }
+
+  .app-shell .need-summary--compact .need-summary__top strong {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .app-shell .need-summary--compact .need-summary__meta {
+    flex-wrap: wrap;
+    gap: 0.15rem 0.7rem;
+    margin-top: 0.2rem;
+    font-size: 0.7rem;
+  }
+
+  .app-shell .need-summary--compact .need-summary__meta span:not(:first-child)::before {
+    margin-right: 0.7rem;
+  }
+
+  .app-shell .need-summary--compact > .button {
+    width: auto;
+    min-height: 2.25rem;
+    flex: 0 0 auto;
+  }
+
+  .app-shell .topbar--matching + .need-summary + .toolbar {
+    padding-block: 0.65rem;
+  }
+}
+
+@media (min-width: 48.001rem) and (max-width: 80rem) {
+  .app-shell .topbar--matching .topbar__actions > .button {
+    display: none;
+  }
+}
+
+@media (max-width: 64rem) {
+  .app-shell .content-grid {
+    grid-template-columns: minmax(13rem, 0.72fr) minmax(0, 1.28fr);
+  }
+}
+
+@media (max-width: 48rem) {
+  .app-shell .need-summary--compact {
+    min-height: 0;
+  }
+
+  .app-shell .content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell .candidates-list,
+  .app-shell .profile-panel {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .app-shell .profile-panel__back {
+    display: inline-flex;
+    min-height: 2rem;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+    background: var(--surface);
+    padding: 0.3rem 0.55rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
 }
 
 .app-shell .settings-layout .consent-large + .consent-large {
@@ -12514,5 +13702,501 @@ select,
 
   .app-shell .dashboard-grid--candidate > .feature-card--fsp {
     grid-column: auto;
+  }
+}
+
+.app-shell button.button {
+  min-height: 2.75rem;
+  font-size: max(0.875rem, 13px);
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .candidate-directory-card__radar {
+  width: min(100%, 16rem);
+}
+
+@media (max-width: 48rem) {
+  .app-shell .role-switch--interactive button,
+  .app-shell .topbar__actions > .theme-switch,
+  .app-shell .topbar__actions > button.button {
+    font-size: max(0.875rem, 13px);
+  }
+}
+
+.app-shell .list-head > button,
+.app-shell .tab-row > button,
+.app-shell .dialogues-mode-switch > button,
+.app-shell .vacancy-tabs > button {
+  min-height: 2.75rem;
+  font-size: max(0.875rem, 13px);
+  line-height: 1.25;
+}
+
+.app-shell .avatar--photo {
+  overflow: hidden;
+  padding: 0;
+}
+
+.app-shell .avatar--photo > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app-shell .profile-edit-head {
+  align-items: center;
+}
+
+.app-shell .profile-photo-control {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: start;
+  gap: 0.35rem;
+}
+
+.app-shell .profile-photo-control > .button {
+  min-height: 2.2rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.76rem;
+}
+
+.app-shell .profile-photo-control > small {
+  max-width: 10rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 48rem) {
+  .app-shell .topbar--matching {
+    gap: 0.4rem;
+    padding: 0.65rem 0.8rem;
+  }
+
+  .app-shell .topbar--matching .page-title {
+    font-size: 1.3rem;
+  }
+
+  .app-shell .topbar--matching .topbar__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.4rem;
+  }
+
+  .app-shell .topbar--matching .demo-mode-badge,
+  .app-shell .topbar--matching .topbar__actions > .button {
+    display: none;
+  }
+
+  .app-shell .topbar--matching .topbar__actions > .role-switch {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .app-shell .topbar--matching .role-switch button {
+    min-width: 0;
+    gap: 0.25rem;
+    padding-inline: 0.35rem;
+    font-size: 0.75rem;
+  }
+
+  .app-shell .topbar--matching .topbar__actions > .theme-switch {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 2.65rem;
+  }
+
+  .app-shell .topbar--matching .topbar__actions > .icon-button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .app-shell .need-summary--compact {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0.55rem;
+    margin-top: 0.55rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .app-shell .need-summary--compact .need-summary__icon {
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 auto;
+  }
+
+  .app-shell .need-summary--compact .need-summary__main {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .app-shell .need-summary--compact .need-summary__top {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .app-shell .need-summary--compact .need-summary__top > div {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .app-shell .need-summary--compact .need-summary__top strong {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+
+  .app-shell .need-summary--compact .need-summary__meta {
+    display: none;
+  }
+
+  .app-shell .need-summary--compact > .button {
+    width: auto;
+    min-height: 2.3rem;
+    flex: 0 0 auto;
+    padding-inline: 0.55rem;
+  }
+
+  .app-shell .topbar--matching + .need-summary + .toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    padding: 0.6rem 0.8rem;
+  }
+
+  .app-shell .topbar--matching + .need-summary + .toolbar > .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .app-shell .topbar--matching + .need-summary + .toolbar > .button {
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 0.45rem;
+    font-size: 0.78rem;
+  }
+
+  .app-shell .topbar--matching + .need-summary + .toolbar > .view-switch {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .app-shell .topbar--matching + .need-summary + .toolbar > .toolbar__result {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .app-shell .profile-edit-head {
+    align-items: flex-start;
+  }
+
+  .app-shell .profile-photo-control > small {
+    max-width: 8rem;
+  }
+}
+
+.app-shell .swipe-action {
+  width: 6.25rem;
+  min-height: 5.25rem;
+  gap: 0.45rem;
+  border: 1px solid color-mix(in srgb, currentColor 22%, var(--line));
+  border-radius: 1.4rem;
+  background: color-mix(in srgb, currentColor 8%, var(--surface-raised));
+  box-shadow: 0 0.55rem 1.25rem rgba(15, 23, 42, 0.12);
+  font-weight: 750;
+}
+
+.app-shell .swipe-action svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke-width: 2.4;
+}
+
+.app-shell .swipe-action span {
+  font-size: 0.72rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.app-shell .swipe-action--open {
+  border-color: color-mix(in srgb, var(--violet) 28%, var(--line));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--violet) 14%, var(--surface-raised)), var(--surface-raised));
+}
+
+.app-shell .swipe-action--skip {
+  border-color: color-mix(in srgb, var(--red) 24%, var(--line));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--red) 10%, var(--surface-raised)), var(--surface-raised));
+}
+
+.app-shell .swipe-action--save {
+  border-color: color-mix(in srgb, var(--green) 25%, var(--line));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--green) 11%, var(--surface-raised)), var(--surface-raised));
+}
+
+.app-shell .swipe-action:focus-visible {
+  outline: 3px solid color-mix(in srgb, currentColor 48%, transparent);
+  outline-offset: 3px;
+}
+
+.app-shell .role-switch--interactive button {
+  flex: 1 1 0;
+  white-space: nowrap;
+}
+
+.app-shell .conversation-message-row {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  align-items: flex-end;
+  gap: 0.5rem;
+  align-self: flex-start;
+}
+
+.app-shell .conversation-message-row--mine {
+  align-self: flex-end;
+  justify-content: flex-end;
+}
+
+.app-shell .conversation-message-row--mine .conversation-message__avatar {
+  order: 2;
+}
+
+.app-shell .conversation-message-row .conversation-message {
+  min-width: 0;
+  max-width: min(calc(100% - 2.3rem), 34rem);
+  flex: 0 1 auto;
+  align-self: stretch;
+}
+
+.app-shell .conversation-message__avatar {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  flex: 0 0 1.8rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #402fff, #8178ff);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.app-shell .conversation-message-row--mine .conversation-message__avatar {
+  background: linear-gradient(145deg, #13866c, #39b795);
+}
+
+.app-shell .conversation-modal__header > .dialogue-list-item__avatar {
+  flex: 0 0 2.55rem;
+}
+
+@media (max-width: 30rem) {
+  .app-shell .swipe-action {
+    width: min(5.25rem, 29vw);
+    min-height: 4.5rem;
+    border-radius: 1.2rem;
+  }
+
+  .app-shell .role-switch--interactive button {
+    gap: 0.2rem;
+    padding-inline: 0.2rem;
+    font-size: 0.68rem;
+  }
+}
+
+.app-shell .bank-toolbar--candidates {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0.65rem;
+}
+
+.app-shell .bank-toolbar--candidates > .search-field--wide {
+  width: auto;
+  grid-column: span 2;
+}
+
+.app-shell .bank-toolbar--candidates > .search-field,
+.app-shell .bank-toolbar--candidates > .bank-select,
+.app-shell .bank-toolbar--candidates > .button {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.8rem;
+}
+
+.app-shell .matching-filter-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.app-shell .matching-filter-panel > label,
+.app-shell .matching-filter-panel .bank-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.app-shell .content-grid {
+  grid-template-columns: minmax(16rem, 0.72fr) minmax(0, 1.28fr);
+  gap: 1rem;
+  padding: 0.6rem 0.75rem 0;
+}
+
+.app-shell .candidates-list {
+  padding: 0.2rem 0.45rem 0.5rem 0.35rem;
+}
+
+.app-shell .profile-panel {
+  min-width: 0;
+  padding: 0.75rem 1rem 1.25rem;
+}
+
+.app-shell .swipe-card__body > .radar {
+  width: min(100%, 23rem);
+  justify-self: center;
+}
+
+.app-shell .test-confidentiality-warning {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 1rem;
+  border: 1px solid color-mix(in srgb, var(--red) 52%, var(--line));
+  border-top: 4px solid var(--red);
+  border-radius: 0.85rem;
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--red) 12%, var(--surface)), var(--surface) 62%);
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--red) 9%, transparent);
+}
+
+.app-shell .test-confidentiality-warning__copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.app-shell .test-confidentiality-warning__copy > span {
+  color: var(--red);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.app-shell .test-confidentiality-warning__copy > strong {
+  color: var(--text);
+  font-size: clamp(1.08rem, 2vw, 1.35rem);
+  line-height: 1.3;
+}
+
+.app-shell .test-confidentiality-warning__copy > p {
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.app-shell .test-confidentiality-warning__copy > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.3rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.app-shell .test-confidentiality-warning__copy input {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  accent-color: var(--red);
+}
+
+.app-shell .employer-mentors {
+  grid-column: 1 / -1;
+}
+
+.app-shell .employer-mentor-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.9rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.app-shell .employer-mentor-row > div {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.app-shell .employer-mentor-row > div > span,
+.app-shell .employer-mentor-row > div > small {
+  color: var(--muted-light);
+}
+
+.app-shell .employer-mentor-row__badge {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 64rem) {
+  .app-shell .bank-toolbar--candidates {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .app-shell .matching-filter-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 48rem) {
+  .app-shell .bank-toolbar--candidates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .app-shell .bank-toolbar--candidates > .search-field--wide {
+    grid-column: 1 / -1;
+  }
+
+  .app-shell .matching-filter-panel {
+    grid-template-columns: minmax(0, 1fr);
+    margin-inline: 0.75rem;
+  }
+
+  .app-shell .content-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: 0.5rem;
+  }
+
+  .app-shell .candidates-list {
+    padding-inline: 0.35rem;
+  }
+
+  .app-shell .profile-panel {
+    padding-inline: 0.65rem;
+  }
+
+  .app-shell .test-confidentiality-warning {
+    padding: 0.9rem;
+  }
+
+  .app-shell .employer-mentor-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .app-shell .employer-mentor-row__badge {
+    grid-column: 2;
   }
 }

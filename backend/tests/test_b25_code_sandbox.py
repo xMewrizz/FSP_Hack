@@ -276,6 +276,12 @@ async def register_sandbox_candidate(client: AsyncClient, email: str = "sandbox_
         },
     )
     assert onboard.status_code == 200
+    consent = await client.put(
+        "/api/v1/candidates/profile",
+        headers=headers,
+        json={"agreed_test_confidentiality": True},
+    )
+    assert consent.status_code == 200
     return headers
 
 

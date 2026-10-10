@@ -108,6 +108,9 @@ async def test_candidate_can_request_opted_in_higher_grade_mentor(client: AsyncC
     conversation_id = request.json()["id"]
     assert request.json()["status"] == "pending"
     assert request.json()["can_accept"] is False
+    stats = await client.get("/api/v1/network/stats", headers=candidate_headers)
+    assert stats.status_code == 200
+    assert stats.json()["mentorship_requests_sent"] == 1
 
     assert (await client.post(
         f"/api/v1/network/conversations/{conversation_id}/messages",

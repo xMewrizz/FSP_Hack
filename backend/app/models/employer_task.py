@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 import uuid
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, LargeBinary, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
@@ -41,6 +41,12 @@ class EmployerTask(Base, TimestampMixin):
     task_type: Mapped[str] = mapped_column(String(50), default="manual_review", nullable=False)
     reference_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     max_score: Mapped[float] = mapped_column(Float, default=10.0, nullable=False)
+    specialization: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    min_grade: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    max_grade: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    evaluation_criteria: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    resource_links: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    is_platform_task: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     employer: Mapped["EmployerProfile"] = relationship("EmployerProfile", back_populates="tasks")
@@ -50,6 +56,11 @@ class EmployerTask(Base, TimestampMixin):
         back_populates="task",
         cascade="all, delete-orphan",
         order_by="desc(EmployerTaskSubmission.created_at)",
+    )
+    attachments: Mapped[list["TaskAttachment"]] = relationship(
+        "TaskAttachment",
+        back_populates="task",
+        cascade="all, delete-orphan",
     )
 
 
@@ -82,6 +93,8 @@ class EmployerTaskSubmission(Base, TimestampMixin):
     max_score: Mapped[float] = mapped_column(Float, default=10.0, nullable=False)
     passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answer_links: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    contact_consent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -92,3 +105,41 @@ class EmployerTaskSubmission(Base, TimestampMixin):
 
     task: Mapped["EmployerTask"] = relationship("EmployerTask", back_populates="submissions")
     candidate: Mapped["CandidateProfile"] = relationship("CandidateProfile", back_populates="task_submissions")
+    attachments: Mapped[list["TaskAttachment"]] = relationship(
+        "TaskAttachment",
+        back_populates="submission",
+        cascade="all, delete-orphan",
+    )
+
+
+class TaskAttachment(Base):
+    __tablename__ = "task_attachments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("employer_tasks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    submission_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("employer_task_submissions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+    task: Mapped["EmployerTask | None"] = relationship("EmployerTask", back_populates="attachments")
+    submission: Mapped["EmployerTaskSubmission | None"] = relationship(
+        "EmployerTaskSubmission",
+        back_populates="attachments",
+    )

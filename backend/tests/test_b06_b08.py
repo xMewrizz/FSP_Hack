@@ -23,6 +23,22 @@ async def test_b08_demo_achievements_do_not_grant_grade(client: AsyncClient):
         "declared_grade": "senior", "city": "Москва", "agreed_152_fz": True,
     })
     assert onboard.status_code == 200
+    denied_onboarding = await client.post("/api/v1/candidate/onboarding", headers=headers, json={
+        "first_name": "Тест", "last_name": "Кандидат", "specialization": "Backend",
+        "declared_grade": "senior", "city": "Москва", "agreed_152_fz": True,
+        "fsp_id": "FSP-77-001",
+    })
+    assert denied_onboarding.status_code == 400
+    denied = await client.post("/api/v1/candidate/link-fsp", headers=headers, json={"fsp_id": "FSP-77-001"})
+    assert denied.status_code == 403
+    denied_profile_update = await client.put(
+        "/api/v1/candidate/profile",
+        headers=headers,
+        json={"fsp_id": "FSP-77-001"},
+    )
+    assert denied_profile_update.status_code == 403
+    consent = await client.put("/api/v1/candidate/profile", headers=headers, json={"agreed_fsp_id_link": True})
+    assert consent.status_code == 200
     linked = await client.post("/api/v1/candidate/link-fsp", headers=headers, json={"fsp_id": "FSP-77-001"})
     assert linked.status_code == 200
 
@@ -43,6 +59,15 @@ async def test_b08_demo_achievements_do_not_grant_grade(client: AsyncClient):
         assert ach["is_demo"] is True
         assert "Демонстрационные данные" in ach["disclaimer"]
         assert ach["verified"] is False
+
+    withdrawn = await client.put(
+        "/api/v1/candidate/profile",
+        headers=headers,
+        json={"agreed_fsp_id_link": False},
+    )
+    assert withdrawn.status_code == 200
+    assert withdrawn.json()["fsp_id"] is None
+    assert withdrawn.json()["achievements"] == []
 
     # 4. Отвязка ФСП ID (DELETE /api/v1/candidate/link-fsp)
     unlink_resp = await client.delete("/api/v1/candidate/link-fsp", headers=headers)
@@ -86,6 +111,7 @@ async def test_b06_standardized_pdf_profile_cyrillic_and_152fz_masking(client: A
             "skills": ["Python", "FastAPI", "PostgreSQL", "Docker"],
             "bio": "Ведущий инженер бэкенд систем.",
             "fsp_id": "FSP-77-001",
+            "agreed_fsp_id_link": True,
             "agreed_152_fz": True,
             "agreed_publication": True,
             "visibility_public": True,

@@ -63,6 +63,7 @@ async def test_candidate_registration_and_verification(client: AsyncClient):
             "work_format": "remote",
             "city": "Москва",
             "fsp_id": "FSP-77-001",
+            "agreed_fsp_id_link": True,
             "first_name": "Иван",
             "last_name": "Иванов",
             "telegram": "@ivan_dev",

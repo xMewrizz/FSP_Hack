@@ -47,6 +47,15 @@ async def lifespan(app: FastAPI):
             await conn.execute(text(
                 "ALTER TABLE candidate_profiles ADD COLUMN last_active_at TIMESTAMP WITH TIME ZONE NULL"
             ))
+        if "photo_filename" not in columns:
+            await conn.execute(text(
+                "ALTER TABLE candidate_profiles ADD COLUMN photo_filename VARCHAR(80)"
+            ))
+        employer_columns = await conn.run_sync(
+            lambda sync_conn: {column["name"] for column in inspect(sync_conn).get_columns("employer_profiles")}
+        )
+        if "organization_id" not in employer_columns:
+            await conn.execute(text("ALTER TABLE employer_profiles ADD COLUMN organization_id UUID"))
         # B-13 добавил признак «до вычета / на руки» в три существующие таблицы.
         # create_all обновляет только новые таблицы, поэтому старые базы дополняем здесь.
         for table_name in ("employer_needs", "invitations"):

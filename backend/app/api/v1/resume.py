@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -9,9 +9,124 @@ from app.core.constants import UserRole
 from app.models.candidate import CandidateProfile
 from app.models.user import User
 from app.schemas.resume import ResumeParsedData
+from app.services.candidate_photo_service import MAX_PHOTO_SIZE, candidate_photo_service
+from app.services.candidate_service import candidate_service
 from app.services.pdf_service import pdf_service
 
 router = APIRouter(tags=["Candidate PDF & Resume Tools"])
+
+
+@router.post(
+    "/profile/photo",
+    summary="Загрузить фото профиля кандидата",
+)
+async def upload_profile_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    content = await file.read(MAX_PHOTO_SIZE + 1)
+    if len(content) > MAX_PHOTO_SIZE:
+        raise HTTPException(status_code=400, detail="Размер фотографии не должен превышать 5 МБ.")
+    extension, _ = candidate_photo_service.detect_format(content)
+
+    profile = await db.scalar(
+        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
+    )
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Профиль кандидата не найден.")
+
+    new_filename = candidate_photo_service.save(content, extension)
+    old_filename = profile.photo_filename
+    profile.photo_filename = new_filename
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        candidate_photo_service.delete(new_filename)
+        raise
+
+    candidate_photo_service.delete(old_filename)
+    return await candidate_service.get_profile(db, current_user)
+
+
+@router.delete(
+    "/profile/photo",
+    summary="Удалить фото профиля кандидата",
+)
+async def delete_profile_photo(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.scalar(
+        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
+    )
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Профиль кандидата не найден.")
+    old_filename = profile.photo_filename
+    profile.photo_filename = None
+    await db.commit()
+    candidate_photo_service.delete(old_filename)
+    return await candidate_service.get_profile(db, current_user)
+
+
+@router.get(
+    "/profile/photo",
+    summary="Получить собственное фото профиля кандидата",
+)
+async def get_my_profile_photo(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.scalar(
+        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
+    )
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Фото не найдено.")
+    content, media_type = candidate_photo_service.read(profile.photo_filename)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.get(
+    "/{candidate_id}/photo",
+    summary="Получить опубликованное фото кандидата",
+)
+async def get_candidate_photo(
+    candidate_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not current_user.is_verified:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Требуется подтверждение email.")
+    profile = await db.scalar(
+        select(CandidateProfile)
+        .options(selectinload(CandidateProfile.user))
+        .where(CandidateProfile.id == candidate_id)
+    )
+    if profile is None or profile.user is None:
+        raise HTTPException(status_code=404, detail="Фото не найдено.")
+
+    is_owner = current_user.role == UserRole.CANDIDATE and profile.user_id == current_user.id
+    is_public_to_employers = (
+        current_user.role == UserRole.EMPLOYER
+        and profile.user.is_verified
+        and profile.agreed_publication
+        and profile.visibility_public
+        and profile.onboarding_completed
+    )
+    if not (is_owner or is_public_to_employers):
+        raise HTTPException(status_code=404, detail="Фото не найдено.")
+
+    content, media_type = candidate_photo_service.read(profile.photo_filename)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 @router.post(

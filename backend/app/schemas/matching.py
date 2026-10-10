@@ -24,6 +24,12 @@ class RequestedSkillTestResult(BaseModel):
     completed_at: datetime | None = None
 
 
+class CandidateAdditionalSpecialization(BaseModel):
+    specialization: str
+    status: str
+    verified_grade: str | None = None
+
+
 class CandidateMatchItem(BaseModel):
     candidate_id: uuid.UUID
     first_name: str
@@ -39,12 +45,23 @@ class CandidateMatchItem(BaseModel):
     fsp_rating: float | None
     achievements_count: int
     skills: list[str]
+    bio: str | None = None
+    hobbies: str | None = None
+    education_level: str | None = None
+    university_course: int | None = None
+    birth_year: int | None = None
+    photo_url: str | None = None
+    github_url: str | None = None
+    resume_text: str | None = None
+    resume_url: str | None = None
     salary_expectation: float | None = None
     salary_tax_type: str | None = None
     test_percentage: float | None
+    activity_status: str = "Не активен"
     match_score: float
     match_explanation: MatchExplanation
     requested_skill_tests: list[RequestedSkillTestResult] = Field(default_factory=list)
+    additional_specializations: list[CandidateAdditionalSpecialization] = Field(default_factory=list)
 
 
 class MatchingCandidatesResponse(BaseModel):

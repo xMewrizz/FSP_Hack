@@ -151,6 +151,19 @@ class AdditionalSkillTestResponse(BaseModel):
     latest_session_id: uuid.UUID | None = None
 
 
+class CandidateSpecializationTrackRequest(BaseModel):
+    specialization: str
+
+
+class CandidateSpecializationTrackResponse(BaseModel):
+    specialization: str
+    status: str
+    test_available: bool
+    availability_reason: str | None = None
+    verified_grade: str | None = None
+    assessment_id: uuid.UUID | None = None
+
+
 class OpenQuestionResponse(BaseModel):
     code: str
     title: str
@@ -210,4 +223,3 @@ class SpecializationTestingCatalogItem(BaseModel):
 class TestingCatalogResponse(BaseModel):
     specializations: list[SpecializationTestingCatalogItem]
     supported_pairs: list[dict[str, str]]
-

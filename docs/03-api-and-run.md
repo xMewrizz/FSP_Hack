@@ -106,6 +106,13 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 ### 2. Профиль и онбординг кандидата (`/api/v1/candidate` и `/api/v1/candidates`)
 
 Загрузка PDF только разбирает файл и возвращает предпросмотр; сервер не сохраняет извлечённые поля автоматически. Кандидат проверяет/редактирует их в профиле и отдельно вызывает `PUT /candidates/profile`.
+Фото профиля можно загрузить отдельно (JPG, PNG или WebP, до 5 МБ). Работодатель получает его только для опубликованного профиля; собственное фото кандидат может просматривать независимо от публикации.
+Эндпоинты: `POST /candidates/profile/photo` (multipart-поле `file`), `GET /candidates/profile/photo`, `DELETE /candidates/profile/photo` и `GET /candidate/{candidate_id}/photo` для работодателя.
+Публикация профиля и связь с ID участника ФСП требуют отдельных согласий. Согласие на привязку ФСП ID передаётся как `agreed_fsp_id_link`; при его отзыве ID и загруженные достижения удаляются. Эндпоинт привязки ID отвечает `403`, если согласие не сохранено.
+
+Профиль также поддерживает `hobbies`, `education_level`, `university_course` и `birth_year`. Год рождения используется только для примерного возрастного фильтра и не раскрывает работодателю точную дату рождения. В `/matching/search` доступны `education_level`, `university_course_group` (`junior` — 1–2 курс, `senior` — 3+ курс), `age_min` и `age_max`.
+
+Перед просмотром материалов и началом тестирования кандидат должен сохранить `agreed_test_confidentiality=true`; иначе тестовые эндпоинты отвечают `403`. Согласие включает обязательство не распространять задания, ответы, решения и скриншоты.
 
 | Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -170,6 +177,24 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 
 ---
 
+#### Командная HR-карточка кандидата
+
+Организация создаётся только после явного действия работодателя или при отправке приглашения; простое открытие списка команды или карточки кандидата не создаёт личную команду. Для принятия приглашения нужны аккаунт работодателя и подтверждённый совпадающий email. Владелец приглашает тимлидов и HR, тимлид — HR; только владелец может назначить тимлида. Владелец и тимлид назначают права просмотра/редактирования по каждой вакансии, а HR видит только вакансии с выданным доступом. Общие заметки, статусы и обсуждения ограничены подтверждённым членством в одной организации и опубликованными профилями кандидатов.
+
+| Метод | URL | Описание | Авторизация | Тело запроса | Ответ |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/employer/team` | Состав HR-команды и приглашения | Работодатель | — | `EmployerTeamResponse`; для получателя приглашения организация может быть `null` до принятия |
+| `POST` | `/employer/team/workspace` | Явно создать HR-пространство компании | Работодатель | — | `EmployerTeamResponse` |
+| `POST` | `/employer/team/invitations` | Пригласить HR или тимлида (тимлида назначает только владелец) | Работодатель с правом управления командой | `{ "email": "colleague@company.ru", "team_role": "hr" }` (`hr` или `team_lead`) | Обновлённый `EmployerTeamResponse` |
+| `POST` | `/employer/team/invitations/{invitation_id}/accept` | Принять приглашение с совпадающего подтверждённого email | Работодатель | — | Обновлённый `EmployerTeamResponse` |
+| `DELETE` | `/employer/team/invitations/{invitation_id}` | Отменить ожидающее приглашение; тимлид может отменить только приглашение HR | Владелец или тимлид | — | Обновлённый `EmployerTeamResponse` |
+| `GET` | `/employer/mentors` | Наставники среди кандидатов, связанных с компанией откликом или принятым приглашением | Работодатель | — | Публичные профили с включённой доступностью наставничества |
+| `GET` | `/matching/candidates/{candidate_id}/review` | Загрузить приватную HR-карточку и командные сообщения | Участник организации | — | `CandidateReviewResponse` |
+| `PUT` | `/matching/candidates/{candidate_id}/review` | Обновить заметки и HR-статусы | Участник организации | `notes`, `pipeline_status`, `contact_status`, `background_check_status` | Обновлённый `CandidateReviewResponse`; этапы включают оффер, онбординг, работу с ментором и найм |
+| `POST` | `/matching/candidates/{candidate_id}/review/messages` | Отправить внутреннее сообщение команде | Участник организации | `{ "body": "Обсудим вопросы для интервью" }` (1–4000 символов) | Обновлённый `CandidateReviewResponse` |
+
+Карточки доступны только для публичных профилей с подтверждённым грейдом. Статусы поиска контакта и проверки СБ — ручная фиксация HR; они не отправляют сообщение кандидату и не запускают внешнюю проверку. Matching API возвращает публичные поля резюме `bio`, `github_url`, `resume_text` и `resume_url`, но не контакты аккаунта. Наставнический список также требует публичности профиля и явного согласия кандидата быть наставником. Миграции командных пространств, этапов и ролей — [007](../backend/alembic/versions/007_employer_candidate_workspaces.py), [012](../backend/alembic/versions/012_candidate_review_onboarding_stages.py) и [013](../backend/alembic/versions/013_employer_team_roles.py).
+
 ### 7. Прямые приглашения / Офферы (`/api/v1/invitations`)
 
 #### Чат принятого приглашения
@@ -189,6 +214,7 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | Метод | URL | Описание | Авторизация | Параметры / тело | Ответ |
 |---|---|---|---|---|---|
 | `GET` | `/network/mentors` | Поиск наставников по навыку и специализации | Кандидат | `skill`, `specialization` | Профили с подтверждённым более высоким грейдом, без контактных данных |
+| `GET` | `/network/stats` | Число отправленных запросов наставникам для сводки кандидата | Кандидат | — | `{ "mentorship_requests_sent": 2 }` |
 | `POST` | `/network/mentorship-requests` | Запросить наставничество с сообщением и фокусом навыка | Кандидат | `mentor_user_id`, `skill_focus`, `message` (до 4000 символов) | Созданный диалог со статусом `pending` |
 | `GET` | `/network/conversations` | Диалоги наставничества, входящие запросы и статусы | Кандидат | — | Список диалогов; `can_accept` выставлен только наставнику |
 | `POST` | `/network/conversations/{id}/accept` | Принять входящий запрос | Приглашённый наставник | — | Диалог со статусом `accepted` |
@@ -236,6 +262,8 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | `POST` | `/vacancies` | Публикация вакансии с зарплатой («до вычета НДФЛ» / «на руки») | `Bearer JWT` (Employer) | `VacancyCreate` (`title`, `specialization`, `required_grade`, `salary_min`, `salary_max`, `salary_tax_type: "gross"|"net"`, `work_format`) | `201 Created`: `VacancyResponse` |
 | `GET` | `/vacancies` | Поиск открытых вакансий по фильтрам | Публичный / Candidate | `specialization`, `required_grade`, `work_format`, `salary_tax_type`, `min_salary`, `city` | `200 OK`: `list[VacancyResponse]` |
 | `GET` | `/vacancies/my` | Список вакансий компании | `Bearer JWT` (Employer) | — | `200 OK`: `list[VacancyResponse]` |
+| `GET` | `/vacancies/{id}/permissions` | Права участников команды на вакансию (только владелец HR-пространства) | Employer | — | `200 OK`: список `user_id`, `can_view`, `can_edit` |
+| `PUT` | `/vacancies/{id}/permissions` | Назначить или отозвать права участника (`can_edit` включает просмотр) | Employer | `user_id`, `can_view`, `can_edit` | `200 OK`: обновлённый список прав |
 | `GET` | `/vacancies/{id}` | Детали вакансии | Публичный | — | `200 OK`: `VacancyResponse` |
 | `PATCH` | `/vacancies/{id}` | Обновление вакансии | `Bearer JWT` (Employer) | `VacancyUpdate` | `200 OK`: `VacancyResponse` |
 | `DELETE` | `/vacancies/{id}` | Удаление вакансии | `Bearer JWT` (Employer) | — | `204 No Content` |
@@ -245,6 +273,8 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | `PATCH` | `/vacancies/applications/{id}/status` | Изменение статуса отклика (`accepted`, `rejected`) | `Bearer JWT` (Employer) | `ApplicationStatusUpdate` (`status`) | `200 OK`: статус обновлен |
 
 ---
+
+**Актуальное правило доступа (заменяет устаревшее описание в таблице выше):** права на конкретную вакансию назначает владелец HR-пространства через `GET` и `PUT /vacancies/{id}/permissions`. Право редактирования включает просмотр. Владелец команды может выдать участнику доступ к вакансиям других авторов в своей организации; чтение откликов и контактов разрешено автору, владельцу команды и участникам с правом просмотра. Изменять вакансию и статусы откликов могут автор, владелец команды и участник с правом редактирования.
 
 ### 11. Открытые вопросы и проверка кода (B-25, B-27) (`/api/v1/testing`)
 
@@ -258,4 +288,3 @@ curl -X POST http://localhost:8000/api/v1/system/seed
 | `GET` | `/testing/open-submissions` | История отправленных решений кандидата | `Bearer JWT` (Candidate) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
 | `GET` | `/testing/open-submissions/pending-review` | Список решений, ожидающих проверки | `Bearer JWT` (Admin) | — | `200 OK`: `list[OpenQuestionSubmissionResponse]` |
 | `POST` | `/testing/open-submissions/{id}/review` | Ручная оценка решения | `Bearer JWT` (Admin) | `{ "score": 0.9, "passed": true, "notes": "..." }` | `200 OK`: `OpenQuestionSubmissionResponse` |
-

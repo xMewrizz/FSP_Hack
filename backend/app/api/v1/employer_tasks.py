@@ -1,9 +1,17 @@
-from typing import Sequence
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+import os
+import re
+from pathlib import PurePosixPath, PureWindowsPath
+from urllib.parse import quote
 
-from app.api.deps import get_current_candidate, get_current_employer, get_db
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import File, Response, UploadFile
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.api.deps import get_current_candidate, get_current_employer, get_current_user, get_db
+from app.models.employer_task import EmployerTask, EmployerTaskSubmission, TaskAttachment
 from app.models.user import User
 from app.schemas.employer_task import (
     CandidateActivityResponse,
@@ -14,10 +22,95 @@ from app.schemas.employer_task import (
     EmployerTaskSubmissionCreate,
     EmployerTaskSubmissionResponse,
     EmployerTaskUpdate,
+    TaskFileResponse,
 )
 from app.services.employer_task_service import EmployerTaskService
 
 router = APIRouter(tags=["Employer Tasks & Candidate Activity (B-29)"])
+
+MAX_TASK_ATTACHMENT_SIZE = 5 * 1024 * 1024
+ALLOWED_TASK_ATTACHMENT_EXTENSIONS = {
+    ".csv", ".jpeg", ".jpg", ".json", ".md", ".pdf", ".png", ".py", ".txt", ".ts",
+    ".tsx", ".zip",
+}
+
+
+@router.post("/tasks/attachments", response_model=TaskFileResponse, status_code=status.HTTP_201_CREATED)
+async def upload_task_attachment(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.candidate_profile is None and current_user.employer_profile is None:
+        raise HTTPException(status_code=403, detail="Вложения доступны кандидатам и работодателям")
+    raw_name = file.filename or "attachment"
+    file_name = PureWindowsPath(PurePosixPath(raw_name).name).name
+    file_name = re.sub(r"[^\w.() -]", "_", file_name).strip(" .")[:255]
+    if not file_name or os.path.splitext(file_name)[1].lower() not in ALLOWED_TASK_ATTACHMENT_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Тип файла не поддерживается")
+    content = await file.read(MAX_TASK_ATTACHMENT_SIZE + 1)
+    if len(content) > MAX_TASK_ATTACHMENT_SIZE:
+        raise HTTPException(status_code=400, detail="Размер одного файла не должен превышать 5 МБ")
+    if not content:
+        raise HTTPException(status_code=400, detail="Нельзя прикрепить пустой файл")
+    attachment = TaskAttachment(
+        owner_user_id=current_user.id,
+        file_name=file_name,
+        content_type=file.content_type or "application/octet-stream",
+        content=content,
+    )
+    db.add(attachment)
+    await db.commit()
+    await db.refresh(attachment)
+    return TaskFileResponse(
+        id=attachment.id,
+        file_name=attachment.file_name,
+        download_url=f"/tasks/attachments/{attachment.id}",
+    )
+
+
+@router.get("/tasks/attachments/{attachment_id}")
+async def download_task_attachment(
+    attachment_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    attachment = await db.scalar(
+        select(TaskAttachment).options(
+            selectinload(TaskAttachment.task).selectinload(EmployerTask.employer),
+            selectinload(TaskAttachment.submission).selectinload(EmployerTaskSubmission.task).selectinload(EmployerTask.employer),
+        ).where(TaskAttachment.id == attachment_id)
+    )
+    if attachment is None:
+        raise HTTPException(status_code=404, detail="Вложение не найдено")
+    allowed = attachment.owner_user_id == current_user.id
+    if current_user.employer_profile:
+        allowed = allowed or bool(
+            (attachment.task and attachment.task.employer_id == current_user.employer_profile.id)
+            or (
+                attachment.submission
+                and attachment.submission.task.employer_id == current_user.employer_profile.id
+            )
+        )
+    if current_user.candidate_profile:
+        allowed = allowed or bool(
+            attachment.submission
+            and attachment.submission.candidate_id == current_user.candidate_profile.id
+        )
+        if attachment.task and not allowed:
+            allowed = any(
+                item.id == attachment.task.id
+                for item in await EmployerTaskService.list_tasks_for_candidate(
+                    db, current_user.candidate_profile.id,
+                )
+            )
+    if not allowed:
+        raise HTTPException(status_code=403, detail="Нет доступа к вложению")
+    return Response(
+        content=attachment.content,
+        media_type=attachment.content_type,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(attachment.file_name)}"},
+    )
 
 
 # ---------------------------------------------------------

@@ -9,7 +9,8 @@ from app.schemas.fsp import FSPAchievementSchema
 class CandidateOnboardingRequest(BaseModel):
     # 152-ФЗ
     agreed_152_fz: bool = Field(False, description="Согласие на обработку персональных данных (152-ФЗ)")
-    agreed_publication: bool = Field(False, description="Отдельное согласие показывать профиль работодателям")
+    agreed_publication: bool = Field(False, description="Согласие на обработку и публикацию данных профиля работодателям")
+    agreed_fsp_id_link: bool = Field(False, description="Согласие связать профиль с ID участника ФСП")
     visibility_public: bool = Field(False, description="Показывать профиль в поиске и подборке")
     # Согласие на OSINT
     agreed_osint: bool = Field(False, description="Согласие на обогащение профиля открытыми данными (OSINT)")
@@ -60,6 +61,7 @@ class CandidateProfileUpdateRequest(BaseModel):
     phone: str | None = None
     telegram: str | None = None
     bio: str | None = None
+    hobbies: str | None = None
     city: str | None = None
     github_url: str | None = None
     skills: list[str] | None = None
@@ -70,8 +72,13 @@ class CandidateProfileUpdateRequest(BaseModel):
     salary_expectation: float | None = Field(default=None, gt=0)
     salary_tax_type: Literal["gross", "net"] | None = None
     skills: list[str] | None = None
+    education_level: str | None = None
+    university_course: int | None = Field(default=None, ge=1, le=12)
+    birth_year: int | None = Field(default=None, ge=1930, le=2100)
     fsp_id: str | None = None
     agreed_publication: bool | None = None
+    agreed_fsp_id_link: bool | None = None
+    agreed_test_confidentiality: bool | None = None
     visibility_public: bool | None = None
     mentor_available: bool | None = None
 
@@ -109,6 +116,7 @@ class CandidateProfileResponse(BaseModel):
     city: str | None = None
     github_url: str | None = None
     resume_url: str | None = None
+    photo_url: str | None = None
 
     specialization: str | None = None
     programming_language: str | None = None
@@ -124,7 +132,13 @@ class CandidateProfileResponse(BaseModel):
     fsp_verified: bool = False
     agreed_152_fz: bool
     agreed_publication: bool
+    agreed_fsp_id_link: bool
+    agreed_test_confidentiality: bool
     visibility_public: bool
+    hobbies: str | None = None
+    education_level: str | None = None
+    university_course: int | None = None
+    birth_year: int | None = None
     mentor_available: bool = False
     agreed_osint: bool
     onboarding_completed: bool

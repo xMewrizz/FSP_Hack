@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 import uuid
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
@@ -39,9 +39,11 @@ class CandidateProfile(Base, TimestampMixin):
     telegram: Mapped[str | None] = mapped_column(String(100), nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hobbies: Mapped[str | None] = mapped_column(Text, nullable=True)
     github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     resume_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     resume_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    photo_filename: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
     specialization: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
     programming_language: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -54,6 +56,9 @@ class CandidateProfile(Base, TimestampMixin):
     salary_expectation: Mapped[float | None] = mapped_column(Float, nullable=True)
     salary_tax_type: Mapped[str] = mapped_column(String(20), default="gross", nullable=False)
     skills: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    education_level: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    university_course: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    birth_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     fsp_id: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
     fsp_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -62,6 +67,10 @@ class CandidateProfile(Base, TimestampMixin):
     agreed_152_fz_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     agreed_publication: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     agreed_publication_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    agreed_fsp_id_link: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    agreed_fsp_id_link_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    agreed_test_confidentiality: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    agreed_test_confidentiality_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     agreed_osint: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     agreed_osint_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

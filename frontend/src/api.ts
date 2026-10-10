@@ -67,7 +67,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   if (response.status === 204) return undefined as T;
   const contentType = response.headers.get("content-type") || "";
-  if (contentType.includes("application/pdf")) return (await response.blob()) as T;
+  if (contentType.includes("application/pdf") || contentType.startsWith("image/") || contentType.includes("application/octet-stream")) {
+    return (await response.blob()) as T;
+  }
   if (contentType.includes("application/json")) return (await response.json()) as T;
   return undefined as T;
 }

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 import uuid
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
@@ -84,3 +84,20 @@ class VacancyApplication(Base, TimestampMixin):
 
     vacancy: Mapped["Vacancy"] = relationship("Vacancy", back_populates="applications")
     candidate: Mapped["CandidateProfile"] = relationship("CandidateProfile", back_populates="applications")
+
+
+class VacancyAccess(Base, TimestampMixin):
+    __tablename__ = "vacancy_access"
+    __table_args__ = (UniqueConstraint("vacancy_id", "user_id", name="uq_vacancy_access_user"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vacancy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vacancies.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    can_view: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    can_edit: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    user: Mapped["User"] = relationship("User")
+    vacancy: Mapped["Vacancy"] = relationship("Vacancy")

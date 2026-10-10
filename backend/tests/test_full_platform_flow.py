@@ -38,6 +38,7 @@ async def test_full_platform_end_to_end_flow(client: AsyncClient):
             "declared_grade": "junior",
             "work_format": "remote",
             "fsp_id": "FSP-77-001",
+            "agreed_fsp_id_link": True,
             "agreed_152_fz": True,
             "agreed_publication": True,
             "visibility_public": True,
@@ -49,6 +50,12 @@ async def test_full_platform_end_to_end_flow(client: AsyncClient):
     assert profile_data["fsp_verified"] is True
     assert profile_data["onboarding_completed"] is True
     assert len(profile_data["achievements"]) >= 1
+    consent = await client.put(
+        "/api/v1/candidates/profile",
+        headers=cand_headers,
+        json={"agreed_test_confidentiality": True},
+    )
+    assert consent.status_code == 200
 
     # ================= 2. PDF Profile Download =================
     pdf_resp = await client.get("/api/v1/candidates/profile/pdf", headers=cand_headers)

@@ -141,6 +141,12 @@ async def test_failed_retake_does_not_remove_verified_grade(client: AsyncClient)
     )
     assert onboard.status_code == 200
     assert onboard.json()["verified_grade"] is None
+    consent = await client.put(
+        "/api/v1/candidate/profile",
+        headers=candidate,
+        json={"agreed_test_confidentiality": True},
+    )
+    assert consent.status_code == 200
 
     first_attempt = await client.post("/api/v1/testing/start", headers=candidate, json={})
     assert first_attempt.status_code == 201

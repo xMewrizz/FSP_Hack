@@ -29,6 +29,11 @@ class CandidateService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Для регистрации на платформе необходимо согласие на обработку персональных данных (152-ФЗ)",
             )
+        if data.fsp_id and data.fsp_id.strip() and not data.agreed_fsp_id_link:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Для привязки ID участника ФСП необходимо отдельное согласие.",
+            )
 
         stmt = (
             select(CandidateProfile)
@@ -88,16 +93,18 @@ class CandidateService:
         profile.agreed_publication = data.agreed_publication
         profile.agreed_publication_at = now if data.agreed_publication else None
         profile.visibility_public = data.visibility_public and data.agreed_publication
+        profile.agreed_fsp_id_link = data.agreed_fsp_id_link
+        profile.agreed_fsp_id_link_at = now if data.agreed_fsp_id_link else None
         profile.agreed_osint = data.agreed_osint
         profile.agreed_osint_at = now if data.agreed_osint else None
 
         if data.fsp_id and data.fsp_id.strip():
             fsp_clean = data.fsp_id.strip().upper()
             profile.fsp_id = fsp_clean
+            profile.fsp_achievements.clear()
             v_res = await fsp_service.verify_fsp_id(fsp_clean)
             if v_res.found:
                 profile.fsp_verified = True
-                profile.fsp_achievements.clear()
                 for ach in v_res.achievements:
                     achievement = FSPAchievement(
                         candidate_profile_id=profile.id,
@@ -115,6 +122,7 @@ class CandidateService:
         else:
             profile.fsp_id = None
             profile.fsp_verified = False
+            profile.fsp_achievements.clear()
 
         profile.onboarding_completed = True
         await db.commit()
@@ -192,6 +200,11 @@ class CandidateService:
         update_dict["programming_language"] = target_language
         publication = update_dict.get("agreed_publication", profile.agreed_publication)
         visibility = update_dict.get("visibility_public", profile.visibility_public)
+        if update_dict.get("fsp_id") and not update_dict.get("agreed_fsp_id_link", profile.agreed_fsp_id_link):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Для привязки ID участника ФСП необходимо отдельное согласие.",
+            )
         if visibility and not publication and update_dict.get("visibility_public") is True:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -201,6 +214,16 @@ class CandidateService:
             profile.agreed_publication_at = datetime.now(timezone.utc) if publication else None
             if not publication:
                 update_dict["visibility_public"] = False
+        if "agreed_fsp_id_link" in update_dict:
+            consent = update_dict["agreed_fsp_id_link"]
+            profile.agreed_fsp_id_link_at = datetime.now(timezone.utc) if consent else None
+            if not consent and profile.agreed_fsp_id_link:
+                profile.fsp_id = None
+                profile.fsp_verified = False
+                await db.execute(delete(FSPAchievement).where(FSPAchievement.candidate_profile_id == profile.id))
+        if "agreed_test_confidentiality" in update_dict:
+            consent = update_dict["agreed_test_confidentiality"]
+            profile.agreed_test_confidentiality_at = datetime.now(timezone.utc) if consent else None
         for key, value in update_dict.items():
             if key == "work_format" and value:
                 profile.work_format = value.value if hasattr(value, "value") else value
@@ -236,6 +259,12 @@ class CandidateService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Профиль кандидата не найден",
+            )
+
+        if not profile.agreed_fsp_id_link:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Для привязки ID участника ФСП необходимо отдельное согласие.",
             )
 
         fsp_clean = fsp_id.strip().upper()
@@ -341,9 +370,11 @@ class CandidateService:
             phone=profile.phone,
             telegram=profile.telegram,
             bio=profile.bio,
+            hobbies=profile.hobbies,
             city=profile.city,
             github_url=profile.github_url,
             resume_url=profile.resume_url,
+            photo_url="/candidate/profile/photo" if profile.photo_filename else None,
             specialization=profile.specialization,
             programming_language=profile.programming_language,
             declared_grade=profile.declared_grade,
@@ -353,10 +384,15 @@ class CandidateService:
             salary_expectation=profile.salary_expectation,
             salary_tax_type=getattr(profile, "salary_tax_type", "gross") or "gross",
             skills=profile.skills or [],
+            education_level=profile.education_level,
+            university_course=profile.university_course,
+            birth_year=profile.birth_year,
             fsp_id=profile.fsp_id,
             fsp_verified=profile.fsp_verified,
             agreed_152_fz=profile.agreed_152_fz,
             agreed_publication=profile.agreed_publication,
+            agreed_fsp_id_link=profile.agreed_fsp_id_link,
+            agreed_test_confidentiality=profile.agreed_test_confidentiality,
             visibility_public=profile.visibility_public,
             mentor_available=profile.mentor_available,
             agreed_osint=profile.agreed_osint,

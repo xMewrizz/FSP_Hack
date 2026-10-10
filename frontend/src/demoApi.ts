@@ -12,6 +12,16 @@ type DemoCandidate = {
   fsp_verified: boolean;
   achievements_count: number;
   skills: string[];
+  hobbies?: string | null;
+  education_level?: string | null;
+  university_course?: number | null;
+  birth_year?: number | null;
+  photo_url?: string | null;
+  mentor_available?: boolean;
+  bio?: string;
+  github_url?: string;
+  resume_text?: string;
+  resume_url?: string;
   salary_expectation?: number | null;
   salary_tax_type?: "gross" | "net";
   match_score: number;
@@ -119,10 +129,12 @@ type DemoVacancyApplication = {
 const candidateProfile = {
   first_name: "Алексей",
   last_name: "Морозов",
+  photo_url: null as string | null,
   email: "alexey.demo@example.ru",
   phone: "+7 900 000-00-01",
   telegram: "@alexey_demo",
   bio: "Backend-разработчик. Создаю API и сервисы обработки данных.",
+  hobbies: "Бег, шахматы и волонтёрство",
   city: "Москва",
   specialization: "Backend",
   declared_grade: "middle",
@@ -130,10 +142,14 @@ const candidateProfile = {
   work_format: "remote",
   salary_expectation: 240000,
   salary_tax_type: "gross" as const,
-  fsp_id: "FSP-77-001",
+  education_level: "higher" as string | null,
+  university_course: null as number | null,
+  birth_year: 1999 as number | null,
+  fsp_id: "FSP-77-001" as string | null,
   fsp_verified: true,
   agreed_152_fz: true,
   agreed_publication: true,
+  agreed_fsp_id_link: true,
   visibility_public: true,
   agreed_osint: true,
   mentor_available: false,
@@ -165,6 +181,9 @@ const candidates: DemoCandidate[] = [
     fsp_verified: true,
     achievements_count: 2,
     skills: ["Python", "FastAPI", "PostgreSQL", "Docker", "Redis"],
+    bio: "Backend-разработчик, развиваю платёжные API и высоконагруженные сервисы. Люблю задачи на производительность и надёжность.",
+    github_url: "https://github.com/",
+    resume_text: "Backend-разработчик · FinCore · 2022 — настоящее время\nПроектирование платёжного API, оптимизация PostgreSQL и обработка до 8 млн событий в сутки.\n\nDataLab · 2020 — 2022\nСервисы аналитики на Django и Celery, покрытие кода тестами.",
     salary_expectation: 250000,
     salary_tax_type: "gross",
     match_score: 94,
@@ -190,9 +209,13 @@ const candidates: DemoCandidate[] = [
     declared_grade: "middle",
     city: "Санкт-Петербург",
     work_format: "hybrid",
+    mentor_available: true,
     fsp_verified: true,
     achievements_count: 1,
     skills: ["Go", "gRPC", "PostgreSQL", "Kafka", "Kubernetes"],
+    bio: "Backend-инженер с фокусом на Go и распределённые системы. Проектирую сервисы, устойчивые к росту нагрузки и отказам.",
+    github_url: "https://github.com/",
+    resume_text: "Backend-разработчик · Cloudline · 2023 — настоящее время\nРазработка микросервисов на Go, gRPC и Kafka.\n\nИнженер-разработчик · 2021 — 2023\nСервисы обработки данных и PostgreSQL.",
     salary_expectation: 230000,
     salary_tax_type: "net",
     match_score: 89,
@@ -429,6 +452,23 @@ const vacancyApplications: DemoVacancyApplication[] = [{
   salary_max: vacancies[0].salary_max,
   salary_tax_type: vacancies[0].salary_tax_type,
 }];
+vacancyApplications.push({
+  ...vacancyApplications[0],
+  id: "demo-application-seed-2",
+  status: "pending",
+  candidate_id: candidates[1].candidate_id,
+  candidate: {
+    first_name: candidates[1].first_name,
+    last_name: candidates[1].last_name,
+    email: "elena.demo@example.ru",
+    phone: null,
+    telegram: "@elena_backend",
+    city: candidates[1].city,
+    specialization: candidates[1].specialization,
+    verified_grade: candidates[1].verified_grade,
+    skills: candidates[1].skills,
+  },
+});
 const vacancyApplicationMessages: Record<string, DemoInvitationMessage[]> = {
   "demo-application-seed-1": [
     {
@@ -477,16 +517,58 @@ const questions = [
   },
 ];
 
-let testHistory: Array<Record<string, unknown>> = [];
+let testHistory: Array<Record<string, unknown>> = [
+  { id: "demo-test-history-1", specialization: "Backend", target_grade: "middle", percentage: 82, passed: true, grade_confirmed: true, status: "completed", created_at: "2026-10-01T09:30:00Z", completed_at: "2026-10-01T10:15:00Z", skill_code: null, assessment_id: "demo-assessment-backend-middle" },
+  { id: "demo-test-history-2", specialization: "Backend", target_grade: "senior", percentage: 68, passed: false, grade_confirmed: false, status: "completed", created_at: "2026-09-25T11:00:00Z", completed_at: "2026-09-25T11:45:00Z", skill_code: null, assessment_id: null },
+];
 let activeTestId: string | null = null;
 let currentCandidateProfile = { ...candidateProfile };
+let currentCandidatePhoto: Blob | null = null;
 let currentEmployerProfile = { ...employerProfile };
 let nextNeedId = 3;
 let nextInvitationId = 3;
+let nextTeamInvitationId = 2;
+const demoTeamMembers = [
+  { user_id: "demo-employer-owner", email: "hr@novatech.example", company_name: "NovaTech", is_owner: true, team_role: "owner" as const },
+  { user_id: "demo-employer-colleague", email: "recruiter@novatech.example", company_name: "NovaTech", is_owner: false, team_role: "hr" as const },
+];
+const demoTeamInvitations: Array<{ id: string; invited_email: string; status: "pending" | "accepted" | "cancelled"; created_at: string; team_role: "team_lead" | "hr" }> = [
+  { id: "demo-team-invite-1", invited_email: "talent@novatech.example", status: "pending", created_at: "2026-10-03T12:00:00Z", team_role: "team_lead" },
+];
+const demoVacancyGrants: Record<string, Array<{ user_id: string; email: string; company_name: string; can_view: boolean; can_edit: boolean }>> = {};
+const demoCandidateReviews: Record<string, {
+  candidate_profile_id: string;
+  workspace_active: boolean;
+  notes: string;
+  pipeline_status: string;
+  contact_status: string;
+  background_check_status: string;
+  updated_at: string | null;
+  messages: Array<{ id: string; sender_user_id: string; sender_name: string; body: string; created_at: string }>;
+}> = {};
+for (const candidate of candidates.slice(0, 2)) {
+  demoCandidateReviews[candidate.candidate_id] = {
+    candidate_profile_id: candidate.candidate_id,
+    workspace_active: true,
+    notes: candidate.candidate_id === "demo-candidate-alex" ? "Сильный профиль. На первом звонке уточнить опыт с очередями и дату выхода." : "",
+    pipeline_status: candidate.candidate_id === "demo-candidate-alex" ? "screening" : "new",
+    contact_status: "not_started",
+    background_check_status: "not_started",
+    updated_at: "2026-10-05T11:00:00Z",
+    messages: candidate.candidate_id === "demo-candidate-alex" ? [{
+      id: "demo-review-message-1",
+      sender_user_id: "demo-employer-colleague",
+      sender_name: "NovaTech · рекрутер",
+      body: "Профиль выглядит релевантно, предлагаю позвать на короткий скрининг.",
+      created_at: "2026-10-05T11:00:00Z",
+    }] : [],
+  };
+}
 const demoMentors = [
   { user_id: "demo-mentor-anna", name: "Анна Петрова", specialization: "Backend", verified_grade: "senior", skills: ["Python", "PostgreSQL", "Architecture", "Kafka"], city: "Москва" },
   { user_id: "demo-mentor-elena", name: "Елена Смирнова", specialization: "Backend", verified_grade: "senior", skills: ["Go", "Kafka", "Kubernetes", "gRPC"], city: "Санкт-Петербург" },
 ];
+let mentorshipRequestsSent = 2;
 const networkConversations: Array<{
   id: string;
   other_user_id: string;
@@ -496,8 +578,19 @@ const networkConversations: Array<{
   can_accept: boolean;
   last_message: string;
   updated_at: string;
-}> = [];
-const networkMessages: Record<string, Array<{ id: string; body: string; created_at: string; is_mine: boolean }>> = {};
+}> = [
+  { id: "demo-network-seed-1", other_user_id: "demo-mentor-anna", other_name: "Анна Петрова", skill_focus: "Архитектура сервисов", status: "accepted", can_accept: false, last_message: "На следующей встрече разберём границы сервисов.", updated_at: "2026-10-06T14:00:00Z" },
+  { id: "demo-network-seed-2", other_user_id: "demo-mentor-elena", other_name: "Елена Смирнова", skill_focus: "Kafka и очереди", status: "pending", can_accept: false, last_message: "Хочу обсудить обработку повторных событий.", updated_at: "2026-10-05T12:30:00Z" },
+];
+const networkMessages: Record<string, Array<{ id: string; body: string; created_at: string; is_mine: boolean }>> = {
+  "demo-network-seed-1": [
+    { id: "demo-network-seed-1-message-1", body: "Хочу прокачать проектирование backend-сервисов.", created_at: "2026-10-04T10:00:00Z", is_mine: true },
+    { id: "demo-network-seed-1-message-2", body: "На следующей встрече разберём границы сервисов.", created_at: "2026-10-06T14:00:00Z", is_mine: false },
+  ],
+  "demo-network-seed-2": [
+    { id: "demo-network-seed-2-message-1", body: "Хочу обсудить обработку повторных событий.", created_at: "2026-10-05T12:30:00Z", is_mine: true },
+  ],
+};
 
 function currentRole(): DemoRole {
   return window.localStorage.getItem("fsp-role") === "employer" ? "employer" : "candidate";
@@ -514,6 +607,21 @@ function parseBody(options: RequestInit) {
 
 function invitationsForCandidate() {
   return invitations.filter((item) => item.candidate_name.includes(currentCandidateProfile.first_name));
+}
+
+function matchingCandidatesWithPhotos(items: DemoCandidate[]) {
+  return items.map((item) => item.candidate_id === "demo-candidate-alex"
+    ? {
+      ...item,
+      fsp_verified: currentCandidateProfile.fsp_verified,
+      achievements_count: currentCandidateProfile.fsp_verified ? item.achievements_count : 0,
+      hobbies: currentCandidateProfile.hobbies,
+      education_level: currentCandidateProfile.education_level,
+      university_course: currentCandidateProfile.university_course,
+      birth_year: currentCandidateProfile.birth_year,
+      photo_url: currentCandidateProfile.photo_url ? `/candidate/${item.candidate_id}/photo` : null,
+    }
+    : item);
 }
 
 function createDemoProfilePdf() {
@@ -548,13 +656,52 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     return { message: "Локальные демонстрационные данные готовы" } as T;
   }
   if (route === "/auth/me" && method === "GET") {
-    return { role: currentRole(), onboarding_completed: true, profile: currentRole() === "candidate" ? currentCandidateProfile : currentEmployerProfile } as T;
+    const role = currentRole();
+    const profile = role === "candidate" ? currentCandidateProfile : currentEmployerProfile;
+    return {
+      role,
+      email: role === "candidate" ? candidateProfile.email : currentEmployerProfile.email,
+      onboarding_completed: true,
+      profile,
+    } as T;
   }
   if (route === "/auth/logout" && method === "POST") return { message: "Успешный выход из демо-режима" } as T;
+
+  if (route === "/candidate/profile/photo" && method === "POST") {
+    const file = options.body instanceof FormData ? options.body.get("file") : null;
+    if (!(file instanceof File)) throw new Error("Выберите файл фотографии.");
+    if (file.size > 5 * 1024 * 1024) throw new Error("Фото должно быть не больше 5 МБ.");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Загрузите JPG, PNG или WebP.");
+    currentCandidatePhoto = file;
+    currentCandidateProfile.photo_url = "/candidate/profile/photo";
+    return { ...currentCandidateProfile } as T;
+  }
+  if (route === "/candidate/profile/photo" && method === "DELETE") {
+    currentCandidatePhoto = null;
+    currentCandidateProfile.photo_url = null;
+    return { ...currentCandidateProfile } as T;
+  }
+  if (route === "/candidate/profile/photo" && method === "GET") {
+    if (currentRole() !== "candidate" || !currentCandidatePhoto) throw new Error("Фото не найдено.");
+    return currentCandidatePhoto as T;
+  }
+  const demoCandidatePhoto = route.match(/^\/candidate\/([^/]+)\/photo$/);
+  if (demoCandidatePhoto && method === "GET") {
+    const candidateId = demoCandidatePhoto[1];
+    const allowed = currentRole() === "candidate"
+      ? candidateId === "demo-candidate-alex"
+      : currentRole() === "employer" && candidateId === "demo-candidate-alex" && currentCandidateProfile.onboarding_completed && currentCandidateProfile.agreed_publication && currentCandidateProfile.visibility_public;
+    if (!allowed || !currentCandidatePhoto) throw new Error("Фото не найдено.");
+    return currentCandidatePhoto as T;
+  }
 
   if (["/candidate/profile", "/candidates/profile"].includes(route) && method === "GET") return { ...currentCandidateProfile } as T;
   if (["/candidate/profile", "/candidates/profile"].includes(route) && method === "PUT") {
     currentCandidateProfile = { ...currentCandidateProfile, ...body } as typeof currentCandidateProfile;
+    if (body.agreed_fsp_id_link === false) {
+      currentCandidateProfile.fsp_id = null;
+      currentCandidateProfile.fsp_verified = false;
+    }
     return { ...currentCandidateProfile } as T;
   }
   if (["/candidate/onboarding", "/candidates/onboarding"].includes(route) && method === "POST") {
@@ -562,6 +709,7 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     return { ...currentCandidateProfile } as T;
   }
   if (route === "/candidate/link-fsp" && method === "POST") {
+    if (!currentCandidateProfile.agreed_fsp_id_link) throw new Error("Для привязки ID участника ФСП необходимо отдельное согласие.");
     currentCandidateProfile = { ...currentCandidateProfile, fsp_id: String(body.fsp_id ?? ""), fsp_verified: true };
     return { ...currentCandidateProfile } as T;
   }
@@ -586,6 +734,85 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     return { status: "pending_review", file_name: file instanceof File ? file.name : "demo-diploma.pdf" } as T;
   }
 
+  if (route === "/employer/team" && method === "GET") {
+    if (currentRole() !== "employer") throw new Error("HR-команда доступна только работодателю");
+    return {
+      current_user_id: "demo-employer-owner",
+      organization_id: "demo-novatech-workspace",
+      organization_name: currentEmployerProfile.company_name,
+      current_user_is_owner: true,
+      current_user_can_manage_team: true,
+      members: demoTeamMembers.map((member, index) => ({
+        ...member,
+        is_owner: index === 0,
+        team_role: index === 0 ? "owner" : member.team_role,
+        company_name: currentEmployerProfile.company_name,
+      })),
+      invitations: demoTeamInvitations,
+      received_invitations: [],
+    } as T;
+  }
+  if (route === "/employer/team/workspace" && method === "POST") {
+    return requestDemoApi<T>("/employer/team");
+  }
+  if (route === "/employer/team/invitations" && method === "POST") {
+    if (currentRole() !== "employer") throw new Error("Приглашать в HR-команду может только работодатель");
+    const invitedEmail = String(body.email ?? "").trim().toLowerCase();
+    if (!invitedEmail.includes("@") || !invitedEmail.split("@")[1]?.includes(".")) throw new Error("Укажите корректный email");
+    if (demoTeamInvitations.some((invitation) => invitation.status === "pending" && invitation.invited_email.toLowerCase() === invitedEmail)) {
+      throw new Error("Приглашение на этот email уже ожидает ответа");
+    }
+    demoTeamInvitations.unshift({
+      id: `demo-team-invite-${nextTeamInvitationId++}`,
+      invited_email: invitedEmail,
+      status: "pending",
+      created_at: new Date().toISOString(),
+      team_role: body.team_role === "team_lead" ? "team_lead" : "hr",
+    });
+    return requestDemoApi<T>("/employer/team");
+  }
+  const teamInvitationAccept = route.match(/^\/employer\/team\/invitations\/([^/]+)\/accept$/);
+  if (teamInvitationAccept && method === "POST") {
+    throw new Error("Демо-приглашения можно отправлять; принятие доступно после входа в аккаунт приглашённого работодателя");
+  }
+  const candidateReviewRoute = route.match(/^\/matching\/candidates\/([^/]+)\/review(?:\/messages)?$/);
+  if (candidateReviewRoute) {
+    if (currentRole() !== "employer") throw new Error("Внутренняя HR-карточка доступна только работодателю");
+    const candidateId = candidateReviewRoute[1];
+    const candidate = candidates.find((item) => item.candidate_id === candidateId);
+    if (!candidate) throw new Error("Публичный профиль кандидата не найден");
+    const review = demoCandidateReviews[candidateId] ??= {
+      candidate_profile_id: candidateId,
+      workspace_active: true,
+      notes: "",
+      pipeline_status: "new",
+      contact_status: "not_started",
+      background_check_status: "not_started",
+      updated_at: null,
+      messages: [],
+    };
+    if (route.endsWith("/messages") && method === "POST") {
+      const text = String(body.body ?? "").trim();
+      if (!text || text.length > 4000) throw new Error("Сообщение должно содержать от 1 до 4000 символов");
+      review.messages.push({
+        id: `demo-review-message-${Date.now()}`,
+        sender_user_id: "demo-employer-owner",
+        sender_name: currentEmployerProfile.company_name,
+        body: text,
+        created_at: new Date().toISOString(),
+      });
+      review.updated_at = new Date().toISOString();
+      return structuredClone(review) as T;
+    }
+    if (method === "PUT") {
+      if (typeof body.notes === "string") review.notes = body.notes.slice(0, 12000);
+      if (["new", "contact_search", "contacted", "screening", "interview", "offer", "onboarding", "mentor_work", "hired", "rejected"].includes(String(body.pipeline_status))) review.pipeline_status = String(body.pipeline_status);
+      if (["not_started", "searching", "found", "unavailable"].includes(String(body.contact_status))) review.contact_status = String(body.contact_status);
+      if (["not_started", "pending", "clear", "review", "blocked"].includes(String(body.background_check_status))) review.background_check_status = String(body.background_check_status);
+      review.updated_at = new Date().toISOString();
+    }
+    if (method === "GET" || method === "PUT") return structuredClone(review) as T;
+  }
   if (["/employer/profile", "/employers/profile"].includes(route) && method === "GET") return { ...currentEmployerProfile } as T;
   if (["/employer/profile", "/employers/profile"].includes(route) && method === "PUT") {
     currentEmployerProfile = { ...currentEmployerProfile, ...body, onboarding_completed: true } as typeof currentEmployerProfile;
@@ -597,12 +824,47 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
   }
 
   if (route === "/vacancies/my" && method === "GET") {
-    return vacancies.filter((vacancy) => vacancy.employer_id === "demo-employer") as T;
+    return vacancies.filter((vacancy) => vacancy.employer_id === "demo-employer").map((vacancy) => ({ ...vacancy, can_edit: true })) as T;
+  }
+  const permissionRoute = route.match(/^\/vacancies\/([^/]+)\/permissions$/);
+  if (permissionRoute && currentRole() === "employer") {
+    const vacancyId = permissionRoute[1];
+    const grants = demoVacancyGrants[vacancyId] ?? [];
+    if (method === "GET") return grants as T;
+    if (method === "PUT") {
+      const userId = String(body.user_id ?? "");
+      const member = demoTeamMembers.find((item) => item.user_id === userId);
+      if (!member || member.is_owner) throw new Error("Участник HR-команды не найден");
+      const canEdit = body.can_edit === true;
+      const canView = body.can_view === true || canEdit;
+      const next = grants.filter((item) => item.user_id !== userId);
+      if (canView || canEdit) next.push({ user_id: member.user_id, email: member.email, company_name: member.company_name, can_view: canView, can_edit: canEdit });
+      demoVacancyGrants[vacancyId] = next;
+      return next as T;
+    }
   }
   if (route === "/vacancies/applications/my" && method === "GET") {
     return vacancyApplications
       .filter((application) => application.candidate_id === "demo-candidate-alex")
       .map(({ candidate: _candidate, candidate_id: _candidateId, ...application }) => application) as T;
+  }
+  if (route === "/employer/mentors" && method === "GET") {
+    if (currentRole() !== "employer") throw new Error("Каталог наставников доступен работодателю");
+    const linkedCandidateIds = new Set([
+      ...vacancyApplications.filter((item) => item.vacancy_id.startsWith("demo-vacancy-")).map((item) => item.candidate_id),
+      ...invitations.filter((item) => item.status === "accepted" && item.employer_id === "demo-employer").map((item) => item.candidate_id),
+    ]);
+    return candidates
+      .filter((candidate) => linkedCandidateIds.has(candidate.candidate_id) && candidate.mentor_available)
+      .map((candidate) => ({
+        user_id: candidate.candidate_id,
+        name: `${candidate.first_name} ${candidate.last_name}`,
+        specialization: candidate.specialization,
+        verified_grade: candidate.verified_grade,
+        skills: candidate.skills,
+        city: candidate.city,
+        company_link: "Отклик или принятое приглашение",
+      })) as T;
   }
   if (route === "/vacancies/applications/conversations" && method === "GET") {
     const role = currentRole();
@@ -789,7 +1051,7 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     const eligible = candidates.filter((item) =>
       item.specialization === need.specialization && item.verified_grade === need.required_grade,
     );
-    return { need_id: need.id, need_title: need.title, total: eligible.length, candidates: eligible } as T;
+    return { need_id: need.id, need_title: need.title, total: eligible.length, candidates: matchingCandidatesWithPhotos(eligible) } as T;
   }
   if (route === "/matching/search" && method === "GET") {
     const specialization = url.searchParams.get("specialization");
@@ -798,26 +1060,45 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     const stackTokens = stack?.split(stack.includes(",") || stack.includes(";") ? /[,;]/ : /\s+/).map((token) => token.trim()).filter(Boolean) ?? [];
     const workFormat = url.searchParams.get("work_format");
     const city = url.searchParams.get("city")?.toLowerCase();
+    const educationLevel = url.searchParams.get("education_level");
+    const courseGroup = url.searchParams.get("university_course_group");
+    const ageMin = Number(url.searchParams.get("age_min")) || null;
+    const ageMax = Number(url.searchParams.get("age_max")) || null;
+    const currentYear = new Date().getFullYear();
     const fspOnly = url.searchParams.get("fsp_only") === "true";
-    return candidates.filter((item) =>
-      (!specialization || item.specialization === specialization) &&
-      (!grade || item.verified_grade === grade) &&
-      stackTokens.every((token) => item.skills.some((candidateSkill) => candidateSkill.toLowerCase().includes(token))) &&
-      (!workFormat || item.work_format === workFormat) &&
-      (!city || item.city.toLowerCase().includes(city)) &&
-      (!fspOnly || item.fsp_verified) &&
-      item.verified_grade !== null,
-    ) as T;
+    return matchingCandidatesWithPhotos(candidates.filter((item) => {
+      const isCurrentCandidate = item.candidate_id === "demo-candidate-alex";
+      const education = isCurrentCandidate ? currentCandidateProfile.education_level : item.education_level;
+      const course = isCurrentCandidate ? currentCandidateProfile.university_course : item.university_course;
+      const birthYear = isCurrentCandidate ? currentCandidateProfile.birth_year : item.birth_year;
+      const fspVerified = isCurrentCandidate ? currentCandidateProfile.fsp_verified : item.fsp_verified;
+      return (!specialization || item.specialization === specialization) &&
+        (!grade || item.verified_grade === grade) &&
+        stackTokens.every((token) => item.skills.some((candidateSkill) => candidateSkill.toLowerCase().includes(token))) &&
+        (!workFormat || item.work_format === workFormat) &&
+        (!city || item.city.toLowerCase().includes(city)) &&
+        (!educationLevel || education === educationLevel) &&
+        (!courseGroup || (course !== null && course !== undefined &&
+          (courseGroup === "junior" ? course <= 2 : course >= 3))) &&
+        (!ageMin || (birthYear !== null && birthYear !== undefined && birthYear <= currentYear - ageMin)) &&
+        (!ageMax || (birthYear !== null && birthYear !== undefined && birthYear >= currentYear - ageMax)) &&
+        (!fspOnly || fspVerified) &&
+        item.verified_grade !== null;
+    })) as T;
   }
 
   if (route === "/testing/roadmap/current" && method === "GET") return null as T;
-  if (route === "/testing/additional" && method === "GET") return [] as T;
+  if (route === "/testing/additional" && method === "GET") return [
+    { code: "BE-SQL", label: "Оптимизация SQL", target_grade: "middle", latest_percentage: 78, level_out_of_ten: 7.8, latest_session_id: "demo-skill-test-sql" },
+    { code: "BE-ARCH", label: "Архитектура сервисов", target_grade: "middle", latest_percentage: 64, level_out_of_ten: 6.4, latest_session_id: "demo-skill-test-architecture" },
+  ] as T;
   if (route === "/invitations/sent" && method === "GET") return invitations as T;
   if (route === "/invitations/my" && method === "GET") return invitationsForCandidate() as T;
   if (route === "/network/mentors" && method === "GET") {
     const skill = (url.searchParams.get("skill") ?? "").trim().toLowerCase();
     return demoMentors.filter((mentor) => !skill || mentor.skills.some((item) => item.toLowerCase().includes(skill))) as T;
   }
+  if (route === "/network/stats" && method === "GET") return { mentorship_requests_sent: mentorshipRequestsSent } as T;
   if (route === "/network/conversations" && method === "GET") return networkConversations as T;
   if (route === "/network/mentorship-requests" && method === "POST") {
     const mentor = demoMentors.find((item) => item.user_id === body.mentor_user_id);
@@ -838,6 +1119,7 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       updated_at: new Date().toISOString(),
     };
     networkConversations.unshift(conversation);
+    mentorshipRequestsSent += 1;
     networkMessages[id] = [{ id: `${id}-request`, body: message, created_at: conversation.updated_at, is_mine: true }];
     return conversation as T;
   }

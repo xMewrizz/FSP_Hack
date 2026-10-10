@@ -1,7 +1,9 @@
 """Выдача кандидатов работодателю по подтверждённой категории."""
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any
+from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, func, or_, select
@@ -11,6 +13,7 @@ from sqlalchemy.orm import defer, joinedload, selectinload
 from app.core.ranking import rank_candidates
 from app.core.assessment_catalog import BACKEND_MATCHING_SKILL_CODES
 from app.models.candidate import CandidateProfile
+from app.models.candidate_specialization import CandidateSpecializationTrack
 from app.models.need import EmployerNeed
 from app.models.test import GradeAssessment, TestSession
 from app.models.user import User
@@ -78,12 +81,27 @@ def _candidate_data(candidate: CandidateProfile, percentage: float | None, reque
     }
 
 
+def _candidate_activity_status(last_active_at: datetime | None) -> str:
+    if last_active_at is None:
+        return "Не активен"
+    timestamp = last_active_at.replace(tzinfo=timezone.utc) if last_active_at.tzinfo is None else last_active_at
+    days_since_activity = (datetime.now(timezone.utc) - timestamp.astimezone(timezone.utc)).total_seconds() / 86400
+    if days_since_activity < 7:
+        return "Активен"
+    if days_since_activity < 30:
+        return "Недавно активен"
+    if days_since_activity < 60:
+        return "Устаревает"
+    return "Не активен"
+
+
 def _match_item(
     candidate: CandidateProfile,
     score: dict,
     percentage: float | None,
     need: EmployerNeed,
     requested_skill_tests: list[RequestedSkillTestResult],
+    additional_specializations: list[dict[str, Any]],
 ) -> CandidateMatchItem:
     tax_labels = {"gross": "до вычета НДФЛ", "net": "на руки"}
     candidate_tax = tax_labels.get(candidate.salary_tax_type, candidate.salary_tax_type)
@@ -134,9 +152,19 @@ def _match_item(
         fsp_rating=top_achievement.score_or_rating if top_achievement else None,
         achievements_count=len(candidate.fsp_achievements),
         skills=candidate.skills or [],
+        bio=candidate.bio,
+        hobbies=candidate.hobbies,
+        education_level=candidate.education_level,
+        university_course=candidate.university_course,
+        birth_year=candidate.birth_year,
+        photo_url=f"/candidate/{candidate.id}/photo" if candidate.photo_filename else None,
+        github_url=candidate.github_url,
+        resume_text=candidate.resume_text,
+        resume_url=candidate.resume_url,
         salary_expectation=candidate.salary_expectation,
         salary_tax_type=candidate.salary_tax_type,
         test_percentage=percentage,
+        activity_status=_candidate_activity_status(candidate.last_active_at),
         match_score=score["points"],
         match_explanation=MatchExplanation(
             grade_match=True,
@@ -148,7 +176,37 @@ def _match_item(
             summary=" ".join(summary),
         ),
         requested_skill_tests=requested_skill_tests,
+        additional_specializations=additional_specializations,
     )
+
+
+async def _additional_specializations_by_candidate(
+    db: AsyncSession, candidates: list[CandidateProfile],
+) -> dict[uuid.UUID, list[dict[str, Any]]]:
+    if not candidates:
+        return {}
+    candidate_ids = [candidate.id for candidate in candidates]
+    tracks = (await db.scalars(select(CandidateSpecializationTrack).where(
+        CandidateSpecializationTrack.candidate_profile_id.in_(candidate_ids),
+    ).order_by(CandidateSpecializationTrack.created_at))).all()
+    active = (await db.execute(select(
+        GradeAssessment.candidate_profile_id,
+        GradeAssessment.specialization,
+    ).where(
+        GradeAssessment.candidate_profile_id.in_(candidate_ids),
+        GradeAssessment.status.in_(("in_progress", "pending_review")),
+    ))).all()
+    active_keys = {(row.candidate_profile_id, row.specialization) for row in active}
+    result: dict[uuid.UUID, list[dict[str, Any]]] = {}
+    for track in tracks:
+        result.setdefault(track.candidate_profile_id, []).append({
+            "specialization": track.specialization,
+            "status": "verified" if track.verified_grade else (
+                "in_progress" if (track.candidate_profile_id, track.specialization) in active_keys else "requested"
+            ),
+            "verified_grade": track.verified_grade,
+        })
+    return result
 
 
 class MatchingService:
@@ -302,6 +360,7 @@ class MatchingService:
             )
             for candidate in candidates
         }
+        additional_specializations = await _additional_specializations_by_candidate(db, candidates)
         need_dict = {
             "specialization": need.specialization,
             "required_grade": need.required_grade,
@@ -319,6 +378,7 @@ class MatchingService:
             _match_item(
                 by_id[result["candidate_id"]], result, confirmed_results.get(result["candidate_id"]), need,
                 [RequestedSkillTestResult(**r) for r in skill_tests_by_candidate[result["candidate_id"]]],
+                additional_specializations.get(result["candidate_id"], []),
             )
             for result in ranked
         ]
@@ -333,6 +393,10 @@ class MatchingService:
         stack: str | None = None,
         work_format: str | None = None,
         city: str | None = None,
+        education_level: str | None = None,
+        university_course_group: str | None = None,
+        age_min: int | None = None,
+        age_max: int | None = None,
         fsp_only: bool = False,
         verified_only: bool = False,
     ) -> list[CandidateMatchItem]:
@@ -365,6 +429,17 @@ class MatchingService:
             stmt = stmt.where(CandidateProfile.city.ilike(f"%{city}%"))
         if fsp_only:
             stmt = stmt.where(CandidateProfile.fsp_verified.is_(True))
+        if education_level:
+            stmt = stmt.where(CandidateProfile.education_level == education_level)
+        if university_course_group == "junior":
+            stmt = stmt.where(CandidateProfile.university_course.in_([1, 2]))
+        elif university_course_group == "senior":
+            stmt = stmt.where(CandidateProfile.university_course >= 3)
+        current_year = datetime.now().year
+        if age_min is not None:
+            stmt = stmt.where(CandidateProfile.birth_year <= current_year - age_min)
+        if age_max is not None:
+            stmt = stmt.where(CandidateProfile.birth_year >= current_year - age_max)
 
         candidates = (await db.scalars(stmt)).unique().all()
 
@@ -384,6 +459,7 @@ class MatchingService:
                     )
                 ]
 
+        additional_specializations = await _additional_specializations_by_candidate(db, candidates)
         return [
             CandidateMatchItem(
                 candidate_id=candidate.id,
@@ -400,6 +476,15 @@ class MatchingService:
                 fsp_rating=candidate.fsp_achievements[0].score_or_rating if candidate.fsp_achievements else None,
                 achievements_count=len(candidate.fsp_achievements),
                 skills=candidate.skills or [],
+                bio=candidate.bio,
+                hobbies=candidate.hobbies,
+                education_level=candidate.education_level,
+                university_course=candidate.university_course,
+                birth_year=candidate.birth_year,
+                photo_url=f"/candidate/{candidate.id}/photo" if candidate.photo_filename else None,
+                github_url=candidate.github_url,
+                resume_text=candidate.resume_text,
+                resume_url=candidate.resume_url,
                 salary_expectation=candidate.salary_expectation,
                 salary_tax_type=candidate.salary_tax_type,
                 test_percentage=None,
@@ -411,6 +496,7 @@ class MatchingService:
                     fsp_bonus=bool(candidate.fsp_verified and candidate.fsp_achievements),
                     summary="Кандидат с подтверждённой категорией. Балл для конкретной потребности здесь не рассчитывается.",
                 ),
+                additional_specializations=additional_specializations.get(candidate.id, []),
             )
             for candidate in candidates
         ]

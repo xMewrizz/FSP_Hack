@@ -63,6 +63,7 @@ class VacancyResponse(VacancyBase):
     created_at: datetime
     updated_at: datetime
     company: CompanyShortInfo | None = None
+    can_edit: bool = True
 
 
 class ApplicationCreate(BaseModel):
@@ -112,3 +113,17 @@ class ApplicationEmployerResponse(BaseModel):
 
 class ApplicationStatusUpdate(BaseModel):
     status: Literal["pending", "reviewed", "accepted", "rejected"]
+
+
+class VacancyAccessUpdate(BaseModel):
+    user_id: uuid.UUID
+    can_view: bool = False
+    can_edit: bool = False
+
+
+class VacancyAccessResponse(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    company_name: str
+    can_view: bool
+    can_edit: bool

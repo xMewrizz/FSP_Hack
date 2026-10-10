@@ -12,6 +12,8 @@ from app.schemas.vacancy import (
     ApplicationStatusUpdate,
     CompanyShortInfo,
     VacancyCreate,
+    VacancyAccessResponse,
+    VacancyAccessUpdate,
     VacancyResponse,
     VacancyUpdate,
 )
@@ -20,7 +22,7 @@ from app.services.vacancy_service import VacancyService
 router = APIRouter(prefix="/vacancies", tags=["Vacancies & Candidate Applications (B-30)"])
 
 
-def to_vacancy_response(v) -> VacancyResponse:
+def to_vacancy_response(v, *, can_edit: bool = True) -> VacancyResponse:
     company = None
     if v.employer:
         company = CompanyShortInfo(
@@ -48,6 +50,7 @@ def to_vacancy_response(v) -> VacancyResponse:
         created_at=v.created_at,
         updated_at=v.updated_at,
         company=company,
+        can_edit=can_edit,
     )
 
 
@@ -117,9 +120,12 @@ async def get_my_vacancies(
     if not current_user.employer_profile:
         return []
     vacancies = await VacancyService.get_employer_vacancies(
-        db, current_user.employer_profile.id
+        db, current_user.employer_profile.id, current_user.id
     )
-    return [to_vacancy_response(v) for v in vacancies]
+    return [
+        to_vacancy_response(v, can_edit=await VacancyService.can_edit_vacancy(db, current_user.id, v))
+        for v in vacancies
+    ]
 
 
 @router.get(
@@ -167,7 +173,7 @@ async def update_vacancy(
     if not current_user.employer_profile:
         raise HTTPException(status_code=400, detail="Профиль не найден")
     vacancy = await VacancyService.update_vacancy(
-        db, current_user.employer_profile.id, vacancy_id, data
+        db, current_user.id, vacancy_id, data
     )
     return to_vacancy_response(vacancy)
 
@@ -185,9 +191,36 @@ async def delete_vacancy(
     if not current_user.employer_profile:
         raise HTTPException(status_code=400, detail="Профиль не найден")
     await VacancyService.delete_vacancy(
-        db, current_user.employer_profile.id, vacancy_id
+        db, current_user.id, vacancy_id
     )
     return None
+
+
+@router.get(
+    "/{vacancy_id}/permissions",
+    response_model=list[VacancyAccessResponse],
+    summary="Права участников HR-команды на вакансию",
+)
+async def get_vacancy_permissions(
+    vacancy_id: uuid.UUID,
+    current_user: User = Depends(get_current_employer),
+    db: AsyncSession = Depends(get_db),
+):
+    return await VacancyService.get_vacancy_permissions(db, current_user, vacancy_id)
+
+
+@router.put(
+    "/{vacancy_id}/permissions",
+    response_model=list[VacancyAccessResponse],
+    summary="Выдать или отозвать права HR-участника на вакансию",
+)
+async def set_vacancy_permission(
+    vacancy_id: uuid.UUID,
+    data: VacancyAccessUpdate,
+    current_user: User = Depends(get_current_employer),
+    db: AsyncSession = Depends(get_db),
+):
+    return await VacancyService.set_vacancy_permission(db, current_user, vacancy_id, data)
 
 
 @router.post(
@@ -240,7 +273,7 @@ async def get_vacancy_applications(
     if not current_user.employer_profile:
         raise HTTPException(status_code=400, detail="Профиль не найден")
     return await VacancyService.get_vacancy_applications(
-        db, current_user.employer_profile.id, vacancy_id
+        db, current_user.id, vacancy_id
     )
 
 
@@ -257,7 +290,7 @@ async def update_application_status(
     if not current_user.employer_profile:
         raise HTTPException(status_code=400, detail="Профиль не найден")
     updated = await VacancyService.update_application_status(
-        db, current_user.employer_profile.id, application_id, data.status
+        db, current_user.id, application_id, data.status
     )
     return {
         "status": "ok",

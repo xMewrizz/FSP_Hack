@@ -28,6 +28,12 @@ async def test_retries_rotate_prepared_variants_and_save_answer_version(client: 
         },
     )
     assert onboarded.status_code == 200
+    consent = await client.put(
+        "/api/v1/candidate/profile",
+        headers=headers,
+        json={"agreed_test_confidentiality": True},
+    )
+    assert consent.status_code == 200
 
     attempts = []
     for expected_version in ("v1", "v2", "v3"):

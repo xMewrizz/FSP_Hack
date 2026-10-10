@@ -1,6 +1,7 @@
 import uuid
 import pytest
 from httpx import AsyncClient
+from datetime import datetime
 import app.models  # noqa: F401
 from app.models.candidate import CandidateProfile
 from conftest import TestingSessionLocal
@@ -310,3 +311,58 @@ async def test_search_fsp_only_and_parameters_b16(client: AsyncClient):
     ids_fmt = [item["candidate_id"] for item in res_fmt.json()]
     assert norm_id in ids_fmt
     assert fsp_id not in ids_fmt
+
+
+@pytest.mark.asyncio
+async def test_search_education_age_and_course_filters(client: AsyncClient):
+    employer = await register_user(client, "employer_education@example.com", "employer")
+    await client.post(
+        "/api/v1/employers/onboarding",
+        headers=employer,
+        json={"company_name": "Тест", "contact_person": "HR"},
+    )
+    current_year = datetime.now().year
+    candidate_ids: list[str] = []
+    for email, first_name, course, birth_year in (
+        ("junior_student@example.com", "Младший", 2, current_year - 20),
+        ("senior_student@example.com", "Старший", 4, current_year - 24),
+    ):
+        headers = await register_user(client, email, "candidate")
+        created = await client.post(
+            "/api/v1/candidates/onboarding",
+            headers=headers,
+            json={
+                "first_name": first_name,
+                "last_name": "Кандидат",
+                "specialization": "Backend",
+                "declared_grade": "middle",
+                "city": "Москва",
+                "agreed_152_fz": True,
+                "agreed_publication": True,
+                "visibility_public": True,
+            },
+        )
+        assert created.status_code == 200, created.text
+        candidate_id = created.json()["id"]
+        candidate_ids.append(candidate_id)
+        updated = await client.put(
+            "/api/v1/candidates/profile",
+            headers=headers,
+            json={
+                "education_level": "incomplete_higher",
+                "university_course": course,
+                "birth_year": birth_year,
+                "hobbies": f"Хобби {first_name}",
+            },
+        )
+        assert updated.status_code == 200, updated.text
+        await set_verified_grade(candidate_id, "middle")
+
+    senior_search = await client.get(
+        "/api/v1/matching/search?education_level=incomplete_higher&university_course_group=senior&age_min=22&age_max=26",
+        headers=employer,
+    )
+    assert senior_search.status_code == 200, senior_search.text
+    results = senior_search.json()
+    assert [item["candidate_id"] for item in results] == [candidate_ids[1]]
+    assert results[0]["hobbies"] == "Хобби Старший"

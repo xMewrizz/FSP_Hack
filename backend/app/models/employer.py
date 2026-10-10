@@ -36,6 +36,13 @@ class EmployerProfile(Base, TimestampMixin):
     contact_person: Mapped[str | None] = mapped_column(String(100), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("employer_organizations.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    team_role: Mapped[str] = mapped_column(String(20), default="hr", nullable=False)
 
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 

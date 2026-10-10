@@ -61,7 +61,8 @@ def test_open_questions_bank_structure():
 
 @pytest.mark.asyncio
 async def test_open_questions_endpoints_grade_filter(client: AsyncClient):
-    resp = await client.get("/api/v1/testing/open-questions?grade=junior")
+    headers = await open_test_candidate_headers(client, "filter_questions@example.com")
+    resp = await client.get("/api/v1/testing/open-questions?grade=junior", headers=headers)
     assert resp.status_code == 200
     items = resp.json()
     assert len(items) >= 8
@@ -70,7 +71,7 @@ async def test_open_questions_endpoints_grade_filter(client: AsyncClient):
         assert "skill" in it
         assert "acceptable_solutions" not in it
 
-    resp_sr = await client.get("/api/v1/testing/open-questions?specialization=Backend&grade=senior")
+    resp_sr = await client.get("/api/v1/testing/open-questions?specialization=Backend&grade=senior", headers=headers)
     assert resp_sr.status_code == 200
     items_sr = resp_sr.json()
     assert len(items_sr) >= 6
@@ -105,6 +106,12 @@ async def open_test_candidate_headers(client: AsyncClient, email: str = "open_ca
         },
     )
     assert onboarded.status_code == 200
+    consent = await client.put(
+        "/api/v1/candidates/profile",
+        headers=headers,
+        json={"agreed_test_confidentiality": True},
+    )
+    assert consent.status_code == 200
     return headers
 
 
@@ -127,7 +134,10 @@ async def complete_choices(client: AsyncClient, headers: dict[str, str], assessm
 
 @pytest.mark.asyncio
 async def test_list_open_questions_api(client: AsyncClient):
-    resp = await client.get("/api/v1/testing/open-questions")
+    headers = await open_test_candidate_headers(client, "list_questions@example.com")
+    denied = await client.get("/api/v1/testing/open-questions")
+    assert denied.status_code == 401
+    resp = await client.get("/api/v1/testing/open-questions", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) >= 4
@@ -139,14 +149,15 @@ async def test_list_open_questions_api(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_get_single_open_question_api(client: AsyncClient):
-    resp = await client.get("/api/v1/testing/open-questions/OPEN-BE-ARCH-01")
+    headers = await open_test_candidate_headers(client, "single_question@example.com")
+    resp = await client.get("/api/v1/testing/open-questions/OPEN-BE-ARCH-01", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["code"] == "OPEN-BE-ARCH-01"
     assert data["question_type"] == "free_text"
     assert "reference_solution" not in data
 
-    not_found = await client.get("/api/v1/testing/open-questions/OPEN-NON-EXISTENT")
+    not_found = await client.get("/api/v1/testing/open-questions/OPEN-NON-EXISTENT", headers=headers)
     assert not_found.status_code == 404
 
 
@@ -520,4 +531,3 @@ async def test_candidate_can_recheck_legacy_pending_answer(client: AsyncClient, 
     roadmap = (await client.get(f"/api/v1/testing/roadmap/{assessment_id}", headers=headers)).json()
     assert roadmap["status"] == "completed"
     assert roadmap["verified_grade"] == "junior"
-

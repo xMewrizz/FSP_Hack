@@ -11,7 +11,13 @@ from conftest import TestingSessionLocal
 from open_assessment_helpers import finish_open_assessment
 
 
-async def candidate(client: AsyncClient, email: str, grade: str = "junior", specialization: str = "Backend") -> dict[str, str]:
+async def candidate(
+    client: AsyncClient,
+    email: str,
+    grade: str = "junior",
+    specialization: str = "Backend",
+    agreed_test_confidentiality: bool = True,
+) -> dict[str, str]:
     registered = await client.post("/api/v1/auth/register", json={
         "email": email, "password": "Password123!", "role": "candidate",
     })
@@ -24,7 +30,37 @@ async def candidate(client: AsyncClient, email: str, grade: str = "junior", spec
         "specialization": specialization, "declared_grade": grade, "agreed_152_fz": True,
     })
     assert onboarded.status_code == 200
+    if agreed_test_confidentiality:
+        consent = await client.put(
+            "/api/v1/candidates/profile",
+            headers=headers,
+            json={"agreed_test_confidentiality": True},
+        )
+        assert consent.status_code == 200
     return headers
+
+
+@pytest.mark.asyncio
+async def test_test_materials_require_confidentiality_consent(client: AsyncClient):
+    headers = await candidate(
+        client,
+        "test-confidentiality@example.com",
+        agreed_test_confidentiality=False,
+    )
+    denied = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
+    assert denied.status_code == 403
+    questions_denied = await client.get("/api/v1/testing/open-questions", headers=headers)
+    assert questions_denied.status_code == 403
+
+    consented = await client.put(
+        "/api/v1/candidates/profile",
+        headers=headers,
+        json={"agreed_test_confidentiality": True},
+    )
+    assert consented.status_code == 200
+    assert consented.json()["agreed_test_confidentiality"] is True
+    allowed = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
+    assert allowed.status_code == 201
 
 
 async def finish_skill(client, headers, assessment_id, code, correct_count):

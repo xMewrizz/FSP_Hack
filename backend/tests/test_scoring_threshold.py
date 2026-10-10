@@ -25,6 +25,12 @@ async def test_first_bank_needs_nine_correct_answers_out_of_twelve(client: Async
         },
     )
     assert onboarded.status_code == 200
+    consent = await client.put(
+        "/api/v1/candidate/profile",
+        headers=headers,
+        json={"agreed_test_confidentiality": True},
+    )
+    assert consent.status_code == 200
 
     keys = {
         variant["code"]: variant["correct_answers"][0]

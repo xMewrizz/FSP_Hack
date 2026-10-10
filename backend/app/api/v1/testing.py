@@ -1,7 +1,9 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_candidate, get_current_reviewer, get_db
+from app.models.candidate import CandidateProfile
 from app.models.user import User
 from app.schemas.testing import (
     GradeAssessmentResponse,
@@ -16,6 +18,8 @@ from app.schemas.testing import (
     TestStartRequest,
     TestStartResponse,
     TestSubmitRequest,
+    CandidateSpecializationTrackRequest,
+    CandidateSpecializationTrackResponse,
 )
 from app.core.assessment_catalog import get_testing_catalog
 from app.services.open_question_service import (
@@ -38,6 +42,16 @@ from app.services.testing_service import testing_service
 router = APIRouter(prefix="/testing", tags=["Testing & Skill Verification"])
 
 
+async def _require_test_confidentiality_consent(db: AsyncSession, user: User) -> None:
+    profile = await db.scalar(select(CandidateProfile).where(CandidateProfile.user_id == user.id))
+    if profile is None:
+        raise HTTPException(status_code=400, detail="Профиль кандидата не найден")
+    if not profile.agreed_test_confidentiality:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Перед началом тестирования необходимо принять условия конфиденциальности заданий.",
+        )
+
 
 @router.get(
     "/catalog",
@@ -48,12 +62,34 @@ async def get_catalog():
     return get_testing_catalog()
 
 
-@router.get("/additional", response_model=list[AdditionalSkillTestResponse])
-async def available_additional_tests(
+@router.get("/specializations", response_model=list[CandidateSpecializationTrackResponse])
+async def candidate_specializations(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
-    return await roadmap_service.available_additional(db, current_user)
+    return await roadmap_service.list_specializations(db, current_user)
+
+
+@router.post(
+    "/specializations",
+    response_model=CandidateSpecializationTrackResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def request_candidate_specialization(
+    data: CandidateSpecializationTrackRequest,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await roadmap_service.request_specialization(db, current_user, data.specialization)
+
+
+@router.get("/additional", response_model=list[AdditionalSkillTestResponse])
+async def available_additional_tests(
+    specialization: str | None = None,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await roadmap_service.available_additional(db, current_user, specialization)
 
 
 @router.post(
@@ -67,10 +103,11 @@ async def start_additional_test(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
+    await _require_test_confidentiality_consent(db, current_user)
     if data.target_grade is None:
         raise HTTPException(400, "Укажите уровень дополнительного теста")
     return await roadmap_service.start_additional(
-        db, current_user, skill_code, data.target_grade.value,
+        db, current_user, skill_code, data.target_grade.value, data.specialization,
     )
 
 
@@ -80,15 +117,17 @@ async def start_roadmap(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
+    await _require_test_confidentiality_consent(db, current_user)
     return await roadmap_service.start(db, current_user, data)
 
 
 @router.get("/roadmap/current", response_model=GradeAssessmentResponse | None)
 async def current_roadmap(
+    specialization: str | None = None,
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
-    return await roadmap_service.latest(db, current_user)
+    return await roadmap_service.latest(db, current_user, specialization)
 
 
 @router.get("/roadmap/{assessment_id}", response_model=GradeAssessmentResponse)
@@ -120,6 +159,7 @@ async def start_roadmap_skill(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
+    await _require_test_confidentiality_consent(db, current_user)
     return await roadmap_service.start_skill(db, current_user, assessment_id, skill_code)
 
 
@@ -134,6 +174,7 @@ async def start_test(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
+    await _require_test_confidentiality_consent(db, current_user)
     return await testing_service.start_test(db, current_user, data)
 
 
@@ -148,6 +189,7 @@ async def submit_test(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
+    await _require_test_confidentiality_consent(db, current_user)
     return await testing_service.submit_test(db, current_user, session_id, data)
 
 
@@ -168,7 +210,13 @@ async def get_test_history(
     response_model=list[OpenQuestionResponse],
     summary="Список доступных открытых вопросов и заданий с кодом",
 )
-async def list_open_questions(specialization: str | None = None, grade: str | None = None):
+async def list_open_questions(
+    specialization: str | None = None,
+    grade: str | None = None,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    await _require_test_confidentiality_consent(db, current_user)
     return get_public_open_questions(specialization, grade)
 
 
@@ -177,7 +225,12 @@ async def list_open_questions(specialization: str | None = None, grade: str | No
     response_model=OpenQuestionResponse,
     summary="Получить открытый вопрос по коду",
 )
-async def get_open_question(code: str):
+async def get_open_question(
+    code: str,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    await _require_test_confidentiality_consent(db, current_user)
     q = get_open_question_by_code(code)
     if not q:
         raise HTTPException(status_code=404, detail="Открытый вопрос не найден")
@@ -205,6 +258,7 @@ async def submit_open_question(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
+    await _require_test_confidentiality_consent(db, current_user)
     profile = current_user.candidate_profile
     if not profile:
         raise HTTPException(status_code=400, detail="Профиль кандидата не найден")
@@ -307,7 +361,9 @@ async def get_test_session(
 async def execute_code_sandbox(
     data: SandboxExecutionRequest,
     current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
 ):
+    await _require_test_confidentiality_consent(db, current_user)
     try:
         return await code_sandbox_service.execute(data)
     except ValueError as exc:
@@ -325,7 +381,9 @@ async def test_run_open_question_code(
     code: str,
     data: SandboxExecutionRequest,
     current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
 ):
+    await _require_test_confidentiality_consent(db, current_user)
     q = get_open_question_by_code(code)
     if not q:
         raise HTTPException(status_code=404, detail="Открытый вопрос не найден")
@@ -339,5 +397,3 @@ async def test_run_open_question_code(
         raise HTTPException(status_code=400, detail=str(exc)) from None
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from None
-
-

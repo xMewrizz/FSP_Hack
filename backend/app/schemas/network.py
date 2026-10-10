@@ -53,3 +53,7 @@ class NetworkMessageResponse(BaseModel):
 
 class NetworkConversationHistoryResponse(BaseModel):
     messages: list[NetworkMessageResponse]
+
+
+class NetworkStatsResponse(BaseModel):
+    mentorship_requests_sent: int
