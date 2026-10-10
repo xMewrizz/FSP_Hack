@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -13,11 +14,11 @@ def read_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def review_rows() -> list[dict]:
-    candidates = {item["id"]: item for item in read_json(DATA / "candidates.json")}
-    needs = {item["id"]: item for item in read_json(DATA / "needs.json")}
+def review_rows(data: Path = DATA) -> list[dict]:
+    candidates = {item["id"]: item for item in read_json(data / "candidates.json")}
+    needs = {item["id"]: item for item in read_json(data / "needs.json")}
     rows = []
-    for line in (DATA / "all_pairs.jsonl").read_text(encoding="utf-8").splitlines():
+    for line in (data / "all_pairs.jsonl").read_text(encoding="utf-8").splitlines():
         pair = json.loads(line)
         candidate = candidates[pair["candidate_id"]]
         need = needs[pair["need_id"]]
@@ -45,9 +46,13 @@ def review_rows() -> list[dict]:
 
 
 def main() -> None:
-    rows = review_rows()
-    for reviewer in (1, 2):
-        path = DATA / f"relevance_reviewer_{reviewer}.jsonl"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-dir", type=Path, default=DATA)
+    parser.add_argument("--reviewers", type=int, choices=(1, 2), default=2)
+    args = parser.parse_args()
+    rows = review_rows(args.data_dir)
+    for reviewer in range(1, args.reviewers + 1):
+        path = args.data_dir / f"relevance_reviewer_{reviewer}.jsonl"
         if path.exists():
             raise SystemExit(f"Файл уже существует, не перезаписываю: {path}")
         path.write_text(

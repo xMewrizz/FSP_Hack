@@ -66,41 +66,45 @@ def ndcg_at_5(order: list[str], labels: dict[str, int], need_code: str) -> float
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-dir", type=Path, default=DATA, help="Каталог с обезличенными профилями, потребностями и оценками")
     parser.add_argument("--final-labels", type=Path, help="Согласованные метки; JSONL с pair_id, label, reason")
     parser.add_argument("--ai-draft", action="store_true", help="Предварительный расчёт по текущей разметке")
     args = parser.parse_args()
+    data = args.data_dir
     if args.ai_draft and args.final_labels is not None:
         parser.error("Укажите только --ai-draft или --final-labels")
+    if args.ai_draft and data.resolve() != DATA.resolve():
+        parser.error("--ai-draft разрешён только для сохранённого синтетического набора")
 
-    first_path = DATA / "relevance_reviewer_1.jsonl"
+    first_path = data / "relevance_reviewer_1.jsonl"
     first = read_jsonl(first_path)
     expected = set(first)
     if args.ai_draft:
         final = checked_labels(first, expected, first_path)
         print("Предварительный расчёт на AI-оценках синтетических профилей. Независимой проверки нет.")
     else:
-        second_path = DATA / "relevance_reviewer_2.jsonl"
-        second = read_jsonl(second_path)
-        check_same_context(first, second)
-        for path, rows in ((first_path, first), (second_path, second)):
-            filled = sum(type(row.get("label")) is int and row["label"] in (0, 1, 2) for row in rows.values())
-            print(f"{path.name}: {filled}/{len(expected)} оценок")
+        second_path = data / "relevance_reviewer_2.jsonl"
         if args.final_labels is None:
-            print("Согласованных меток нет; метрики подбора не рассчитывались")
+            print("Независимых оценок нет; метрики подбора не рассчитывались")
             return
-        if args.final_labels.resolve() in (first_path.resolve(), second_path.resolve()):
-            raise ValueError("Согласованные метки нужно сохранить отдельно от исходных форм")
-        left = checked_labels(first, expected, first_path)
-        right = checked_labels(second, expected, second_path)
-        agreed = sum(left[pair_id] == right[pair_id] for pair_id in expected)
-        print(f"Совпадение предварительной AI-оценки и второго проверяющего: {agreed}/{len(expected)}")
-        for pair_id in sorted(expected):
-            if left[pair_id] != right[pair_id]:
-                print(f"Расхождение {pair_id}: {left[pair_id]} и {right[pair_id]}")
+        if second_path.exists():
+            second = read_jsonl(second_path)
+            check_same_context(first, second)
+            if args.final_labels.resolve() in (first_path.resolve(), second_path.resolve()):
+                raise ValueError("Согласованные метки нужно сохранить отдельно от исходных форм")
+            left = checked_labels(first, expected, first_path)
+            right = checked_labels(second, expected, second_path)
+            agreed = sum(left[pair_id] == right[pair_id] for pair_id in expected)
+            print(f"Совпадение двух оценок: {agreed}/{len(expected)}")
+            for pair_id in sorted(expected):
+                if left[pair_id] != right[pair_id]:
+                    print(f"Расхождение {pair_id}: {left[pair_id]} и {right[pair_id]}")
+        elif args.final_labels.resolve() != first_path.resolve():
+            check_same_context(first, read_jsonl(args.final_labels))
         final = checked_labels(read_jsonl(args.final_labels), expected, args.final_labels)
-    candidates = json.loads((DATA / "candidates.json").read_text(encoding="utf-8"))
-    needs = json.loads((DATA / "needs.json").read_text(encoding="utf-8"))
-    print("Сравнение формулы B-14 с простой сортировкой на синтетических данных")
+    candidates = json.loads((data / "candidates.json").read_text(encoding="utf-8"))
+    needs = json.loads((data / "needs.json").read_text(encoding="utf-8"))
+    print("Сравнение формулы B-14 с простой сортировкой на выбранных данных")
     print("Запрос | Сортировка | Первый релевантный | P@3 | nDCG@min(5,N) | Кандидатов | Максимум P@3")
     for need in needs:
         need_code = need["synthetic_code"]

@@ -2,15 +2,19 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, select, text
 from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.core.database import engine
 from app.models.base import Base
+from app.models.test import GradeAssessment
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.core.assessment_bank import validate_assessment_bank_ids, validate_private_bank_coverage
+
+    validate_private_bank_coverage()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # create_all не добавляет поля в уже существующую таблицу. Для баз,
@@ -183,6 +187,8 @@ async def lifespan(app: FastAPI):
         await conn.execute(text(
             "UPDATE candidate_profiles SET visibility_public = FALSE WHERE agreed_publication = FALSE AND visibility_public = TRUE"
         ))
+        policies = (await conn.execute(select(GradeAssessment.scoring_policy))).scalars().all()
+        validate_assessment_bank_ids(policies)
     from app.services.open_question_queue import run_evaluation_worker
     worker = asyncio.create_task(run_evaluation_worker())
     try:

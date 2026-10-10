@@ -142,6 +142,15 @@ BACKEND_FAMILIES.update(SOURCE_FAMILIES)
 
 def prepared_variants(base_code: str) -> list[dict[str, Any]]:
     """Три проверяемых варианта семьи: текущий вопрос и два параметрических."""
+    from app.core.assessment_bank import private_bank
+
+    bank = private_bank()
+    if bank is not None:
+        variants = bank["closed_variants"].get(base_code)
+        if variants is None:
+            raise ValueError(f"В закрытом банке нет вариантов {base_code}")
+        return variants
+
     from app.core.question_bank_ds import DS_FAMILIES, ds_prepared_variants
 
     if base_code in SOURCE_FAMILIES:

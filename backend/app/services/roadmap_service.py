@@ -10,6 +10,7 @@ from app.core.assessment_catalog import (
     SKILL_QUESTION_CODES, available_extra_skills,
 )
 from app.core.assessment_catalog_ds import DS_QUESTION_CODES, DS_REQUIRED_SKILLS
+from app.core.assessment_bank import active_bank_id
 from app.core.catalog import ALL_SPECIALIZATIONS, CatalogError, is_testable, normalize_specialization, validate_test_pair
 from app.core.grade_policy import OVERALL_MINIMUM, SKILL_MINIMUM, SkillResult, assess_grade
 from app.core.open_question_bank import GRADE_OPEN_CODES, GRADE_RETAKE_OPEN_CODES, get_open_question_by_code
@@ -293,6 +294,7 @@ class RoadmapService:
                 retake_question_snapshots=retake_snapshots,
                 scoring_policy={
                     "overall": OVERALL_MINIMUM, "skill": SKILL_MINIMUM,
+                    "bank_id": active_bank_id(),
                     "open_codes": list(
                         GRADE_RETAKE_OPEN_CODES[specialization][grade]
                         if retake_of_id else GRADE_OPEN_CODES[specialization][grade]

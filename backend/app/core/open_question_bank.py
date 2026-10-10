@@ -799,6 +799,12 @@ OPEN_QUESTIONS: list[dict[str, Any]] = [
 # Коды фиксируются при открытии полного набора и не меняются в ходе попытки.
 OPEN_QUESTIONS.extend(PRACTICE_QUESTIONS)
 
+from app.core.assessment_bank import private_bank
+
+_private_bank = private_bank()
+if _private_bank is not None:
+    OPEN_QUESTIONS[:] = _private_bank["open_questions"]
+
 # Без этих условий решение небезопасно, даже если остальные пункты выполнены.
 CRITICAL_CRITERIA: dict[str, tuple[int, ...]] = {
     "OPEN-BE-ARCH-JR-01": (2,),      # Связи заказов и история покупок.
@@ -809,7 +815,10 @@ CRITICAL_CRITERIA: dict[str, tuple[int, ...]] = {
     "OPEN-DS-ARCH-MID-02": (2,),    # При SRM результат эксперимента нельзя трактовать.
 }
 for question in OPEN_QUESTIONS:
-    indices = CRITICAL_CRITERIA.get(question["code"], ())
+    indices = (
+        question.get("critical_criteria", ())
+        if _private_bank is not None else CRITICAL_CRITERIA.get(question["code"], ())
+    )
     assert all(1 <= index <= len(question["rubric_criteria"]) for index in indices)
     question["critical_criteria"] = list(indices)
 

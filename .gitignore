@@ -38,6 +38,7 @@ pgdata/
 redis_data/
 media/
 uploads/
+private-bank/
 
 # Docker
 .docker/

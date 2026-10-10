@@ -332,3 +332,19 @@ PREDEFINED_QUESTIONS.extend(source_base_questions())
 
 from app.core.question_bank_ds import ds_base_questions
 PREDEFINED_QUESTIONS.extend(ds_base_questions())
+
+# The committed questions are for the reproducible demo. A private deployment
+# replaces active base questions with the first variant from its mounted bank.
+from app.core.assessment_bank import private_bank
+
+_private_bank = private_bank()
+if _private_bank is not None:
+    _first_variants = {
+        code: variants[0]
+        for code, variants in _private_bank["closed_variants"].items()
+        if isinstance(variants, list) and variants
+    }
+    PREDEFINED_QUESTIONS[:] = [
+        _first_variants.get(question["code"], question)
+        for question in PREDEFINED_QUESTIONS
+    ]
