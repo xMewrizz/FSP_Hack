@@ -22,7 +22,7 @@ def test_trust_score_high():
         resume_text="I worked at some place.\nPython developer.\n2018-2022 Company Alphabet",
     )
     
-    achievement = FSPAchievement(verified=True)
+    achievement = FSPAchievement(verified=True, is_demo=False)
     candidate.fsp_achievements = [achievement]
     
     session = TestSession(passed=True)
@@ -30,8 +30,9 @@ def test_trust_score_high():
     
     score, flags = calculate_trust_score(candidate)
     
-    assert 0.8 <= score <= 1.0
-    assert all(flag["status"] == "verified" for flag in flags)
+    assert 0.7 <= score <= 0.85
+    assert next(flag for flag in flags if flag["label"] == "Резюме")["status"] == "review"
+    assert next(flag for flag in flags if flag["label"] == "Профиль")["status"] == "review"
 
 def test_trust_score_low():
     candidate = CandidateProfile(
@@ -85,10 +86,32 @@ def test_score_bounds():
         last_active_at=now,
         resume_text="Normal resume without errors.\n2020-2023 Company Alphabet",
     )
-    achievement = FSPAchievement(verified=True)
+    achievement = FSPAchievement(verified=True, is_demo=False)
     candidate.fsp_achievements = [achievement]
     session = TestSession(passed=True)
     candidate.test_sessions = [session]
     
     score, flags = calculate_trust_score(candidate)
     assert 0.0 <= score <= 1.0
+
+
+def test_clean_resume_does_not_claim_employment_verification():
+    candidate = CandidateProfile(resume_text="Backend разработчик, 2020-2024")
+    candidate.fsp_achievements = []
+    candidate.test_sessions = []
+    score, flags = calculate_trust_score(candidate)
+    resume = next(flag for flag in flags if flag["label"] == "Резюме")
+    assert resume["status"] == "review"
+    assert "не подтверждены" in resume["detail"]
+    assert score <= 0.2
+
+
+def test_demo_fsp_record_does_not_add_identity_trust():
+    candidate = CandidateProfile(fsp_verified=True)
+    candidate.fsp_achievements = [FSPAchievement(verified=True, is_demo=True)]
+    candidate.test_sessions = []
+    score, flags = calculate_trust_score(candidate)
+    fsp = next(flag for flag in flags if flag["label"] == "ФСП")
+    assert fsp["status"] == "review"
+    assert "демонстрационная" in fsp["detail"]
+    assert score < 0.2

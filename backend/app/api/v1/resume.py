@@ -1,6 +1,6 @@
 import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -8,12 +8,51 @@ from app.api.deps import get_current_candidate, get_current_user, get_db
 from app.core.constants import UserRole
 from app.models.candidate import CandidateProfile
 from app.models.user import User
-from app.schemas.resume import ResumeParsedData
+from app.schemas.resume import ResumeParsedData, ResumeVersionItem
+from app.models.resume_version import ResumeVersion
+from app.services.resume_versions import changed_work_lines
 from app.services.candidate_photo_service import MAX_PHOTO_SIZE, candidate_photo_service
 from app.services.candidate_service import candidate_service
 from app.services.pdf_service import pdf_service
 
 router = APIRouter(tags=["Candidate PDF & Resume Tools"])
+
+
+@router.get("/resume/versions", response_model=list[ResumeVersionItem], summary="История сохранённых резюме")
+async def list_resume_versions(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.scalar(select(CandidateProfile).where(CandidateProfile.user_id == current_user.id))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Профиль кандидата не найден")
+    versions = (await db.scalars(
+        select(ResumeVersion).where(ResumeVersion.candidate_profile_id == profile.id)
+        .order_by(ResumeVersion.created_at, ResumeVersion.id)
+    )).all()
+    result = []
+    prior: list[str] = []
+    for index, version in enumerate(versions):
+        changes = changed_work_lines(prior, version.work_lines) if index else {"added": [], "removed": []}
+        result.append(ResumeVersionItem(
+            id=version.id, created_at=version.created_at,
+            work_lines=version.work_lines, **changes,
+        ))
+        prior = version.work_lines
+    return list(reversed(result))
+
+
+@router.delete("/resume/versions", status_code=204, summary="Удалить сохранённые версии резюме")
+async def delete_resume_versions(
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.scalar(select(CandidateProfile).where(CandidateProfile.user_id == current_user.id))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Профиль кандидата не найден")
+    await db.execute(delete(ResumeVersion).where(ResumeVersion.candidate_profile_id == profile.id))
+    profile.resume_text = None
+    await db.commit()
 
 
 @router.post(

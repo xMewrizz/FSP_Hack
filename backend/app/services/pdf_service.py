@@ -88,6 +88,7 @@ class PDFService:
             suggested_grade=suggested_grade,
             extracted_skills=extracted_skills,
             text_preview=preview,
+            full_text=full_text[:100_000],
             warnings=resume_warnings(full_text),
         )
 

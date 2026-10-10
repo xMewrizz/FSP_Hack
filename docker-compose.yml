@@ -59,7 +59,9 @@ services:
 
   sandbox-runner:
     profiles: ["sandbox"]
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.sandbox
     image: fsp-sandbox-runner:local
     command: ["true"]
     restart: "no"

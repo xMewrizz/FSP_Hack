@@ -13,6 +13,7 @@ from app.models.invitation import Invitation
 from app.models.invitation_message import InvitationMessage
 from app.models.need import EmployerNeed
 from app.models.network_conversation import NetworkConversation, NetworkMessage
+from app.models.resume_version import ResumeVersion
 from app.models.test import GradeAssessment, OpenQuestionSubmission, Question, TestSession
 from app.models.candidate_activity import CandidateActivity
 from app.models.employer_task import EmployerTask, EmployerTaskSubmission, TaskAttachment
@@ -47,6 +48,7 @@ __all__ = [
     "InvitationMessage",
     "NetworkConversation",
     "NetworkMessage",
+    "ResumeVersion",
     "Vacancy",
     "VacancyAccess",
     "VacancyApplication",

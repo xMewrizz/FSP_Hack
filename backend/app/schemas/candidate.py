@@ -61,6 +61,7 @@ class CandidateProfileUpdateRequest(BaseModel):
     phone: str | None = None
     telegram: str | None = None
     bio: str | None = None
+    resume_text: str | None = Field(default=None, max_length=100_000)
     hobbies: str | None = None
     city: str | None = None
     github_url: str | None = None
@@ -116,6 +117,7 @@ class CandidateProfileResponse(BaseModel):
     city: str | None = None
     github_url: str | None = None
     resume_url: str | None = None
+    resume_text: str | None = None
     photo_url: str | None = None
 
     specialization: str | None = None

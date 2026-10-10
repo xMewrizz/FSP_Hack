@@ -7,11 +7,17 @@ import pytest
 from app.core.code_sandbox.run_job import build_cases
 
 
-@pytest.mark.parametrize("question_code", ["OPEN-BE-CODE-01", "OPEN-BE-CODE-02"])
+@pytest.mark.parametrize("question_code", [
+    "OPEN-BE-CODE-JR-01", "OPEN-BE-CODE-01", "OPEN-BE-CODE-02", "OPEN-BE-CODE-JR-RE",
+    "OPEN-BE-CODE-MID-02",
+    "OPEN-BE-CODE-SR-01",
+    "OPEN-DS-CODE-JR-01", "OPEN-DS-CODE-JR-RE", "OPEN-DS-CODE-01", "OPEN-DS-CODE-MID-02",
+    "OPEN-DS-CODE-SR-01",
+])
 def test_each_supported_question_gets_multiple_cases(question_code):
     cases = build_cases(question_code, random.Random(7))
     assert len(cases) == 12
-    assert all(expected for _, expected in cases)
+    assert all(expected is not None for _, expected in cases)
     assert cases != build_cases(question_code, random.Random(8))
 
 
@@ -29,4 +35,11 @@ def test_lru_cases_cover_eviction_and_updates():
 
 def test_unsupported_question_has_no_syntax_only_success():
     with pytest.raises(ValueError):
-        build_cases("OPEN-DS-CODE-01", random.Random(7))
+        build_cases("OPEN-BE-CODE-SR-RE", random.Random(7))
+
+
+def test_cuped_cases_include_zero_variance_and_randomized_values():
+    cases = build_cases("OPEN-DS-CODE-MID-02", random.Random(7))
+    assert cases[0][1][1] == 1.0
+    assert cases[1][1][2] == 0.0
+    assert cases != build_cases("OPEN-DS-CODE-MID-02", random.Random(8))

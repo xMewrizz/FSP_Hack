@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.models.candidate import CandidateProfile
 from app.models.fsp import FSPAchievement
+from app.models.resume_version import ResumeVersion
 from app.models.test import GradeAssessment, TestSession
 from app.models.user import User
 from app.schemas.candidate import (
@@ -17,6 +18,7 @@ from app.schemas.candidate import (
 from app.core.assessment_catalog import SKILL_LABELS
 from app.schemas.fsp import FSPAchievementSchema
 from app.services.fsp_service import fsp_service
+from app.services.resume_versions import work_history_lines
 
 
 class CandidateService:
@@ -224,6 +226,21 @@ class CandidateService:
         if "agreed_test_confidentiality" in update_dict:
             consent = update_dict["agreed_test_confidentiality"]
             profile.agreed_test_confidentiality_at = datetime.now(timezone.utc) if consent else None
+        if "resume_text" in update_dict and (update_dict["resume_text"] or "") != (profile.resume_text or ""):
+            previous = await db.scalar(
+                select(ResumeVersion).where(ResumeVersion.candidate_profile_id == profile.id)
+                .order_by(ResumeVersion.created_at.desc(), ResumeVersion.id.desc())
+            )
+            if profile.resume_text and (previous is None or previous.text != profile.resume_text):
+                db.add(ResumeVersion(
+                    candidate_profile_id=profile.id, text=profile.resume_text,
+                    work_lines=work_history_lines(profile.resume_text),
+                ))
+            if update_dict["resume_text"]:
+                db.add(ResumeVersion(
+                    candidate_profile_id=profile.id, text=update_dict["resume_text"],
+                    work_lines=work_history_lines(update_dict["resume_text"]),
+                ))
         for key, value in update_dict.items():
             if key == "work_format" and value:
                 profile.work_format = value.value if hasattr(value, "value") else value
@@ -374,6 +391,7 @@ class CandidateService:
             city=profile.city,
             github_url=profile.github_url,
             resume_url=profile.resume_url,
+            resume_text=profile.resume_text,
             photo_url="/candidate/profile/photo" if profile.photo_filename else None,
             specialization=profile.specialization,
             programming_language=profile.programming_language,

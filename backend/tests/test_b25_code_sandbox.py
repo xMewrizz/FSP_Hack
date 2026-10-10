@@ -40,6 +40,8 @@ def test_security_audit_blocks_forbidden_imports_and_calls():
     # 4. Разрешенный безопасный код
     assert audit_code_safety("from collections import deque, defaultdict\nimport math\nimport random").is_safe is True
     assert audit_code_safety("from collections import OrderedDict").is_safe is True
+    assert audit_code_safety("import asyncio\nasync def worker():\n    await asyncio.sleep(0)").is_safe is True
+    assert audit_code_safety("import asyncio\nasyncio.create_subprocess_shell('id')").is_safe is False
 
 
 def test_sandbox_executes_rate_limiter_hidden_tests_success():

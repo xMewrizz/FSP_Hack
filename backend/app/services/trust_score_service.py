@@ -36,23 +36,22 @@ def calculate_trust_score(candidate: CandidateProfile) -> tuple[float, list[dict
         })
     score += skill_score
 
-    # 2. Resume sanity signal (0.25)
+    # A format check cannot establish that employment history is genuine.
     resume_score = 0.0
     if candidate.resume_text:
         warnings = resume_warnings(candidate.resume_text)
         if not warnings:
-            resume_score = 0.25
-            flags.append({
-                "label": "Резюме",
-                "status": "verified",
-                "detail": "Текст резюме проверен, аномалий не найдено"
-            })
-        else:
             resume_score = 0.10
             flags.append({
                 "label": "Резюме",
+                "status": "review",
+                "detail": "Явных ошибок в датах и контактах не найдено; опыт и работодатели не подтверждены"
+            })
+        else:
+            flags.append({
+                "label": "Резюме",
                 "status": "warning",
-                "detail": f"Найдено неточностей: {len(warnings)}"
+                "detail": f"Найдено возможных ошибок: {len(warnings)}; проверьте их в исходном резюме"
             })
     else:
         flags.append({
@@ -64,20 +63,21 @@ def calculate_trust_score(candidate: CandidateProfile) -> tuple[float, list[dict
 
     # 3. FSP verification signal (0.15)
     fsp_score = 0.0
-    has_verified_achievement = any(a.verified for a in candidate.fsp_achievements) if hasattr(candidate, 'fsp_achievements') else False
+    has_verified_achievement = any(
+        a.verified and not a.is_demo for a in candidate.fsp_achievements
+    ) if hasattr(candidate, 'fsp_achievements') else False
     if candidate.fsp_verified and has_verified_achievement:
         fsp_score = 0.15
         flags.append({
             "label": "ФСП",
             "status": "verified",
-            "detail": "Профиль и достижения подтверждены ФСП"
+            "detail": "Есть привязка к ФСП и подтверждённые достижения"
         })
     elif candidate.fsp_verified:
-        fsp_score = 0.10
         flags.append({
             "label": "ФСП",
-            "status": "verified",
-            "detail": "Профиль привязан к ФСП"
+            "status": "review",
+            "detail": "Найдена демонстрационная запись ФСП; личность владельца записи не проверена"
         })
     else:
         flags.append({
@@ -109,8 +109,8 @@ def calculate_trust_score(candidate: CandidateProfile) -> tuple[float, list[dict
     if completeness >= 3 and is_active:
         flags.append({
             "label": "Профиль",
-            "status": "verified",
-            "detail": "Профиль подробно заполнен и активен"
+            "status": "review",
+            "detail": "Профиль подробно заполнен и недавно использовался; сведения указаны кандидатом"
         })
     else:
         flags.append({

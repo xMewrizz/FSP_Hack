@@ -557,6 +557,7 @@ type CandidateProfileData = {
   bio: string | null;
   hobbies?: string | null;
   photo_url: string | null;
+  resume_text?: string | null;
   city: string | null;
   specialization: string | null;
   programming_language: string | null;
@@ -591,7 +592,16 @@ type ParsedResume = {
   suggested_grade: string | null;
   extracted_skills: string[];
   text_preview: string;
+  full_text: string;
   warnings?: string[];
+};
+
+type ResumeVersionItem = {
+  id: string;
+  created_at: string;
+  work_lines: string[];
+  added: string[];
+  removed: string[];
 };
 
 type ResumeDraft = {
@@ -3148,9 +3158,17 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [resumeFileName, setResumeFileName] = useState("");
   const [parsedResume, setParsedResume] = useState<ParsedResume | null>(null);
   const [resumeDraft, setResumeDraft] = useState<ResumeDraft | null>(null);
+  const [resumeVersions, setResumeVersions] = useState<ResumeVersionItem[]>([]);
   const [fspInput, setFspInput] = useState("");
   const [diplomaStatus, setDiplomaStatus] = useState("");
   const [diplomaUploading, setDiplomaUploading] = useState(false);
+
+  useEffect(() => {
+    if (active !== "Профиль") return;
+    apiGet<ResumeVersionItem[]>("/candidate/resume/versions")
+      .then(setResumeVersions)
+      .catch(() => setResumeVersions([]));
+  }, [active]);
 
   useEffect(() => {
     if (active !== "Мой грейд") return;
@@ -3257,6 +3275,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         phone: profile.phone,
         telegram: profile.telegram,
         bio: profile.bio,
+        resume_text: profile.resume_text ?? null,
         hobbies: profile.hobbies ?? null,
         city: profile.city,
         work_format: profile.work_format,
@@ -3273,6 +3292,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       });
       setProfile(updated);
       onNotify("Изменения профиля сохранены");
+      void apiGet<ResumeVersionItem[]>("/candidate/resume/versions").then(setResumeVersions).catch(() => undefined);
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось сохранить профиль", "error");
     } finally {
@@ -3401,8 +3421,20 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       specialization: resumeDraft.specialization || current.specialization,
       declared_grade: resumeDraft.suggested_grade || current.declared_grade,
       skills: replaceSkills ? reviewedSkills : (current.skills ?? []),
+      resume_text: parsedResume.full_text,
     } : current);
     onNotify("Данные перенесены в черновик профиля. Проверьте их и нажмите «Сохранить профиль».");
+  };
+
+  const deleteSavedResumes = async () => {
+    try {
+      await apiRequest("/candidate/resume/versions", { method: "DELETE" });
+      setResumeVersions([]);
+      setProfile((current) => current ? { ...current, resume_text: null } : current);
+      onNotify("История резюме удалена");
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось удалить историю резюме", "error");
+    }
   };
 
   const downloadProfilePdf = async () => {
@@ -3906,6 +3938,18 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               <p>{parsedResume.text_preview.slice(0, 320) || "Текстовое превью недоступно."}</p>
               <Button variant="outline" onClick={applyParsedResume}>Перенести данные в профиль</Button>
             </div>}
+            {resumeVersions.length > 0 && <details className="resume-entry">
+              <summary>Сохранённые версии резюме ({resumeVersions.length})</summary>
+              <p>Показаны изменения строк с диапазонами дат между вашими сохранёнными версиями. Среди них могут быть и другие сведения, не только опыт работы.</p>
+              {resumeVersions.map((version) => <div key={version.id}>
+                <strong>{new Date(version.created_at).toLocaleDateString("ru-RU")}</strong>
+                {version.added.map((line) => <p key={`add-${line}`}>Добавлено: {line}</p>)}
+                {version.removed.map((line) => <p key={`remove-${line}`}>Убрано: {line}</p>)}
+                {version.added.length === 0 && version.removed.length === 0 && <p>Изменений строк с датами работы нет.</p>}
+              </div>)}
+              <p>Название или ИНН компании можно сверить в <a href="https://egrul.nalog.ru/" target="_blank" rel="noopener noreferrer">официальном поиске ФНС</a>. Совпадение названия ещё не подтверждает работу кандидата в этой компании.</p>
+              <Button variant="outline" onClick={() => void deleteSavedResumes()}>Удалить историю резюме</Button>
+            </details>}
             <p className="feature-description feature-description--left">PDF доступен после согласия на публикацию профиля. Контакты в PDF не входят.</p>
             <Button variant="outline" disabled={!profile?.agreed_publication} onClick={() => void downloadProfilePdf()}>Скачать PDF-профиль</Button>
           </section>

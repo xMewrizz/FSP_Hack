@@ -19,7 +19,6 @@ FORBIDDEN_MODULES: frozenset[str] = frozenset({
     "threading",
     "multiprocessing",
     "signal",
-    "asyncio",
     "resource",
     "ctypes",
     "builtins",
@@ -78,6 +77,10 @@ FORBIDDEN_ATTRIBUTES: frozenset[str] = frozenset({
     "f_globals",
     "f_locals",
     "f_code",
+    "create_subprocess_exec",
+    "create_subprocess_shell",
+    "open_connection",
+    "start_server",
 })
 
 

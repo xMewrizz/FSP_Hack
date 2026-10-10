@@ -47,11 +47,11 @@ def test_request_does_not_accept_custom_tests():
 
 
 @pytest.mark.asyncio
-async def test_ds_code_is_not_offered_with_interface_only_tests():
+async def test_question_without_executable_contract_is_rejected():
     with pytest.raises(HTTPException) as error:
         await controller.execute(SandboxExecutionRequest(
-            code="def evaluate_cv_pipeline(X, y): return 0.5",
-            question_code="OPEN-DS-CODE-01",
+            code="pass",
+            question_code="OPEN-DS-CODE-SR-RE",
         ))
     assert error.value.status_code == 400
 

@@ -41,6 +41,10 @@ def container_spec(data: SandboxExecutionRequest) -> dict:
             "SANDBOX_QUESTION_CODE=" + (data.question_code or ""),
             "SANDBOX_TIMEOUT_SECONDS=" + str(data.timeout_seconds),
             "SANDBOX_CONTAINER_MODE=1",
+            "OPENBLAS_NUM_THREADS=1",
+            "OMP_NUM_THREADS=1",
+            "MKL_NUM_THREADS=1",
+            "NUMEXPR_NUM_THREADS=1",
         ],
         "HostConfig": {
             "NetworkMode": "none",
