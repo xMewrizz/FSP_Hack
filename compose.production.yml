@@ -1,0 +1,120 @@
+name: fsp-hack
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fsp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: fsp_career
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fsp -d fsp_career"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+psycopg://fsp:${POSTGRES_PASSWORD}@db:5432/fsp_career
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      ML_SERVICE_URL: http://ml-service:8001
+      SANDBOX_SERVICE_URL: http://sandbox-controller:8002
+      FSP_MOCK_MODE: "true"
+      ENABLE_DEMO_SEED: "false"
+      ASSESSMENT_BANK_MODE: private
+      ASSESSMENT_BANK_FILE: /run/assessment-bank/assessment-bank.json
+    volumes:
+      - ./private-bank/assessment-bank.json:/run/assessment-bank/assessment-bank.json:ro
+      - photos:/app/media
+    networks:
+      - default
+      - sandbox-control
+
+  ml-service:
+    build: ./ml-service
+    restart: unless-stopped
+    environment:
+      LLM_PROVIDER: openrouter
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set OPENROUTER_API_KEY in .env}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemini-2.5-flash}
+
+  sandbox-runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.sandbox
+    image: fsp-sandbox-runner:local
+    command: ["true"]
+    restart: "no"
+    network_mode: none
+
+  sandbox-controller:
+    image: fsp-sandbox-runner:local
+    command: ["uvicorn", "app.core.code_sandbox.controller:app", "--host", "0.0.0.0", "--port", "8002"]
+    restart: unless-stopped
+    depends_on:
+      sandbox-runner:
+        condition: service_completed_successfully
+    environment:
+      ASSESSMENT_BANK_MODE: private
+      ASSESSMENT_BANK_FILE: /run/assessment-bank/assessment-bank.json
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./private-bank/assessment-bank.json:/run/assessment-bank/assessment-bank.json:ro
+    networks:
+      - sandbox-control
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  photos:
+  caddy_data:
+  caddy_config:
+
+networks:
+  sandbox-control:
+    internal: true

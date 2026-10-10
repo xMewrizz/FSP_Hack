@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     FSP_MOCK_MODE: bool = True
+    ENABLE_DEMO_SEED: bool = True
     FSP_API_URL: str | None = None
     KEYCLOAK_URL: str = "http://localhost:8080"
     KEYCLOAK_REALM: str = "fsp"
