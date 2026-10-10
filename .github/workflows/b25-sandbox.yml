@@ -1,0 +1,27 @@
+name: Проверка исполнителя кода
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/b25-sandbox.yml"
+      - "backend/**"
+      - "docker-compose.yml"
+  workflow_dispatch:
+
+jobs:
+  sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Собрать и запустить исполнитель
+        run: docker compose --profile sandbox up --build -d sandbox-controller
+      - name: Проверить решения через Docker API
+        run: docker compose --profile sandbox exec -T sandbox-controller python tests/integration_b25_docker.py
+      - name: Логи при ошибке
+        if: failure()
+        run: docker compose --profile sandbox logs --no-color sandbox-controller
+      - name: Остановить исполнитель
+        if: always()
+        run: docker compose --profile sandbox down --remove-orphans

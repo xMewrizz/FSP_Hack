@@ -7,7 +7,7 @@ import os
 import httpx
 from fastapi import FastAPI, HTTPException
 
-from app.core.code_sandbox.hidden_tests import get_hidden_tests_for_question
+from app.core.code_sandbox.run_job import SUPPORTED_QUESTIONS
 from app.core.code_sandbox.schemas import SandboxExecutionRequest, SandboxExecutionResponse
 from app.core.open_question_bank import get_open_question_by_code
 
@@ -17,7 +17,7 @@ DOCKER_SOCKET = "/var/run/docker.sock"
 DOCKER_API = "http://docker/v1.41"
 RUNNER_IMAGE = "fsp-sandbox-runner:local"
 RESULT_PREFIX = "SANDBOX_JOB_RESULT:"
-EXECUTABLE_QUESTIONS = {"OPEN-BE-CODE-01", "OPEN-BE-CODE-02"}
+EXECUTABLE_QUESTIONS = SUPPORTED_QUESTIONS
 MAX_CONCURRENT_JOBS = 2
 job_slots = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
 
@@ -65,8 +65,7 @@ def parse_result(logs: str) -> SandboxExecutionResponse:
 async def execute(data: SandboxExecutionRequest) -> SandboxExecutionResponse:
     question = get_open_question_by_code(data.question_code)
     if (not question or question["question_type"] != "code"
-            or data.question_code not in EXECUTABLE_QUESTIONS
-            or not get_hidden_tests_for_question(data.question_code)):
+            or data.question_code not in EXECUTABLE_QUESTIONS):
         raise HTTPException(status_code=400, detail="Для этого задания нет проверки кода")
     if not os.path.exists(DOCKER_SOCKET):
         raise HTTPException(status_code=503, detail="Изолированный исполнитель недоступен")
