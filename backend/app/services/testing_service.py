@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 import uuid
+import httpx
 from fastapi import HTTPException, status
+from app.core.assessment_catalog import SKILL_LABELS
+from app.core.config import settings
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
@@ -47,6 +50,59 @@ def build_question_review(
             explanation=question.get("explanation", ""),
         ))
     return review
+
+
+def missed_answer_pairs(review: list[QuestionReview], limit: int = 10) -> list[dict[str, str]]:
+    """Только неверные пары. Верные ответы в модель не отправляются."""
+    pairs: list[dict[str, str]] = []
+    for item in review:
+        if item.is_correct:
+            continue
+        pairs.append({
+            "question": item.question_text,
+            "answer": "; ".join(item.selected_answers) or "нет ответа",
+        })
+        if len(pairs) >= limit:
+            break
+    return pairs
+
+
+async def load_review_topics(
+    review: list[QuestionReview],
+    *,
+    skill_code: str | None,
+    specialization: str,
+    grade: str,
+) -> tuple[list[str], str]:
+    """none — ошибок нет; ready — темы получены; unavailable — модель не ответила."""
+    missed = missed_answer_pairs(review)
+    if not missed:
+        return [], "none"
+    skill = SKILL_LABELS.get(skill_code or "", skill_code or "Навык")
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                f"{settings.ML_SERVICE_URL.rstrip('/')}/skill-gap-topics",
+                json={
+                    "skill": skill,
+                    "specialization": specialization,
+                    "grade": grade,
+                    "missed": missed,
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+            topics = payload.get("topics") if isinstance(payload, dict) else None
+            if not isinstance(topics, list):
+                return [], "unavailable"
+            cleaned = []
+            for topic in topics:
+                text = " ".join(str(topic).split())
+                if text and text not in cleaned:
+                    cleaned.append(text)
+            return cleaned[:10], "ready"
+    except (httpx.HTTPError, ValueError, TypeError):
+        return [], "unavailable"
 
 
 def required_correct_answers(question_count: int) -> int:
@@ -291,6 +347,14 @@ class TestingService:
             session.questions_snapshot,
             [answer.model_dump() for answer in data.answers],
         )
+        review_topics, review_topics_status = await load_review_topics(
+            review,
+            skill_code=session.skill_code,
+            specialization=session.specialization,
+            grade=session.target_grade,
+        )
+        session.review_topics = review_topics
+        session.review_topics_status = review_topics_status
 
         total_score = 0.0
         max_score = 0.0
@@ -390,6 +454,8 @@ class TestingService:
                 completed_at=session.completed_at,
                 skill_code=session.skill_code,
                 assessment_id=session.assessment_id,
+                review_topics=review_topics,
+                review_topics_status=review_topics_status,
             )
 
         if session.skill_code:
@@ -419,6 +485,8 @@ class TestingService:
                 completed_at=session.completed_at,
                 skill_code=session.skill_code,
                 assessment_id=None,
+                review_topics=review_topics,
+                review_topics_status=review_topics_status,
             )
 
         session.feedback = (
@@ -450,6 +518,8 @@ class TestingService:
             completed_at=session.completed_at,
             skill_code=session.skill_code,
             assessment_id=session.assessment_id,
+            review_topics=review_topics,
+            review_topics_status=review_topics_status,
         )
 
     @staticmethod
@@ -500,6 +570,8 @@ class TestingService:
             completed_at=session.completed_at,
             skill_code=session.skill_code,
             assessment_id=session.assessment_id,
+            review_topics=list(session.review_topics or []),
+            review_topics_status=session.review_topics_status or "none",
         )
 
     @staticmethod

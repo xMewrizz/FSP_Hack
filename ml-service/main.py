@@ -3,12 +3,20 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from need_llm import suggest_need
 from open_evaluator import OpenEvaluationResult, evaluate_open_answer
+from skill_gap_llm import MissedAnswer, recommend_topics
 
 app = FastAPI(title="FSP ML-service", version="0.1.0")
 
 
 class NeedText(BaseModel):
     text: str = Field(min_length=20, max_length=5000)
+
+
+class SkillGapRequest(BaseModel):
+    skill: str = Field(min_length=1, max_length=200)
+    specialization: str = Field(min_length=1, max_length=200)
+    grade: str = Field(min_length=1, max_length=50)
+    missed: list[MissedAnswer] = Field(default_factory=list, max_length=10)
 
 
 class OpenAnswerEvaluationRequest(BaseModel):
@@ -48,6 +56,24 @@ async def evaluate_open_answer_endpoint(payload: OpenAnswerEvaluationRequest):
             candidate_answer=payload.candidate_answer,
             client=client,
         )
+
+
+@app.post("/skill-gap-topics")
+async def skill_gap_topics(data: SkillGapRequest):
+    if not data.missed:
+        return {"topics": []}
+    try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            topics = await recommend_topics(
+                data.missed,
+                client,
+                skill=data.skill,
+                specialization=data.specialization,
+                grade=data.grade,
+            )
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(status_code=503, detail="Не удалось получить темы от модели") from None
+    return {"topics": topics}
 
 
 @app.post("/parse-resume")

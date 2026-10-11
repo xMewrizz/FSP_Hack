@@ -71,6 +71,8 @@ class TestSession(Base, TimestampMixin):
     answers_data: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     suggested_grade: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    review_topics: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    review_topics_status: Mapped[str] = mapped_column(String(20), default="none", nullable=False)
 
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
