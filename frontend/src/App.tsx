@@ -2091,6 +2091,7 @@ function EmployerScreen({
     && !skillItems.some((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase()),
   );
   const [needEntryMode, setNeedEntryMode] = useState<"manual" | "llm">("manual");
+  const [needSetupStep, setNeedSetupStep] = useState<1 | 2>(1);
   const [needParsing, setNeedParsing] = useState(false);
   const latestNeedDescription = useRef(needDescription);
 
@@ -2123,6 +2124,22 @@ function EmployerScreen({
   const handleSpecializationChange = (newSpec: string) => {
     setNeedSpecialization(newSpec);
     setSkillItems(DEFAULT_SKILLS_BY_SPEC[newSpec] ?? []);
+  };
+  const continueNeedSetup = () => {
+    const salaryMin = Number(needSalaryMin.replace(/\D/g, ""));
+    const salaryMax = Number(needSalaryMax.replace(/\D/g, ""));
+    if (!needSpecialization || !needGrade || !needSalaryTaxType) {
+      onNotify("Укажите специализацию, грейд и тип зарплаты", "error");
+      return;
+    }
+    if (salaryMin <= 0 || salaryMax < salaryMin) {
+      onNotify("Проверьте зарплатный диапазон", "error");
+      return;
+    }
+    if (skillItems.length === 0) {
+      setSkillItems(DEFAULT_SKILLS_BY_SPEC[needSpecialization] ?? []);
+    }
+    setNeedSetupStep(2);
   };
   const [needSaving, setNeedSaving] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<EmployerProfileData | null>(null);
@@ -2333,8 +2350,8 @@ function EmployerScreen({
   };
 
   const createNeed = async () => {
-    if (needTitle.trim().length < 2 || !needSpecialization || !needGrade || !needSalaryTaxType || !needWorkFormat) {
-      onNotify("Заполните название, специализацию, грейд, тип зарплаты и формат работы", "error");
+    if (!needSpecialization || !needGrade || !needSalaryTaxType) {
+      onNotify("Укажите специализацию, грейд и тип зарплаты", "error");
       return;
     }
     const salaryMin = Number(needSalaryMin.replace(/\D/g, ""));
@@ -2350,7 +2367,7 @@ function EmployerScreen({
     setNeedSaving(true);
     try {
       const created = await apiPost<EmployerNeedRecord>("/needs", {
-        title: needTitle,
+        title: needTitle.trim() || `${needSpecialization} · ${needGrade}`,
         specialization: needSpecialization,
         required_grade: needGrade,
         required_skills: skillItems.map((item) => ({
@@ -2386,14 +2403,9 @@ function EmployerScreen({
     try {
       const draft = await apiPost<NeedDraft>("/needs/parse", { text: description });
       if (latestNeedDescription.current.trim() !== description) return;
-      if (draft.specialization) setNeedSpecialization(draft.specialization);
-      if (draft.required_grade) setNeedGrade(draft.required_grade);
       setSkillItems(draft.required_skills);
-      if (draft.salary_min !== null) setNeedSalaryMin(draft.salary_min.toString());
-      if (draft.salary_max !== null) setNeedSalaryMax(draft.salary_max.toString());
-      if (draft.salary_tax_type) setNeedSalaryTaxType(draft.salary_tax_type);
-      if (draft.work_format) setNeedWorkFormat(draft.work_format);
       setNeedEntryMode("manual");
+      onNotify("Подбор навыков готов. Проверьте и при необходимости измените веса.");
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось разобрать описание", "error");
     } finally {
@@ -2536,115 +2548,90 @@ function EmployerScreen({
           ))}
           {needs.length === 0 && <span>Пока нет сохранённых потребностей. Создайте первую, чтобы запустить подбор.</span>}
         </section>
-        <div className="steps">
-          <div className="active"><b>1</b><span>Описание</span></div>
-          <div><b>2</b><span>Оценка важности</span></div>
-          <div><b>3</b><span>Публикация</span></div>
+        <div className="steps steps--need">
+          <div className={needSetupStep === 1 ? "active" : ""}><b>1</b><span>Параметры потребности</span></div>
+          <div className={needSetupStep === 2 ? "active" : ""}><b>2</b><span>Настройка навыков</span></div>
         </div>
-        <div className="split-layout">
-          <section className="feature-card">
-            <div className="feature-head"><div><span>ЗАПРОС НА ПОДБОР</span><strong>Опишите специалиста</strong></div></div>
+        <section className="feature-card need-basics-card">
+          {needSetupStep === 1 ? <>
+            <div className="feature-head"><div><span>ШАГ 1 · ОБЯЗАТЕЛЬНОЕ</span><strong>Параметры подбора</strong></div></div>
+            <p className="feature-description feature-description--left">Эта потребность — внутренний запрос вашей команды. Кандидаты её не видят.</p>
             <div className="field-row field-row--flush">
-              <label className="field"><span>НАЗВАНИЕ РОЛИ</span><input value={needTitle} onChange={(event) => setNeedTitle(event.target.value)} /></label>
+              <label className="field"><span>НАЗВАНИЕ РОЛИ (НЕОБЯЗАТЕЛЬНО)</span><input value={needTitle} onChange={(event) => setNeedTitle(event.target.value)} placeholder="Например, backend-разработчик" /></label>
               <label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={needSpecialization} onChange={(event) => handleSpecializationChange(event.target.value)}><option value="">Выберите специализацию</option>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
             </div>
-            <label className="field field--flush"><span>ТРЕБУЕМЫЙ УРОВЕНЬ</span><select value={needGrade} onChange={(event) => setNeedGrade(event.target.value)}><option value="">Выберите грейд</option>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+            <label className="field field--flush"><span>ТРЕБУЕМЫЙ ГРЕЙД</span><select value={needGrade} onChange={(event) => setNeedGrade(event.target.value)}><option value="">Выберите грейд</option>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
             <div className="field-row field-row--flush">
               <label className="field"><span>ЗАРПЛАТА ОТ, ₽</span><input inputMode="numeric" value={needSalaryMin} onChange={(event) => setNeedSalaryMin(event.target.value)} /></label>
               <label className="field"><span>ЗАРПЛАТА ДО, ₽</span><input inputMode="numeric" value={needSalaryMax} onChange={(event) => setNeedSalaryMax(event.target.value)} /></label>
             </div>
             <label className="field field--flush">
               <span>ТИП ЗАРПЛАТЫ</span>
-              <select
-                aria-label="Тип зарплаты"
-                value={needSalaryTaxType}
-                onChange={(event) => setNeedSalaryTaxType(event.target.value as "gross" | "net" | "")}
-              >
+              <select aria-label="Тип зарплаты" value={needSalaryTaxType} onChange={(event) => setNeedSalaryTaxType(event.target.value as "gross" | "net" | "")}>
                 <option value="">Укажите тип зарплаты</option>
                 <option value="gross">До вычета НДФЛ (gross)</option>
                 <option value="net">На руки (net)</option>
               </select>
             </label>
-            <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="">Выберите формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
-            <label className="field field--flush need-description-field">
-              <span>{needEntryMode === "llm" ? "ОПИШИТЕ ПОТРЕБНОСТЬ ПРОМТОМ" : "ОПИСАНИЕ ПОТРЕБНОСТИ (НЕОБЯЗАТЕЛЬНО)"}</span>
-              <textarea value={needDescription} onChange={(event) => { latestNeedDescription.current = event.target.value; setNeedDescription(event.target.value); }} placeholder="Опишите задачи команды, стек и приоритеты роли." />
-            </label>
-          </section>
-          <section className="feature-card skill-entry-card">
-            <div className="skill-entry-head">
-              <div className="feature-head"><div><span>ТРЕБОВАНИЯ ДЛЯ ПОДБОРА</span><strong>Как задать навыки?</strong></div></div>
-              <div className="skill-entry-switch" role="group" aria-label="Способ заполнения шкалы навыков">
-                <Button type="button" variant={needEntryMode === "manual" ? "primary" : "outline"} ariaPressed={needEntryMode === "manual"} onClick={() => setNeedEntryMode("manual")}>Расставить веса</Button>
-                <Button type="button" variant={needEntryMode === "llm" ? "primary" : "outline"} ariaPressed={needEntryMode === "llm"} onClick={() => setNeedEntryMode("llm")}>Описать промтом</Button>
-              </div>
+            <div className="field-row field-row--flush"><label className="field"><span>ГОРОД (НЕОБЯЗАТЕЛЬНО)</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="">Выберите формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
+            <Button onClick={continueNeedSetup}>К настройке навыков <Icon name="chevron" /></Button>
+          </> : <>
+            <div className="need-setup-summary">
+              <div><span>ПАРАМЕТРЫ ПОТРЕБНОСТИ</span><strong>{needTitle.trim() || `${needSpecialization} · ${needGrade}`}</strong><p>{needSpecialization} · {needGrade} · {formatSalaryRange(Number(needSalaryMin.replace(/\D/g, "")), Number(needSalaryMax.replace(/\D/g, "")))}</p></div>
+              <Button type="button" variant="ghost" onClick={() => setNeedSetupStep(1)}>Изменить параметры</Button>
             </div>
-            {needEntryMode === "manual" ? <>
-              <p className="feature-description feature-description--left">Укажите навыки и их важность для подбора: от 1 — базовый приоритет до 5 — критически важный.</p>
-                <div className="skill-weights">
-                {skillItems.map((item, index) => (
-                  <div key={`${item.name}-${index}`}>
-                    <span>{item.name}</span>
-                    <input
-                      aria-label={`Вес ${item.name}`}
-                      type="range"
-                      min="1"
-                      max="5"
-                      step="1"
-                      value={item.weight}
-                      onChange={(event) => handleUpdateSkillWeight(index, Number(event.target.value))}
-                    />
-                    <strong>{item.weight}/5</strong>
-                    <button
-                      type="button"
-                      className="skill-weight-del"
-                      title={`Удалить ${item.name}`}
-                      aria-label={`Удалить ${item.name}`}
-                      onClick={() => handleRemoveSkill(index)}
-                    >
-                      <Icon name="close" size={14} />
-                    </button>
-                  </div>
-                  ))}
+          </>}
+        </section>
+        {needSetupStep === 2 && <section className="feature-card skill-entry-card">
+          <div className="skill-entry-head">
+            <div className="feature-head"><div><span>ШАГ 2 · НАВЫКИ ДЛЯ ПОДБОРА</span><strong>Настройте требования к навыкам</strong></div></div>
+            <div className="skill-entry-switch" role="group" aria-label="Способ настройки навыков">
+              <button type="button" aria-pressed={needEntryMode === "manual"} onClick={() => setNeedEntryMode("manual")}>Расставить веса</button>
+              <button type="button" aria-pressed={needEntryMode === "llm"} onClick={() => setNeedEntryMode("llm")}>Описать промптом</button>
+            </div>
+          </div>
+          {needEntryMode === "manual" ? <>
+            <p className="feature-description feature-description--left">Для специализации уже подобран базовый набор. Меняйте веса и добавляйте навыки по необходимости.</p>
+            <div className="skill-weights">
+              {skillItems.map((item, index) => (
+                <div key={`${item.name}-${index}`}>
+                  <span>{item.name}</span>
+                  <input aria-label={`Вес ${item.name}`} type="range" min="1" max="5" step="1" value={item.weight} onChange={(event) => handleUpdateSkillWeight(index, Number(event.target.value))} />
+                  <strong>{item.weight}/5</strong>
+                  <button type="button" className="skill-weight-del" title={`Удалить ${item.name}`} aria-label={`Удалить ${item.name}`} onClick={() => handleRemoveSkill(index)}><Icon name="close" size={14} /></button>
                 </div>
-              <div className="skill-add-row">
-                <div className="skill-add-autocomplete" onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) setSkillSuggestionsOpen(false);
-                }}>
-                  <input
-                    type="text"
-                    placeholder="Добавить навык (например, Redis)..."
-                    aria-label="Новый навык"
-                    role="combobox"
-                    aria-expanded={skillSuggestionsOpen && skillSuggestions.length > 0}
-                    aria-controls="skill-suggestions"
-                    aria-autocomplete="list"
-                    value={newSkillName}
-                    onFocus={() => setSkillSuggestionsOpen(true)}
-                    onChange={(e) => { setNewSkillName(e.target.value); setSkillSuggestionsOpen(true); }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") setSkillSuggestionsOpen(false);
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddSkill();
-                      }
-                    }}
-                  />
-                  {skillSuggestionsOpen && skillSuggestions.length > 0 && <div className="skill-suggestions" id="skill-suggestions" role="listbox" aria-label="Подходящие навыки">
-                    {skillSuggestions.map((name) => <button key={name} type="button" role="option" aria-selected={false} onClick={() => handleAddSkill(name)}>{name}</button>)}
-                  </div>}
-                </div>
-                <Button variant="outline" onClick={() => handleAddSkill()}>+ Добавить</Button>
+              ))}
+            </div>
+            <div className="skill-add-row">
+              <div className="skill-add-autocomplete" onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setSkillSuggestionsOpen(false);
+              }}>
+                <input type="text" placeholder="Добавить навык (например, Redis)..." aria-label="Новый навык" role="combobox" aria-expanded={skillSuggestionsOpen && skillSuggestions.length > 0} aria-controls="skill-suggestions" aria-autocomplete="list" value={newSkillName} onFocus={() => setSkillSuggestionsOpen(true)} onChange={(event) => { setNewSkillName(event.target.value); setSkillSuggestionsOpen(true); }} onKeyDown={(event) => {
+                  if (event.key === "Escape") setSkillSuggestionsOpen(false);
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleAddSkill();
+                  }
+                }} />
+                {skillSuggestionsOpen && skillSuggestions.length > 0 && <div className="skill-suggestions" id="skill-suggestions" role="listbox" aria-label="Подходящие навыки">{skillSuggestions.map((name) => <button key={name} type="button" role="option" aria-selected={false} onClick={() => handleAddSkill(name)}>{name}</button>)}</div>}
               </div>
-            </> : <>
-              <p className="feature-description feature-description--left">Опишите задачи и стек в поле слева. Предложенные навыки сразу появятся в редактируемой шкале.</p>
-              <Button variant="outline" className={needParsing ? "need-parse-button--loading" : ""} disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing && <span className="need-parse-spinner" aria-hidden="true" />}{needParsing ? "Подбираем навыки…" : "Предложить навыки по описанию"}</Button>
-              {needParsing && <p className="feature-description feature-description--left" role="status">Анализируем описание. Это может занять до двух минут.</p>}
-            </>}
-                <p className="feature-description feature-description--left">Требования и веса будут сохранены в потребности; подбор покажет кандидатов с объяснением совпадений.</p>
-                <Button disabled={needSaving || needParsing} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
-          </section>
-        </div>
+              <Button variant="outline" onClick={() => handleAddSkill()}>+ Добавить</Button>
+            </div>
+          </> : <>
+            <p className="feature-description feature-description--left">Опишите задачи команды и стек. Система предложит навыки и веса, затем их можно будет вручную скорректировать.</p>
+            <label className="field field--flush need-description-field">
+              <span>ОПИШИТЕ ЗАДАЧИ И СТЕК</span>
+              <textarea value={needDescription} onChange={(event) => { latestNeedDescription.current = event.target.value; setNeedDescription(event.target.value); }} placeholder="Например: разрабатывать REST API на FastAPI, проектировать схемы PostgreSQL, настраивать CI/CD и ревьюить код." />
+            </label>
+            <Button variant="outline" className={needParsing ? "need-parse-button--loading" : ""} disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing && <span className="need-parse-spinner" aria-hidden="true" />}{needParsing ? "Подбираем навыки…" : "Начать подбор навыков"}</Button>
+            {needParsing && <p className="feature-description feature-description--left" role="status">Анализируем описание. Это может занять до двух минут.</p>}
+          </>}
+          <p className="feature-description feature-description--left">Подбор использует эти навыки и веса; запрос остаётся доступен только вашей команде.</p>
+          <div className="need-skill-actions">
+            {needEntryMode === "llm" && <Button type="button" variant="ghost" onClick={() => setNeedEntryMode("manual")}>Перейти к ручной настройке</Button>}
+            <Button disabled={needSaving || needParsing || skillItems.length === 0} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и открыть подбор"} <Icon name="chevron" /></Button>
+          </div>
+        </section>}
       </div>
     );
   }

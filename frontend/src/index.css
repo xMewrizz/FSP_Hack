@@ -3512,6 +3512,51 @@ button:disabled,
   background: var(--violet);
 }
 
+.steps--need {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.steps--need .active b {
+  color: #fff;
+}
+
+.need-basics-card {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.need-basics-card > .feature-description {
+  margin: 0 0 0.75rem;
+}
+
+.need-setup-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.need-setup-summary > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.need-setup-summary > div > span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.need-setup-summary > div > strong {
+  font-size: 1.05rem;
+}
+
+.need-setup-summary > div > p {
+  margin: 0;
+  color: var(--muted);
+}
+
 .feature-description--left {
   max-width: 70ch;
   text-align: left;
@@ -6968,12 +7013,43 @@ body {
 .skill-entry-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.2rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
 }
 
-.skill-entry-switch .button {
+.skill-entry-switch > button {
   min-width: 0;
-  padding-inline: 0.625rem;
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.skill-entry-switch > button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgb(20 33 61 / 12%);
+}
+
+.skill-entry-switch > button:hover:not([aria-pressed="true"]) {
+  color: var(--text);
+}
+
+.skill-entry-switch > button:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
 }
 
 .skill-entry-card > .feature-description {
@@ -7000,6 +7076,15 @@ body {
 
 .skill-entry-card > .button:last-child {
   align-self: flex-start;
+}
+
+.need-skill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 .skill-entry-card .need-parse-button--loading:disabled {
