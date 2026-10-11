@@ -1400,14 +1400,14 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
   if (route === "/testing/additional" && method === "GET") {
     const specialization = url.searchParams.get("specialization");
     return (specialization === demoFrontendRoadmap.specialization ? [
-      { code: "FE-A11Y", label: "Доступность интерфейсов", target_grade: "middle", latest_percentage: 84, level_out_of_ten: 8.4, latest_session_id: "demo-skill-test-accessibility" },
-      { code: "FE-PERF", label: "Оптимизация загрузки", target_grade: "middle", latest_percentage: 77, level_out_of_ten: 7.7, latest_session_id: "demo-skill-test-frontend-performance" },
+      { code: "FE-A11Y", label: "Доступность интерфейсов", target_grade: "middle", latest_percentage: 84, level_out_of_ten: 8.4, latest_session_id: "demo-skill-test-accessibility", passed: true },
+      { code: "FE-PERF", label: "Оптимизация загрузки", target_grade: "middle", latest_percentage: 77, level_out_of_ten: 7.7, latest_session_id: "demo-skill-test-frontend-performance", passed: true },
     ] : specialization === demoDevOpsRoadmap.specialization ? [
-      { code: "DO-SEC", label: "Безопасность инфраструктуры", target_grade: "middle", latest_percentage: 81, level_out_of_ten: 8.1, latest_session_id: "demo-skill-test-devops-security" },
-      { code: "DO-COST", label: "Оптимизация облачных затрат", target_grade: "middle", latest_percentage: 74, level_out_of_ten: 7.4, latest_session_id: "demo-skill-test-devops-cost" },
+      { code: "DO-SEC", label: "Безопасность инфраструктуры", target_grade: "middle", latest_percentage: 81, level_out_of_ten: 8.1, latest_session_id: "demo-skill-test-devops-security", passed: true },
+      { code: "DO-COST", label: "Оптимизация облачных затрат", target_grade: "middle", latest_percentage: 74, level_out_of_ten: 7.4, latest_session_id: "demo-skill-test-devops-cost", passed: false },
     ] : [
-      { code: "BE-SQL", label: "Оптимизация SQL", target_grade: "middle", latest_percentage: 78, level_out_of_ten: 7.8, latest_session_id: "demo-skill-test-sql" },
-      { code: "BE-ARCH", label: "Архитектура сервисов", target_grade: "middle", latest_percentage: 64, level_out_of_ten: 6.4, latest_session_id: "demo-skill-test-architecture" },
+      { code: "BE-SQL", label: "Оптимизация SQL", target_grade: "middle", latest_percentage: 78, level_out_of_ten: 7.8, latest_session_id: "demo-skill-test-sql", passed: true },
+      { code: "BE-ARCH", label: "Архитектура сервисов", target_grade: "middle", latest_percentage: 64, level_out_of_ten: 6.4, latest_session_id: "demo-skill-test-architecture", passed: false },
     ]) as T;
   }
   if (route === "/invitations/sent" && method === "GET") return invitations as T;
@@ -1580,12 +1580,12 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       score: correct,
       max_score: questions.length,
       percentage,
-      passed: percentage >= 70,
-      verified_grade: percentage >= 70 ? currentCandidateProfile.declared_grade : null,
+      passed: percentage >= 75,
+      verified_grade: percentage >= 75 ? currentCandidateProfile.declared_grade : null,
       skill_breakdown: questions.map((question, index) => ({ topic: question.topic, score: index < correct ? 1 : 0, max_score: 1, percentage: index < correct ? 100 : 0 })),
       review_topics: reviewTopics,
       review_topics_status: reviewTopics.length ? "ready" : "none",
-      feedback: percentage >= 70 ? "Демо-тест пройден. Результат сохранён в этой сессии." : "В демо-тесте пока недостаточно правильных ответов.",
+      feedback: percentage >= 75 ? "Демо-тест пройден. Результат сохранён в этой сессии." : "В демо-тесте пока недостаточно правильных ответов.",
       suggested_grade: percentage >= 90 ? "senior" : null,
     };
     currentCandidateProfile = { ...currentCandidateProfile, verified_grade: result.verified_grade ?? currentCandidateProfile.verified_grade };

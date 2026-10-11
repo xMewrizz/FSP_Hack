@@ -4512,6 +4512,23 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     const canRetryFailedSkill = Boolean(roadmap?.status === "completed" && !roadmap.retake_used && failedRoadmapSkill && roadmap.expires_at && Date.parse(roadmap.expires_at) > Date.now());
     const failedOpenQuestion = roadmap?.open_questions.find((item) => item.status === "completed" && item.score !== null && item.score < 0.5);
     const canRetryFailedOpenQuestion = Boolean(roadmap?.status === "completed" && !roadmap.retake_used && !failedRoadmapSkill && failedOpenQuestion && roadmap.expires_at && Date.parse(roadmap.expires_at) > Date.now());
+    const completedSkillCount = roadmap?.skills.filter((skill) => skill.status === "completed").length ?? 0;
+    const completedOpenQuestionCount = roadmap?.open_questions.filter((item) => item.status === "completed").length ?? 0;
+    const roadmapMessage = !roadmap ? null : roadmap.status === "expired"
+      ? { tone: "danger", icon: "clock", label: "СРОК ИСТЁК", title: "Набор завершён", detail: "Результаты остались в истории. Грейд по этому набору не присваивается." }
+      : roadmap.status === "cancelled"
+      ? { tone: "danger", icon: "close", label: "НАБОР ПРЕРВАН", title: "Можно начать новый набор", detail: "Пройденные этапы остались в истории." }
+      : roadmap.status === "pending_review"
+      ? { tone: "pending", icon: "clock", label: "ПРОВЕРКА ОТВЕТОВ", title: "Ожидаем итог по грейду", detail: roadmap.open_questions.some((item) => item.status === "failed") ? "Один из ответов не удалось проверить. Откройте развёрнутые задания и повторите проверку." : roadmap.open_questions.some((item) => item.status === "review_pending") ? "Один из ответов требует дополнительного разбора." : "Все ответы отправлены. Итог появится после автоматической оценки." }
+      : roadmap.status === "completed" && canRetryFailedSkill
+      ? { tone: "pending", icon: "route", label: "НУЖНА ПЕРЕСДАЧА", title: `Повторите навык «${failedRoadmapSkill?.label}»`, detail: "По нему набрано меньше 50%. Остальные результаты сохраняются." }
+      : roadmap.status === "completed" && canRetryFailedOpenQuestion
+      ? { tone: "pending", icon: "route", label: "НУЖНА ПЕРЕСДАЧА", title: `Повторите задание «${failedOpenQuestion?.title}»`, detail: "По нему набрано меньше 50%. Остальные результаты сохраняются." }
+      : roadmap.status === "completed" && roadmap.stopped_early
+      ? { tone: "danger", icon: "close", label: "НАБОР ЗАВЕРШЁН", title: "Грейд не подтверждён", detail: `${roadmap.failed_skill} — меньше 50%.` }
+      : roadmap.status === "completed"
+      ? { tone: roadmap.passed ? "success" : "danger", icon: roadmap.passed ? "check" : "close", label: roadmap.passed ? "ГРЕЙД ПОДТВЕРЖДЁН" : "НАБОР ЗАВЕРШЁН", title: roadmap.passed ? `${roadmap.specialization} · ${roadmap.target_grade}` : "Грейд не подтверждён", detail: `Общий результат — ${roadmap.percentage}%.${roadmap.passed ? "" : " Прежний уровень не меняется."}` }
+      : null;
     return (
       <div className="page-content">
       {renderTestConfidentialityModal()}
@@ -4553,6 +4570,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             {testingTrackLoading ? <div className="assessment-roadmap__empty">Загружаем тесты выбранной специализации…</div> : roadmap ? <>
               <div className="assessment-roadmap__meta">
                 <span><Icon name="school" size={15} /> {roadmap.skills.length} {roadmap.skills.length % 10 === 1 && roadmap.skills.length % 100 !== 11 ? "обязательная компетенция" : roadmap.skills.length % 10 >= 2 && roadmap.skills.length % 10 <= 4 && (roadmap.skills.length % 100 < 12 || roadmap.skills.length % 100 > 14) ? "обязательные компетенции" : "обязательных компетенций"}</span>
+                {roadmap.status === "in_progress" && <span className="assessment-roadmap__completed-count"><Icon name="check" size={15} /> {completedSkillCount} из {roadmap.skills.length} навыков пройдено{roadmap.open_questions.length ? ` · ${completedOpenQuestionCount} из ${roadmap.open_questions.length} развёрнутых` : ""}</span>}
                 {roadmap.status === "in_progress" ? <span><Icon name="clock" size={15} /> Набор доступен 3 дня с открытия</span> : null}
                 {roadmap.expires_at && roadmap.status === "in_progress" && <span className="assessment-roadmap__deadline">До {new Date(roadmap.expires_at).toLocaleDateString("ru-RU")}</span>}
               </div>
@@ -4586,10 +4604,6 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 })}
               </div>
               {roadmap.open_questions?.length > 0 && <div className="open-questions__steps"><strong>Развёрнутые задания</strong><p>Развёрнутые задания обязательны для этого набора. Каждое даёт до 10 баллов.</p>{roadmap.open_questions.map((item) => <div key={item.code} className="open-questions__step"><span>{item.title}</span><strong>{item.status === "completed" ? `${Math.round((item.score ?? 0) * 100)}%` : item.status === "review_pending" ? "Ждёт проверки" : item.status === "queued" || item.status === "evaluating" ? "Проверяется" : item.status === "failed" ? "Сбой проверки" : "Не решено"}</strong></div>)}{(roadmap.status === "in_progress" || roadmap.status === "pending_review") && <Button variant="outline" onClick={() => setTestPurpose("open")}>Открыть задания</Button>}</div>}
-              {roadmap.status === "in_progress" && <div className="assessment-roadmap__progress">
-                <div><span>Прогресс набора</span><strong>{roadmap.skills.filter((skill) => skill.status === "completed").length} из {roadmap.skills.length}</strong></div>
-                <Progress value={(roadmap.skills.filter((skill) => skill.status === "completed").length / Math.max(roadmap.skills.length, 1)) * 100} />
-              </div>}
               <details className="assessment-info">
                 <summary>Как рассчитывается грейд</summary>
                 <p>Нужно набрать от 75% в сумме и не менее 50% по каждой компетенции. Пороги предварительные. {TEST_AVAILABILITY_HINT}</p>
@@ -4600,12 +4614,9 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               <Button disabled={testStarting || testingTrackLoading || !profile?.agreed_test_confidentiality} onClick={() => void beginRoadmap()}>{testStarting ? "Открываем…" : "Открыть маршрут"}</Button>
             </div>}
             {roadmap && <>
-              {roadmap.status === "expired" && <div className="notice-box">Срок набора истёк. Результаты остались в истории, грейд по нему не присваивается.</div>}
-              {roadmap.status === "cancelled" && <div className="notice-box">Набор прерван. Пройденные шаги остались в истории.</div>}
               {roadmap.status === "in_progress" && roadmap.suggested_grade && <div className="test-choice-actions"><Button variant="outline" disabled={testStarting} onClick={() => void switchToLowerRoadmap()}>Прервать набор и попробовать {roadmap.suggested_grade}</Button></div>}
-              {roadmap.status === "pending_review" && <div className="notice-box">{roadmap.open_questions.some((item) => item.status === "failed") ? "Один из ответов не удалось проверить. Откройте развёрнутые задания и повторите автоматическую проверку." : roadmap.open_questions.some((item) => item.status === "review_pending") ? "Один из ответов требует дополнительного разбора. Срок решения пока не определён." : "Все ответы отправлены. Итог по грейду появится после автоматической оценки."}</div>}
+              {roadmapMessage && <div className={`assessment-roadmap__message assessment-roadmap__message--${roadmapMessage.tone}`} role="status"><span className="assessment-roadmap__message-icon"><Icon name={roadmapMessage.icon} size={19} /></span><div><span>{roadmapMessage.label}</span><strong>{roadmapMessage.title}</strong><p>{roadmapMessage.detail}</p></div></div>}
               {(roadmap.status === "expired" || roadmap.status === "cancelled") && (roadmap.retake_used ? lowerAfterRetake ? <Button disabled={testStarting} onClick={() => void beginRoadmap(lowerAfterRetake)}>Попробовать {lowerAfterRetake}</Button> : <Button disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button> : <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Открыть новый набор</Button>)}
-              {roadmap.status === "completed" && <div className="notice-box">{canRetryFailedSkill ? `${failedRoadmapSkill?.label} — меньше 50%. Пересдайте этот навык; остальные результаты сохранятся.` : canRetryFailedOpenQuestion ? `${failedOpenQuestion?.title} — меньше 50%. Пересдайте только это задание; остальные результаты сохранятся.` : roadmap.stopped_early ? `Набор завершён досрочно: ${roadmap.failed_skill} — меньше 50%. Грейд не подтверждён.` : `Общий результат: ${roadmap.percentage}%. ${roadmap.passed ? `Грейд ${roadmap.target_grade} подтверждён.` : "Грейд не подтверждён; прежний уровень не меняется."}`}</div>}
               {roadmap.status === "completed" && <div className="test-choice-actions">{canRetryFailedSkill && failedRoadmapSkill && <Button variant="outline" disabled={testStarting} onClick={() => void startRoadmapSkill(failedRoadmapSkill.code)}>Пересдать {failedRoadmapSkill.label}</Button>}{canRetryFailedOpenQuestion && failedOpenQuestion && <Button variant="outline" disabled={testStarting} onClick={() => void retryRoadmapOpenQuestion(failedOpenQuestion.code)}>Пересдать «{failedOpenQuestion.title}»</Button>}{!roadmap.retake_used && !roadmap.passed && !canRetryFailedSkill && !canRetryFailedOpenQuestion && <Button variant="outline" disabled={testStarting} onClick={() => void beginRoadmap(roadmap.target_grade)}>Пересдать весь набор</Button>}{roadmap.retake_used && !roadmap.passed && roadmap.target_grade === "junior" && <><Button variant="outline" disabled={testStarting || juniorRetryLocked} onClick={() => void beginRoadmap("junior")}>Новый набор Junior</Button>{juniorRetryLocked && juniorRetryAt && <span>Повторить Junior можно с {new Date(juniorRetryAt).toLocaleDateString("ru-RU")}</span>}</>}{roadmap.suggested_grade && <Button disabled={testStarting} onClick={() => void beginRoadmap(roadmap.suggested_grade ?? undefined)}>Попробовать {roadmap.suggested_grade}</Button>}{roadmap.passed && roadmap.target_grade !== "senior" && <><Button disabled={testStarting || (roadmap.promotion_available_at !== null && Date.parse(roadmap.promotion_available_at) > Date.now())} onClick={() => void beginRoadmap(roadmap.target_grade === "junior" ? "middle" : "senior")}>Хочу поднять грейд</Button>{roadmap.promotion_available_at && Date.parse(roadmap.promotion_available_at) > Date.now() && <span>Повышение доступно с {new Date(roadmap.promotion_available_at).toLocaleDateString("ru-RU")}</span>}</>}</div>}
             </>}
           </section>
@@ -4621,7 +4632,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 <div className="additional-skill-card__mark"><Icon name="sparkle" size={17} /></div>
                 <div className="additional-skill-card__info"><strong>{skill.label}</strong><span>{skill.passed ? `Подтверждён · ${skill.latest_percentage}%` : skill.latest_percentage !== null ? `Пока не подтверждён · ${skill.latest_percentage}%` : "Пока не проверен"}</span>{skill.retry_available_at && Date.parse(skill.retry_available_at) > Date.now() && <span>Пересдача с {new Date(skill.retry_available_at).toLocaleDateString("ru-RU")}</span>}</div>
                 <div className="additional-skill-card__actions">
-                  {skill.latest_session_id && skill.latest_percentage !== null ? <span className="additional-skill-card__score">{skill.latest_percentage}%</span> : null}
+                  {skill.latest_session_id && skill.latest_percentage !== null ? <span className={`additional-skill-card__score${skill.passed ? "" : " additional-skill-card__score--unconfirmed"}`}>{skill.latest_percentage}%</span> : null}
                   <Button variant="outline" disabled={testStarting || !profile?.agreed_test_confidentiality || Boolean(skill.retry_available_at && Date.parse(skill.retry_available_at) > Date.now())} onClick={() => void startAdditionalSkill(skill.code)}>{testStarting ? "…" : skill.latest_session_id ? "Пересдать" : "Начать"}</Button>
                 </div>
               </article>

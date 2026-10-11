@@ -11782,6 +11782,13 @@ select,
   color: var(--red);
 }
 
+.app-shell .assessment-roadmap__meta .assessment-roadmap__completed-count {
+  border-color: rgba(64, 47, 255, 0.2);
+  background: var(--violet-soft);
+  color: var(--brand-cobalt);
+  font-weight: 750;
+}
+
 .app-shell .skill-roadmap {
   display: grid;
   gap: 0.65rem;
@@ -11902,23 +11909,77 @@ select,
   font-weight: 800;
 }
 
-.app-shell .assessment-roadmap__progress {
-  display: grid;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.app-shell .assessment-roadmap__progress > div {
+.app-shell .assessment-roadmap__message {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  color: var(--muted-light);
-  font-size: 0.75rem;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  border: 1px solid rgba(64, 47, 255, 0.2);
+  border-radius: 1rem;
+  background: linear-gradient(110deg, rgba(64, 47, 255, 0.08), var(--surface));
+  padding: 1rem;
 }
 
-.app-shell .assessment-roadmap__progress > div strong {
+.app-shell .assessment-roadmap__message-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: var(--violet-soft);
   color: var(--brand-cobalt);
 }
+
+.app-shell .assessment-roadmap__message > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.app-shell .assessment-roadmap__message > div > span {
+  color: var(--brand-cobalt);
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.app-shell .assessment-roadmap__message strong {
+  font-size: 0.95rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .assessment-roadmap__message p {
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.app-shell .assessment-roadmap__message--success {
+  border-color: rgba(19, 131, 91, 0.25);
+  background: linear-gradient(110deg, rgba(19, 131, 91, 0.09), var(--surface));
+}
+
+.app-shell .assessment-roadmap__message--success .assessment-roadmap__message-icon {
+  background: rgba(19, 131, 91, 0.12);
+  color: var(--green);
+}
+
+.app-shell .assessment-roadmap__message--success > div > span { color: var(--green); }
+
+.app-shell .assessment-roadmap__message--danger {
+  border-color: rgba(236, 29, 53, 0.23);
+  background: linear-gradient(110deg, rgba(236, 29, 53, 0.07), var(--surface));
+}
+
+.app-shell .assessment-roadmap__message--danger .assessment-roadmap__message-icon {
+  background: rgba(236, 29, 53, 0.09);
+  color: var(--red);
+}
+
+.app-shell .assessment-roadmap__message--danger > div > span { color: var(--red); }
 
 .app-shell .assessment-info {
   width: 100%;
@@ -11974,8 +12035,11 @@ select,
   line-height: 1.5;
 }
 
-.app-shell .assessment-roadmap > .notice-box,
 .app-shell .assessment-roadmap > .test-choice-actions {
+  margin-top: 1rem;
+}
+
+.app-shell .assessment-roadmap > .assessment-roadmap__message + .button {
   margin-top: 1rem;
 }
 
@@ -12065,6 +12129,11 @@ select,
   color: var(--green);
   font-size: 0.75rem;
   font-weight: 800;
+}
+
+.app-shell .additional-skill-card__score--unconfirmed {
+  background: rgba(236, 29, 53, 0.09);
+  color: var(--red);
 }
 
 .app-shell .additional-skill-card > .button {
