@@ -3202,7 +3202,7 @@ function InvitationChatDialog({
 }
 
 function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: string; onNotify: (message: string, type?: "success" | "error") => void; onNavigate: (screen: string, target?: string) => void; demoMode: boolean }) {
-  const [testPurpose, setTestPurpose] = useState<"grade" | "open" | "fsp-olympiad">("grade");
+  const [testPurpose, setTestPurpose] = useState<"grade" | "open">("grade");
   const [testStarted, setTestStarted] = useState(false);
   const [question, setQuestion] = useState(0);
   const [answer, setAnswer] = useState("");
@@ -3245,8 +3245,6 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [resumeDraft, setResumeDraft] = useState<ResumeDraft | null>(null);
   const [resumeVersions, setResumeVersions] = useState<ResumeVersionItem[]>([]);
   const [fspInput, setFspInput] = useState("");
-  const [diplomaStatus, setDiplomaStatus] = useState("");
-  const [diplomaUploading, setDiplomaUploading] = useState(false);
 
   useEffect(() => {
     if (active !== "Профиль") return;
@@ -3564,27 +3562,6 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     }
   };
 
-  const startAdaptiveTest = async () => {
-    if (!hasTestConfidentialityConsent()) return;
-    setTestStarting(true);
-    setRadarComparison(null);
-    try {
-      const session = await apiPost<TestStartData>("/fsp/olympiad/start", {});
-      setTestSession(session);
-      setQuestion(0);
-      setAnswer("");
-      setSelectedAnswers([]);
-      setSubmittedAnswers([]);
-      setTestResult(null);
-      setTestStarted(true);
-      setTestDone(false);
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : "Не удалось начать тестирование", "error");
-    } finally {
-      setTestStarting(false);
-    }
-  };
-
   const beginRoadmap = async (targetGrade?: string, specialization?: string): Promise<boolean> => {
     if (!hasTestConfidentialityConsent()) return false;
     setTestStarting(true);
@@ -3731,10 +3708,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       const previousSkills = roadmap?.skills ?? [];
       setTestSubmitting(true);
       try {
-        const submitPath = testPurpose === "fsp-olympiad"
-          ? `/fsp/olympiad/${testSession.session_id}/submit`
-          : `/testing/${testSession.session_id}/submit`;
-        const result = await apiPost<TestResultData>(submitPath, { answers });
+        const result = await apiPost<TestResultData>(`/testing/${testSession.session_id}/submit`, { answers });
         setTestResult(result);
         setTestDone(true);
         setTestStarted(false);
@@ -3778,30 +3752,6 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     setQuestion((current) => current + 1);
     setAnswer("");
     setSelectedAnswers([]);
-  };
-
-  const uploadFspDiploma = async (file?: File) => {
-    if (!file) return;
-    if (!demoMode) {
-      onNotify("Загрузка дипломов в ФСП пока не поддерживается backend.", "error");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      onNotify("Размер файла не должен превышать 10 МБ.", "error");
-      return;
-    }
-    setDiplomaUploading(true);
-    const data = new FormData();
-    data.append("file", file);
-    try {
-      const response = await apiRequest<{ status: string; file_name: string }>("/fsp/diplomas/upload", { method: "POST", body: data });
-      setDiplomaStatus(response.status === "pending_review" ? `Передано на проверку: ${response.file_name}` : `Файл обработан: ${response.file_name}`);
-      onNotify("Демо-диплом передан в локальный процесс ФСП.");
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : "Не удалось передать диплом", "error");
-    } finally {
-      setDiplomaUploading(false);
-    }
   };
 
   if (active === "Обзор") {
@@ -3883,10 +3833,9 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             </div>
           </section>
           <section className="feature-card feature-card--fsp" data-tour="fsp-tools">
-            <div className="feature-head"><div><span>ФСП · ПРАКТИЧЕСКИЙ ТРЕК</span><strong>{profile?.fsp_verified ? "Тестовые данные ФСП добавлены" : "Проверьте навыки на олимпиаде"}</strong></div><div className="fsp-symbol">◆</div></div>
-            <p className="feature-description feature-description--left">Олимпиадные задачи дополняют профиль практическими результатами, но грейд не подтверждают — его подтверждает только тест. Сильные стороны по темам помогут дополнить подтверждённый профиль.</p>
-            <div className="fsp-actions"><Button onClick={() => { setTestPurpose("fsp-olympiad"); onNavigate("Тестирование"); }}>Написать олимпиаду</Button><label className="button button--outline diploma-upload"><Icon name="briefcase" />{diplomaUploading ? "Передаём…" : "Догрузить диплом"}<input type="file" accept="application/pdf,image/png,image/jpeg" disabled={diplomaUploading} onChange={(event) => void uploadFspDiploma(event.target.files?.[0])} /></label><Button variant="ghost" onClick={() => onNavigate("Настройки")}>Связать ФСП ID</Button></div>
-            {diplomaStatus && <div className="fsp-upload-status" role="status">{diplomaStatus}</div>}
+            <div className="feature-head"><div><span>ДОСТИЖЕНИЯ ФСП</span><strong>{profile?.fsp_verified ? "Тестовые записи найдены" : "Привяжите ФСП ID"}</strong></div><div className="fsp-symbol">◆</div></div>
+            <p className="feature-description feature-description--left">Достижения отображаются отдельно от результата теста и не меняют грейд. Тестовые записи не дают бонуса в подборе работодателя.</p>
+            <div className="fsp-actions"><Button variant="ghost" onClick={() => onNavigate("Настройки")}>Связать ФСП ID</Button></div>
           </section>
         </div>
       </div>
@@ -4082,8 +4031,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         <div className="page-content">
           <div className="test-result">
             <div className="result-check"><Icon name={testResult?.passed === null ? "chart" : testResult?.passed ? "check" : "close"} size={34} /></div>
-            <span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП · РЕЗУЛЬТАТ" : "РЕЗУЛЬТАТ ТЕСТА"}</span>
-            <strong>{testPurpose === "fsp-olympiad" ? "Проверка навыков завершена" : testResult?.grade_confirmed ? `Подтверждён ${testResult.target_grade}` : roadmap?.stopped_early && roadmap.id === testResult?.assessment_id ? roadmap.retake_used ? "Набор завершён" : "Нужна пересдача навыка" : "Результат навыка сохранён"}</strong>
+            <span>РЕЗУЛЬТАТ ТЕСТА</span>
+            <strong>{testResult?.grade_confirmed ? `Подтверждён ${testResult.target_grade}` : roadmap?.stopped_early && roadmap.id === testResult?.assessment_id ? roadmap.retake_used ? "Набор завершён" : "Нужна пересдача навыка" : "Результат навыка сохранён"}</strong>
             <p>{testResult?.feedback}</p>
             <div className="result-score">
               <b>{testResult?.correct_count !== undefined ? `${testResult.correct_count} из ${testResult.total_questions} заданий` : `${testResult?.percentage ?? 0}%`}</b>
@@ -4120,7 +4069,6 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 </div>
               </>
             ) : <div className="skill-table">{testResult?.skill_breakdown.map((skill) => <div key={skill.topic}><span>{skill.topic}</span><Progress value={skill.percentage} /><strong>{skill.percentage}%</strong></div>)}</div>}
-            {testPurpose === "fsp-olympiad" && <p>Результаты тем сохранены в локальном demo-профиле.</p>}
             {testPurpose === "grade" && testResult?.suggested_grade && <p>Можно пройти полный набор на уровень {testResult.suggested_grade}.</p>}
             {testPurpose === "grade" && roadmap?.stopped_early && roadmap.id === testResult?.assessment_id && !roadmap.retake_used && roadmap.expires_at && Date.parse(roadmap.expires_at) > Date.now() && roadmap.skills.some((skill) => skill.percentage !== null && skill.percentage < 50) && <Button disabled={testStarting} onClick={() => void startRoadmapSkill(roadmap.skills.find((skill) => skill.percentage !== null && skill.percentage < 50)!.code)}>Пересдать {roadmap.failed_skill ?? "навык"}</Button>}
             <Button onClick={() => { setTestDone(false); setTestResult(null); }}>К тестированию</Button>
@@ -4143,7 +4091,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           </section>
           <div className="test-top">
             <div>
-              <span>{testPurpose === "fsp-olympiad" ? "ОЛИМПИАДА ФСП" : `${testSession?.assessment_id ? "ОБЯЗАТЕЛЬНЫЙ" : "ДОПОЛНИТЕЛЬНЫЙ"} НАВЫК: ${roadmap?.skills.find((item) => item.code === testSession?.skill_code)?.label ?? additionalTests.find((item) => item.code === testSession?.skill_code)?.label ?? testSession?.skill_code} · ${testSession?.specialization} · ${testSession?.target_grade}`}</span>
+              <span>{`${testSession?.assessment_id ? "ОБЯЗАТЕЛЬНЫЙ" : "ДОПОЛНИТЕЛЬНЫЙ"} НАВЫК: ${roadmap?.skills.find((item) => item.code === testSession?.skill_code)?.label ?? additionalTests.find((item) => item.code === testSession?.skill_code)?.label ?? testSession?.skill_code} · ${testSession?.specialization} · ${testSession?.target_grade}`}</span>
               <strong>Внимательно прочитайте задание</strong>
             </div>
             <div className="test-step" aria-label={`Задание ${question + 1} из ${testSession?.total_questions}`}>
@@ -4185,7 +4133,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             <label><input type="checkbox" checked={profile?.agreed_test_confidentiality ?? false} disabled={!profile || profileSaving} onChange={(event) => void saveTestConfidentialityConsent(event.target.checked)} /><span>Я прочитал(а) предупреждение и обязуюсь не раскрывать материалы тестирования</span></label>
           </div>
         </section>
-        <div className="assessment-mode" role="group" aria-label="Режим проверки"><button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}>Грейд</button><button type="button" className={testPurpose === "open" ? "active" : ""} onClick={() => setTestPurpose("open")}>Развёрнутые задания</button><button type="button" className={testPurpose === "fsp-olympiad" ? "active" : ""} onClick={() => setTestPurpose("fsp-olympiad")}>Олимпиада ФСП</button></div>
+        <div className="assessment-mode" role="group" aria-label="Режим проверки"><button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}>Грейд</button><button type="button" className={testPurpose === "open" ? "active" : ""} onClick={() => setTestPurpose("open")}>Развёрнутые задания</button></div>
         {testPurpose === "grade" ? <>
           <section className="assessment-roadmap">
             <div className="assessment-roadmap__head">
@@ -4263,7 +4211,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               </article>
             ))}</div> : <div className="additional-competencies__empty"><Icon name="sparkle" size={19} /><span>Новые тесты появятся здесь, когда по дополнительным навыкам будут готовы задания.</span></div>}
           </section>
-        </> : testPurpose === "open" ? profile?.agreed_test_confidentiality ? <OpenQuestions specialization={roadmap?.specialization ?? profile?.specialization} grade={roadmap?.target_grade ?? profile?.verified_grade ?? profile?.declared_grade} assessmentId={roadmap?.id} assignedCodes={roadmap?.open_questions?.map((item) => item.code) ?? []} onSaved={() => { if (roadmap) apiGet<GradeRoadmapData>(`/testing/roadmap/${roadmap.id}`).then(setRoadmap).catch(() => undefined); }} onNotify={onNotify} /> : <div className="grade-radar-empty"><div className="grade-radar-empty__mark"><Icon name="shield" size={28} /></div><strong>Подтвердите условия конфиденциальности</strong><p>После подтверждения станут доступны задания и их отправка на проверку.</p></div> : <div className="test-intro"><div className="test-intro__graphic"><span>&lt;/&gt;</span><i /><b /></div><span>ОЛИМПИАДА ФСП</span><strong>Практические задачи по навыкам</strong><p>Результат олимпиады дополняет профиль, но не присваивает грейд.</p><div className="test-choice-actions"><Button disabled={testStarting || !profile?.agreed_test_confidentiality} onClick={() => void startAdaptiveTest()}>{testStarting ? "Подготавливаем…" : "Начать олимпиаду"}</Button></div></div>}
+        </> : profile?.agreed_test_confidentiality ? <OpenQuestions specialization={roadmap?.specialization ?? profile?.specialization} grade={roadmap?.target_grade ?? profile?.verified_grade ?? profile?.declared_grade} assessmentId={roadmap?.id} assignedCodes={roadmap?.open_questions?.map((item) => item.code) ?? []} onSaved={() => { if (roadmap) apiGet<GradeRoadmapData>(`/testing/roadmap/${roadmap.id}`).then(setRoadmap).catch(() => undefined); }} onNotify={onNotify} /> : <div className="grade-radar-empty"><div className="grade-radar-empty__mark"><Icon name="shield" size={28} /></div><strong>Подтвердите условия конфиденциальности</strong><p>После подтверждения станут доступны задания и их отправка на проверку.</p></div>}
       </div>
     );
   }
@@ -4613,7 +4561,7 @@ function DemoTour({
     ...(hasCandidate ? [{ target: "candidate-profile", title: "Профиль и оффер", text: "Проверьте объяснение совпадения, сравните навыки и отправьте демо-приглашение." }] : []),
   ] : [
     { target: "candidate-dashboard", title: "Ваш кабинет", text: "Здесь собраны статус профиля и приглашения, которым нужен ваш ответ." },
-    { target: "fsp-tools", title: "Путь через ФСП", text: "В демо можно пройти олимпиаду по навыкам и передать диплом в локальную очередь проверки." },
+    { target: "fsp-tools", title: "Достижения ФСП", text: "Привяжите ФСП ID, чтобы увидеть доступные тестовые записи достижений. Они не влияют на подтверждённый грейд." },
     { target: "demo-navigation", title: "Дальнейшие действия", text: "Откройте профиль, тест уровня, историю результатов и входящие приглашения." },
   ];
   const item = steps[step];

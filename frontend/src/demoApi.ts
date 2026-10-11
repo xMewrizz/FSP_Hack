@@ -792,11 +792,6 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     } as T;
   }
   if (route === "/candidate/profile/pdf" && method === "GET") return createDemoProfilePdf() as T;
-  if (route === "/fsp/diplomas/upload" && method === "POST") {
-    const file = options.body instanceof FormData ? options.body.get("file") : null;
-    return { status: "pending_review", file_name: file instanceof File ? file.name : "demo-diploma.pdf" } as T;
-  }
-
   if (route === "/employer/team" && method === "GET") {
     if (currentRole() !== "employer") throw new Error("HR-команда доступна только работодателю");
     return {
@@ -1301,7 +1296,7 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
   }
 
   if (route === "/testing/history" && method === "GET") return testHistory as T;
-  if ((route === "/testing/start" || route === "/fsp/olympiad/start") && method === "POST") {
+  if (route === "/testing/start" && method === "POST") {
     activeTestId = `demo-test-${Date.now()}`;
     return {
       session_id: activeTestId,
@@ -1312,9 +1307,8 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       total_questions: questions.length,
     } as T;
   }
-  const testSubmit = route.match(/^\/(testing|fsp\/olympiad)\/([^/]+)\/submit$/);
-  if (testSubmit && method === "POST" && activeTestId === testSubmit[2]) {
-    const isOlympiad = testSubmit[1] === "fsp/olympiad";
+  const testSubmit = route.match(/^\/testing\/([^/]+)\/submit$/);
+  if (testSubmit && method === "POST" && activeTestId === testSubmit[1]) {
     const answers = Array.isArray(body.answers) ? body.answers as Array<{ question_id: string; selected_answers: string[] }> : [];
     const correct = answers.filter((answer) => questions.some((question) => question.id === answer.question_id && answer.selected_answers.includes(question.correct))).length;
     const percentage = Math.round(correct / questions.length * 100);
@@ -1326,17 +1320,13 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       max_score: questions.length,
       percentage,
       passed: percentage >= 70,
-      verified_grade: !isOlympiad && percentage >= 70 ? currentCandidateProfile.declared_grade : null,
+      verified_grade: percentage >= 70 ? currentCandidateProfile.declared_grade : null,
       skill_breakdown: questions.map((question, index) => ({ topic: question.topic, score: index < correct ? 1 : 0, max_score: 1, percentage: index < correct ? 100 : 0 })),
-      feedback: isOlympiad
-        ? `Демо-олимпиада завершена: подтверждены навыки по ${correct} темам.`
-        : percentage >= 70 ? "Демо-тест пройден. Результат сохранён в этой сессии." : "В демо-тесте пока недостаточно правильных ответов.",
-      suggested_grade: !isOlympiad && percentage >= 90 ? "senior" : null,
+      feedback: percentage >= 70 ? "Демо-тест пройден. Результат сохранён в этой сессии." : "В демо-тесте пока недостаточно правильных ответов.",
+      suggested_grade: percentage >= 90 ? "senior" : null,
     };
-    if (!isOlympiad) {
-      currentCandidateProfile = { ...currentCandidateProfile, verified_grade: result.verified_grade ?? currentCandidateProfile.verified_grade };
-      testHistory.unshift({ id: activeTestId, specialization: result.specialization, target_grade: result.target_grade, percentage, passed: result.passed, status: "completed", created_at: new Date().toISOString(), completed_at: new Date().toISOString() });
-    }
+    currentCandidateProfile = { ...currentCandidateProfile, verified_grade: result.verified_grade ?? currentCandidateProfile.verified_grade };
+    testHistory.unshift({ id: activeTestId, specialization: result.specialization, target_grade: result.target_grade, percentage, passed: result.passed, status: "completed", created_at: new Date().toISOString(), completed_at: new Date().toISOString() });
     activeTestId = null;
     return result as T;
   }

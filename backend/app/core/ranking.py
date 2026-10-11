@@ -122,7 +122,11 @@ def score_candidate(need: dict[str, Any], candidate: dict[str, Any]) -> dict[str
         salary_match = False
     salary_points = 10.0 if salary_match else 0.0
 
-    fsp_bonus = bool(candidate.get("fsp_verified") and candidate.get("fsp_achievements"))
+    # Только проверенное недемонстрационное достижение; несколько наград не суммируются.
+    fsp_bonus = bool(candidate.get("fsp_verified") and any(
+        isinstance(item, dict) and item.get("verified") is True and item.get("is_demo") is False
+        for item in candidate.get("fsp_achievements") or []
+    ))
     fsp_points = 5.0 if fsp_bonus else 0.0
     points = round(skills_points + test_points + work_points + salary_points + fsp_points, 2)
     return {

@@ -76,9 +76,8 @@ def _candidate_data(candidate: CandidateProfile, percentage: float | None, reque
         "salary_tax_type": candidate.salary_tax_type,
         "fsp_verified": candidate.fsp_verified,
         "fsp_achievements": [
-            {"id": str(item.id)}
+            {"id": str(item.id), "verified": item.verified, "is_demo": item.is_demo}
             for item in candidate.fsp_achievements
-            if item.verified
         ],
     }
 
@@ -136,8 +135,10 @@ def _match_item(
     else:
         summary.append(salary_note + ".")
     if score["fsp_bonus"]:
-        summary.append("Учтено достижение ФСП.")
-    top_achievement = next((item for item in candidate.fsp_achievements if item.verified), None)
+        summary.append("Подтверждённое достижение ФСП добавило 5 баллов; грейд не изменился.")
+    elif any(item.is_demo for item in candidate.fsp_achievements):
+        summary.append("Достижения ФСП демонстрационные и не влияют на балл подбора.")
+    top_achievement = next((item for item in candidate.fsp_achievements if item.verified and not item.is_demo), None)
 
     from app.services.trust_score_service import calculate_trust_score
     from app.services.resume_versions import labeled_work_entries
@@ -514,7 +515,7 @@ class MatchingService:
                         grade_match=True,
                         matched_skills=[],
                         missing_skills=[],
-                        fsp_bonus=bool(candidate.fsp_verified and candidate.fsp_achievements),
+                        fsp_bonus=False,
                         summary="Кандидат с подтверждённой категорией. Балл для конкретной потребности здесь не рассчитывается.",
                     ),
                     additional_specializations=additional_specializations.get(candidate.id, []),

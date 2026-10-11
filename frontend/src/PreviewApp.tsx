@@ -531,7 +531,7 @@ const navHints: Record<string, string> = {
   Аналитика: "Точность подбора, разрывы в навыках и план выходов",
   Настройки: "Профиль компании или кандидата, доступ, уведомления и согласия",
   Профиль: "Резюме, опыт, фото и распознанный PDF",
-  Тестирование: "Адаптивный тест или олимпиада ФСП для подтверждения уровня",
+  Тестирование: "Проверка навыков для подтверждения уровня",
   "Мой грейд": "Подтверждённый уровень, карта навыков и история попыток",
   Задания: "Короткие кейсы, чтобы профиль не устаревал",
   Вакансии: "Открытые позиции с зарплатой до отклика",
@@ -941,15 +941,9 @@ function CandidateScreen({
             </div>
           </section>
           <section className="feature-card feature-card--fsp">
-            <div className="feature-head"><div><span>ВОЗМОЖНОСТИ ФСП</span><strong>Подтвердите навыки на олимпиаде</strong></div><div className="fsp-symbol">◆</div></div>
-            <p className="feature-description feature-description--left">Вместо обычного теста можно решить задания ближайшей онлайн-олимпиады. Результат автоматически обновит карту навыков.</p>
-            <div className="fsp-event"><span>БЛИЖАЙШИЙ СТАРТ</span><strong>Backend Challenge · 8 июня</strong><small>90 минут · онлайн · бесплатно</small></div>
-            <Button onClick={() => onNotify("Вы зарегистрированы на Backend Challenge")}>Записаться на олимпиаду</Button>
-          </section>
-          <section className="feature-card">
-            <div className="feature-head"><div><span>ДОКУМЕНТЫ ФСП</span><strong>Добавьте дипломы</strong></div></div>
-            <p className="feature-description feature-description--left">Загрузите диплом или сертификат — мы передадим его в профиль ФСП после проверки.</p>
-            <Button variant="outline" onClick={() => setPdfOpen(true)}>Загрузить диплом</Button>
+            <div className="feature-head"><div><span>ДОСТИЖЕНИЯ ФСП</span><strong>Свяжите ФСП ID</strong></div><div className="fsp-symbol">◆</div></div>
+            <p className="feature-description feature-description--left">Доступные тестовые записи отображаются отдельно от грейда и не повышают балл подбора.</p>
+            <Button variant="outline" onClick={() => onNavigate("Настройки")}>Связать ФСП ID</Button>
           </section>
         </div>
       </div>
@@ -1013,7 +1007,7 @@ function CandidateScreen({
           <span>АДАПТИВНЫЙ ТЕСТ</span><strong>Подтвердите уровень Backend Middle</strong><p>Тест подбирает сложность под ваши ответы. У каждого кандидата уникальная, но сопоставимая по сложности последовательность заданий.</p>
           <div className="test-features"><div><b>12–20</b><span>задач</span></div><div><b>45 мин</b><span>максимум</span></div><div><b>6</b><span>компетенций</span></div></div>
           <div className="notice-box">Таймер запускается отдельно для каждой задачи. Вернуться к предыдущему ответу нельзя.</div>
-          <div className="test-choice-actions"><Button onClick={() => setTestStarted(true)}>Начать тестирование <Icon name="chevron" /></Button><Button variant="outline" onClick={() => onNotify("Показаны ближайшие олимпиады ФСП")}>Подтвердить навыки через олимпиаду ФСП</Button></div>
+          <div className="test-choice-actions"><Button onClick={() => setTestStarted(true)}>Начать тестирование <Icon name="chevron" /></Button></div>
         </div>
       </div>
     );
@@ -1411,10 +1405,10 @@ function CandidateOnboarding({ onComplete }: { onComplete: () => void }) {
         <div className="onboarding-progress">{steps.map((item, index) => <div key={item} className={index <= step ? "active" : ""}><b>{index + 1}</b><span>{item}</span></div>)}</div>
         <div className="onboarding-content">
           {step === 0 && <><span>ШАГ 1</span><strong>Согласие на обработку данных</strong><p>Это необходимо, чтобы хранить профиль и показывать его выбранным работодателям.</p><label className="consent-large"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Я согласен на обработку персональных данных по 152-ФЗ и публикацию профиля в выбранном режиме видимости.</span></label></>}
-          {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Позже уровень будет подтверждён тестом, олимпиадой или достижениями ФСП.</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{["Backend", "Frontend", "QA", "DevOps", "Data Science", "Информационная безопасность", "Product Manager", "Системный аналитик", "Дизайн", "Партнёрства", "Ивенты", "Project Management"].map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{["Junior", "Middle", "Senior", "Lead"].map((item) => <option key={item}>{item}</option>)}</select></label></div></>}
+          {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Позже уровень можно подтвердить только тестом; достижения ФСП показываются отдельно.</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{["Backend", "Frontend", "QA", "DevOps", "Data Science", "Информационная безопасность", "Product Manager", "Системный аналитик", "Дизайн", "Партнёрства", "Ивенты", "Project Management"].map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{["Junior", "Middle", "Senior", "Lead"].map((item) => <option key={item}>{item}</option>)}</select></label></div></>}
           {step === 2 && <><span>ШАГ 3</span><strong>Где и как вы хотите работать</strong><div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={city} onChange={(event) => setCity(event.target.value)} /></label><label className="field"><span>ФОРМАТ</span><select value={format} onChange={(event) => setFormat(event.target.value)}><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div><ToggleRow title="Готов к переезду" detail="Работодатели смогут учитывать это при подборе" /></>}
           {step === 3 && <><span>ШАГ 4</span><strong>Добавьте резюме</strong><p>PDF будет распознан: система извлечёт имя, контакты, компании, даты и навыки. Всё можно исправить перед сохранением.</p><div className="upload-box"><Icon name="briefcase" size={28} /><strong>Перетащите PDF сюда</strong><span>PyMuPDF и spaCy предзаполнят профиль</span><Button variant="outline">Выбрать файл</Button></div><button type="button" className="manual-link">Заполнить резюме вручную</button></>}
-          {step === 4 && <><span>ШАГ 5</span><strong>Свяжите достижения ФСП</strong><p>ФСП ID добавит подтверждённые олимпиады и хакатоны. Если ID нет, профиль продолжит работать.</p><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label><label className="consent-large"><input type="checkbox" checked={osint} onChange={(event) => setOsint(event.target.checked)} /><span>Разрешаю проверку истории резюме для расчёта оценки доверия. Без согласия будет установлено нейтральное значение 0,50.</span></label></>}
+          {step === 4 && <><span>ШАГ 5</span><strong>Свяжите достижения ФСП</strong><p>ФСП ID может показать доступные тестовые записи достижений. Если ID нет, профиль продолжит работать.</p><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label><label className="consent-large"><input type="checkbox" checked={osint} onChange={(event) => setOsint(event.target.checked)} /><span>Разрешаю проверку истории резюме для расчёта оценки доверия. Без согласия будет установлено нейтральное значение 0,50.</span></label></>}
         </div>
         <div className="onboarding-actions"><Button variant="ghost" onClick={() => setStep(Math.max(0, step - 1))}>{step === 0 ? "Вернуться ко входу" : "Назад"}</Button><Button className={!canContinue ? "button--disabled" : ""} onClick={() => canContinue && (step === steps.length - 1 ? onComplete() : setStep(step + 1))}>{step === steps.length - 1 ? "Завершить настройку" : "Далее"} <Icon name="chevron" /></Button></div>
       </div>
