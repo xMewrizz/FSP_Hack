@@ -44,6 +44,20 @@ GENERIC_SKILLS = {
     "Офлайн-хранение": r"офлайн|offline|локальн[а-я ]*хран",
     "Публикация приложений": r"публикац[а-я ]*прилож|публикац[а-я ]*обновлен",
 }
+
+
+def _supported_by_task_context(name: str, text: str) -> bool:
+    """Allow model-inferred work skills for a stated task, without inventing a stack."""
+    ml_task = re.search(r"\b(?:ml|мл)\b|машинн\w*\s+обуч|\bмодел\w*|\bскоринг\w*", text, re.IGNORECASE)
+    if not ml_task:
+        return False
+    if name in {"Машинное обучение", "Подготовка данных", "Оценка моделей", "Анализ данных"}:
+        return True
+    if name in {"Развёртывание моделей", "Мониторинг"}:
+        return bool(re.search(r"внедр|разв[её]рт|запуск|на\s+сайт", text, re.IGNORECASE))
+    if name == "HTTP API":
+        return bool(re.search(r"сервис", text, re.IGNORECASE) and re.search(r"сайт|веб|прилож", text, re.IGNORECASE))
+    return False
 KNOWN_SKILLS = {name.casefold(): name for name in TECH_SKILLS | GENERIC_SKILLS.keys()}
 ALIASES = {
     "rest api": "HTTP API",
@@ -91,7 +105,10 @@ def _checked_skills(text: str, suggestions: list[SuggestedSkill]) -> list[SkillD
             continue
         if name in TECH_SKILLS and name not in mentions:
             continue
-        if name in GENERIC_SKILLS and not re.search(GENERIC_SKILLS[name], text, re.IGNORECASE):
+        if name in GENERIC_SKILLS and not (
+            re.search(GENERIC_SKILLS[name], text, re.IGNORECASE)
+            or _supported_by_task_context(name, text)
+        ):
             continue
         weight = min(item.weight, 2) if mentions.get(name) == "optional" else item.weight
         if mentions.get(name) == "core":

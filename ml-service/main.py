@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -6,6 +7,7 @@ from need_llm import suggest_need
 from open_evaluator import OpenEvaluationResult, evaluate_open_answer
 
 app = FastAPI(title="FSP ML-service", version="0.1.0")
+logger = logging.getLogger(__name__)
 
 
 class NeedText(BaseModel):
@@ -32,7 +34,9 @@ async def parse_need_text(data: NeedText):
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             return await asyncio.wait_for(suggest_need(data.text, client), timeout=120.0)
-    except (httpx.HTTPError, ValueError, TimeoutError):
+    except (httpx.HTTPError, ValueError, TimeoutError) as exc:
+        upstream_status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        logger.warning("Need suggestion failed: %s; upstream_status=%s", type(exc).__name__, upstream_status)
         raise HTTPException(status_code=503, detail="Не удалось получить предложения от модели") from None
 
 
