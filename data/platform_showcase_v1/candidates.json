@@ -1,0 +1,5654 @@
+[
+  {
+    "id": "cand-001",
+    "email": "candidate001@example.test",
+    "email_verified": true,
+    "first_name": "Алина",
+    "last_name": "Орлова",
+    "phone": "+7 900 101-10-20",
+    "telegram": null,
+    "city": "Казань",
+    "bio": "Ищу задачи уровня junior в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-1",
+    "resume_url": "https://files.example/resume/1.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "remote",
+    "salary_expectation": 80000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-001",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Весенний контест ФСП",
+      "year": 2024,
+      "rank_or_place": "дипломант",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1807,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-002",
+    "email": "candidate002@example.test",
+    "email_verified": true,
+    "first_name": "Борис",
+    "last_name": "Соколов",
+    "phone": "+7 900 102-11-20",
+    "telegram": "@candidate002",
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня junior в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-2",
+    "resume_url": "https://files.example/resume/2.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "hybrid",
+    "salary_expectation": 87000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-002",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2025,
+      "rank_or_place": "призёр",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1814,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-003",
+    "email": "candidate003@example.test",
+    "email_verified": true,
+    "first_name": "Вера",
+    "last_name": "Белова",
+    "phone": null,
+    "telegram": "@candidate003",
+    "city": "Самара",
+    "bio": "Ищу задачи уровня junior в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-3",
+    "resume_url": "https://files.example/resume/3.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "office",
+    "salary_expectation": 94000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 70,
+      "status": "partial",
+      "missing": [
+        "номер телефона"
+      ]
+    }
+  },
+  {
+    "id": "cand-004",
+    "email": "candidate004@example.test",
+    "email_verified": true,
+    "first_name": "Глеб",
+    "last_name": "Крылов",
+    "phone": "+7 900 104-13-20",
+    "telegram": "@candidate004",
+    "city": "Воронеж",
+    "bio": "Ищу задачи уровня junior в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-4",
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "remote",
+    "salary_expectation": 101000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-004",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2024,
+      "rank_or_place": "финалист",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1828,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 90,
+      "status": "partial",
+      "missing": [
+        "прикреплённое резюме"
+      ]
+    }
+  },
+  {
+    "id": "cand-005",
+    "email": "candidate005@example.test",
+    "email_verified": false,
+    "first_name": "Дина",
+    "last_name": "Морозова",
+    "phone": "+7 900 105-14-20",
+    "telegram": null,
+    "city": "Казань",
+    "bio": null,
+    "hobbies": null,
+    "github_url": "https://github.com/example-5",
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": null,
+    "work_format": "hybrid",
+    "salary_expectation": 108000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 40,
+        "correct": 4,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 60,
+        "correct": 6,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 50,
+        "correct": 5,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 50,
+      "status": "partial",
+      "missing": [
+        "подтверждение email",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-006",
+    "email": "candidate006@example.test",
+    "email_verified": true,
+    "first_name": "Егор",
+    "last_name": "Волков",
+    "phone": "+7 900 106-15-20",
+    "telegram": "@candidate006",
+    "city": null,
+    "bio": "Ищу задачи уровня junior в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-6",
+    "resume_url": "https://files.example/resume/6.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "office",
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-006",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2023,
+      "rank_or_place": "призёр",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1842,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 95,
+      "status": "partial",
+      "missing": [
+        "город, формат и ожидания по зарплате"
+      ]
+    }
+  },
+  {
+    "id": "cand-007",
+    "email": "candidate007@example.test",
+    "email_verified": true,
+    "first_name": "Жанна",
+    "last_name": "Лебедева",
+    "phone": "+7 900 107-16-20",
+    "telegram": "@candidate007",
+    "city": "Самара",
+    "bio": null,
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/7.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "remote",
+    "salary_expectation": 122000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-008",
+    "email": "candidate008@example.test",
+    "email_verified": false,
+    "first_name": "Захар",
+    "last_name": "Новиков",
+    "phone": null,
+    "telegram": "@candidate008",
+    "city": null,
+    "bio": null,
+    "hobbies": null,
+    "github_url": null,
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": null,
+    "work_format": null,
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": false,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 10,
+      "status": "insufficient",
+      "missing": [
+        "подтверждение email",
+        "номер телефона",
+        "город, формат и ожидания по зарплате",
+        "навыки",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-009",
+    "email": "candidate009@example.test",
+    "email_verified": true,
+    "first_name": "Ирина",
+    "last_name": "Павлова",
+    "phone": "+7 900 109-18-20",
+    "telegram": null,
+    "city": "Казань",
+    "bio": "Ищу задачи уровня junior в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-9",
+    "resume_url": "https://files.example/resume/9.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "office",
+    "salary_expectation": 136000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-009",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Весенний контест ФСП",
+      "year": 2023,
+      "rank_or_place": "дипломант",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1863,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-010",
+    "email": "candidate010@example.test",
+    "email_verified": true,
+    "first_name": "Кирилл",
+    "last_name": "Фомин",
+    "phone": "+7 900 110-19-20",
+    "telegram": "@candidate010",
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня junior в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/10.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "remote",
+    "salary_expectation": 143000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-011",
+    "email": "candidate011@example.test",
+    "email_verified": true,
+    "first_name": "Лариса",
+    "last_name": "Егорова",
+    "phone": "+7 900 111-10-21",
+    "telegram": null,
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня middle в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-11",
+    "resume_url": "https://files.example/resume/11.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "remote",
+    "salary_expectation": 150000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-011",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Командный хакатон ФСП",
+      "year": 2025,
+      "rank_or_place": "участник финала",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1877,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-012",
+    "email": "candidate012@example.test",
+    "email_verified": true,
+    "first_name": "Максим",
+    "last_name": "Калинин",
+    "phone": "+7 900 112-11-21",
+    "telegram": "@candidate012",
+    "city": "Самара",
+    "bio": "Ищу задачи уровня middle в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-12",
+    "resume_url": "https://files.example/resume/12.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "hybrid",
+    "salary_expectation": 157000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-012",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2023,
+      "rank_or_place": "финалист",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1884,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-013",
+    "email": "candidate013@example.test",
+    "email_verified": true,
+    "first_name": "Нина",
+    "last_name": "Никитина",
+    "phone": null,
+    "telegram": "@candidate013",
+    "city": "Воронеж",
+    "bio": "Ищу задачи уровня middle в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-13",
+    "resume_url": "https://files.example/resume/13.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "office",
+    "salary_expectation": 164000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 70,
+      "status": "partial",
+      "missing": [
+        "номер телефона"
+      ]
+    }
+  },
+  {
+    "id": "cand-014",
+    "email": "candidate014@example.test",
+    "email_verified": true,
+    "first_name": "Олег",
+    "last_name": "Зайцев",
+    "phone": "+7 900 114-13-21",
+    "telegram": "@candidate014",
+    "city": "Казань",
+    "bio": "Ищу задачи уровня middle в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-14",
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "remote",
+    "salary_expectation": 171000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-014",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2025,
+      "rank_or_place": "призёр",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1898,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 90,
+      "status": "partial",
+      "missing": [
+        "прикреплённое резюме"
+      ]
+    }
+  },
+  {
+    "id": "cand-015",
+    "email": "candidate015@example.test",
+    "email_verified": false,
+    "first_name": "Полина",
+    "last_name": "Комарова",
+    "phone": "+7 900 115-14-21",
+    "telegram": null,
+    "city": "Екатеринбург",
+    "bio": null,
+    "hobbies": null,
+    "github_url": "https://github.com/example-15",
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": null,
+    "work_format": "hybrid",
+    "salary_expectation": 178000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 40,
+        "correct": 4,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 50,
+        "correct": 5,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 60,
+        "correct": 6,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 50,
+      "status": "partial",
+      "missing": [
+        "подтверждение email",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-016",
+    "email": "candidate016@example.test",
+    "email_verified": true,
+    "first_name": "Руслан",
+    "last_name": "Белов",
+    "phone": "+7 900 116-15-21",
+    "telegram": "@candidate016",
+    "city": null,
+    "bio": "Ищу задачи уровня middle в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-16",
+    "resume_url": "https://files.example/resume/16.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "office",
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-016",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2024,
+      "rank_or_place": "финалист",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1912,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 95,
+      "status": "partial",
+      "missing": [
+        "город, формат и ожидания по зарплате"
+      ]
+    }
+  },
+  {
+    "id": "cand-017",
+    "email": "candidate017@example.test",
+    "email_verified": true,
+    "first_name": "Софья",
+    "last_name": "Сафонова",
+    "phone": "+7 900 117-16-21",
+    "telegram": "@candidate017",
+    "city": "Воронеж",
+    "bio": null,
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/17.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "remote",
+    "salary_expectation": 192000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-018",
+    "email": "candidate018@example.test",
+    "email_verified": false,
+    "first_name": "Тимур",
+    "last_name": "Громов",
+    "phone": null,
+    "telegram": "@candidate018",
+    "city": null,
+    "bio": null,
+    "hobbies": null,
+    "github_url": null,
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": null,
+    "work_format": null,
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": false,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 10,
+      "status": "insufficient",
+      "missing": [
+        "подтверждение email",
+        "номер телефона",
+        "город, формат и ожидания по зарплате",
+        "навыки",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-019",
+    "email": "candidate019@example.test",
+    "email_verified": true,
+    "first_name": "Ульяна",
+    "last_name": "Тихонова",
+    "phone": "+7 900 119-18-21",
+    "telegram": null,
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня middle в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-19",
+    "resume_url": "https://files.example/resume/19.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "office",
+    "salary_expectation": 206000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-019",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Командный хакатон ФСП",
+      "year": 2024,
+      "rank_or_place": "участник финала",
+      "sport_category": "первый разряд",
+      "score_or_rating": 1933,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-020",
+    "email": "candidate020@example.test",
+    "email_verified": true,
+    "first_name": "Фёдор",
+    "last_name": "Ершов",
+    "phone": "+7 900 120-19-21",
+    "telegram": "@candidate020",
+    "city": "Самара",
+    "bio": "Ищу задачи уровня middle в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/20.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "remote",
+    "salary_expectation": 213000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-021",
+    "email": "candidate021@example.test",
+    "email_verified": true,
+    "first_name": "Элина",
+    "last_name": "Баранова",
+    "phone": "+7 900 121-10-22",
+    "telegram": null,
+    "city": "Самара",
+    "bio": "Ищу задачи уровня senior в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-21",
+    "resume_url": "https://files.example/resume/21.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "remote",
+    "salary_expectation": 230000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-021",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Весенний контест ФСП",
+      "year": 2023,
+      "rank_or_place": "дипломант",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 1947,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-022",
+    "email": "candidate022@example.test",
+    "email_verified": true,
+    "first_name": "Юрий",
+    "last_name": "Кузьмин",
+    "phone": "+7 900 122-11-22",
+    "telegram": "@candidate022",
+    "city": "Воронеж",
+    "bio": "Ищу задачи уровня senior в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-22",
+    "resume_url": "https://files.example/resume/22.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "hybrid",
+    "salary_expectation": 237000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-022",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2024,
+      "rank_or_place": "призёр",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 1954,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-023",
+    "email": "candidate023@example.test",
+    "email_verified": true,
+    "first_name": "Яна",
+    "last_name": "Данилова",
+    "phone": null,
+    "telegram": "@candidate023",
+    "city": "Казань",
+    "bio": "Ищу задачи уровня senior в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-23",
+    "resume_url": "https://files.example/resume/23.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "office",
+    "salary_expectation": 244000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 70,
+      "status": "partial",
+      "missing": [
+        "номер телефона"
+      ]
+    }
+  },
+  {
+    "id": "cand-024",
+    "email": "candidate024@example.test",
+    "email_verified": true,
+    "first_name": "Артём",
+    "last_name": "Серов",
+    "phone": "+7 900 124-13-22",
+    "telegram": "@candidate024",
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня senior в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-24",
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "remote",
+    "salary_expectation": 251000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-024",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2023,
+      "rank_or_place": "финалист",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 1968,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 90,
+      "status": "partial",
+      "missing": [
+        "прикреплённое резюме"
+      ]
+    }
+  },
+  {
+    "id": "cand-025",
+    "email": "candidate025@example.test",
+    "email_verified": false,
+    "first_name": "Валерия",
+    "last_name": "Жукова",
+    "phone": "+7 900 125-14-22",
+    "telegram": null,
+    "city": "Самара",
+    "bio": null,
+    "hobbies": null,
+    "github_url": "https://github.com/example-25",
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": null,
+    "work_format": "hybrid",
+    "salary_expectation": 258000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 40,
+        "correct": 4,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 50,
+        "correct": 5,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 60,
+        "correct": 6,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 50,
+      "status": "partial",
+      "missing": [
+        "подтверждение email",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-026",
+    "email": "candidate026@example.test",
+    "email_verified": true,
+    "first_name": "Григорий",
+    "last_name": "Макаров",
+    "phone": "+7 900 126-15-22",
+    "telegram": "@candidate026",
+    "city": null,
+    "bio": "Ищу задачи уровня senior в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-26",
+    "resume_url": "https://files.example/resume/26.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "office",
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-026",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2025,
+      "rank_or_place": "призёр",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 1982,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 95,
+      "status": "partial",
+      "missing": [
+        "город, формат и ожидания по зарплате"
+      ]
+    }
+  },
+  {
+    "id": "cand-027",
+    "email": "candidate027@example.test",
+    "email_verified": true,
+    "first_name": "Дарья",
+    "last_name": "Филатова",
+    "phone": "+7 900 127-16-22",
+    "telegram": "@candidate027",
+    "city": "Казань",
+    "bio": null,
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/27.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "remote",
+    "salary_expectation": 272000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-028",
+    "email": "candidate028@example.test",
+    "email_verified": false,
+    "first_name": "Илья",
+    "last_name": "Осипов",
+    "phone": null,
+    "telegram": "@candidate028",
+    "city": null,
+    "bio": null,
+    "hobbies": null,
+    "github_url": null,
+    "resume_url": null,
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": null,
+    "work_format": null,
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": false,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 10,
+      "status": "insufficient",
+      "missing": [
+        "подтверждение email",
+        "номер телефона",
+        "город, формат и ожидания по зарплате",
+        "навыки",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-029",
+    "email": "candidate029@example.test",
+    "email_verified": true,
+    "first_name": "Ксения",
+    "last_name": "Чернова",
+    "phone": "+7 900 129-18-22",
+    "telegram": null,
+    "city": "Самара",
+    "bio": "Ищу задачи уровня senior в направлении Backend.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-29",
+    "resume_url": "https://files.example/resume/29.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "office",
+    "salary_expectation": 286000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция",
+      "Надёжность сервиса"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-029",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Весенний контест ФСП",
+      "year": 2025,
+      "rank_or_place": "дипломант",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 2003,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-030",
+    "email": "candidate030@example.test",
+    "email_verified": true,
+    "first_name": "Лев",
+    "last_name": "Виноградов",
+    "phone": "+7 900 130-19-22",
+    "telegram": "@candidate030",
+    "city": "Воронеж",
+    "bio": "Ищу задачи уровня senior в направлении Backend.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/30.pdf",
+    "specialization": "Backend",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "remote",
+    "salary_expectation": 293000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python для Backend",
+      "SQL и работа с данными"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "backend_python",
+        "label": "Python для Backend",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "sql",
+        "label": "SQL и работа с данными",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "api",
+        "label": "HTTP API и интеграция",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "reliability",
+        "label": "Надёжность сервиса",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-031",
+    "email": "candidate031@example.test",
+    "email_verified": true,
+    "first_name": "Марина",
+    "last_name": "Киселёва",
+    "phone": "+7 900 131-10-23",
+    "telegram": null,
+    "city": "Воронеж",
+    "bio": "Ищу задачи уровня junior в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-31",
+    "resume_url": "https://files.example/resume/31.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "remote",
+    "salary_expectation": 80000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-031",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Командный хакатон ФСП",
+      "year": 2024,
+      "rank_or_place": "участник финала",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2017,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-032",
+    "email": "candidate032@example.test",
+    "email_verified": true,
+    "first_name": "Назар",
+    "last_name": "Рогов",
+    "phone": "+7 900 132-11-23",
+    "telegram": "@candidate032",
+    "city": "Казань",
+    "bio": "Ищу задачи уровня junior в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-32",
+    "resume_url": "https://files.example/resume/32.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "hybrid",
+    "salary_expectation": 87000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-032",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2025,
+      "rank_or_place": "финалист",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2024,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-033",
+    "email": "candidate033@example.test",
+    "email_verified": true,
+    "first_name": "Ольга",
+    "last_name": "Семёнова",
+    "phone": null,
+    "telegram": "@candidate033",
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня junior в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-33",
+    "resume_url": "https://files.example/resume/33.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "office",
+    "salary_expectation": 94000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 70,
+      "status": "partial",
+      "missing": [
+        "номер телефона"
+      ]
+    }
+  },
+  {
+    "id": "cand-034",
+    "email": "candidate034@example.test",
+    "email_verified": true,
+    "first_name": "Пётр",
+    "last_name": "Андреев",
+    "phone": "+7 900 134-13-23",
+    "telegram": "@candidate034",
+    "city": "Самара",
+    "bio": "Ищу задачи уровня junior в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-34",
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "remote",
+    "salary_expectation": 101000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-034",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2024,
+      "rank_or_place": "призёр",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2038,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_evaluation",
+        "label": "Оценка моделей",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 90,
+      "status": "partial",
+      "missing": [
+        "прикреплённое резюме"
+      ]
+    }
+  },
+  {
+    "id": "cand-035",
+    "email": "candidate035@example.test",
+    "email_verified": false,
+    "first_name": "Регина",
+    "last_name": "Котова",
+    "phone": "+7 900 135-14-23",
+    "telegram": null,
+    "city": "Воронеж",
+    "bio": null,
+    "hobbies": null,
+    "github_url": "https://github.com/example-35",
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": null,
+    "work_format": "hybrid",
+    "salary_expectation": 108000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 40,
+        "correct": 4,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 60,
+        "correct": 6,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 50,
+        "correct": 5,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 60,
+        "correct": 6,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 50,
+      "status": "partial",
+      "missing": [
+        "подтверждение email",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-036",
+    "email": "candidate036@example.test",
+    "email_verified": true,
+    "first_name": "Степан",
+    "last_name": "Медведев",
+    "phone": "+7 900 136-15-23",
+    "telegram": "@candidate036",
+    "city": null,
+    "bio": "Ищу задачи уровня junior в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-36",
+    "resume_url": "https://files.example/resume/36.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "office",
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-036",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2023,
+      "rank_or_place": "финалист",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2052,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 95,
+      "status": "partial",
+      "missing": [
+        "город, формат и ожидания по зарплате"
+      ]
+    }
+  },
+  {
+    "id": "cand-037",
+    "email": "candidate037@example.test",
+    "email_verified": true,
+    "first_name": "Тамара",
+    "last_name": "Субботина",
+    "phone": "+7 900 137-16-23",
+    "telegram": "@candidate037",
+    "city": "Екатеринбург",
+    "bio": null,
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/37.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "remote",
+    "salary_expectation": 122000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-038",
+    "email": "candidate038@example.test",
+    "email_verified": false,
+    "first_name": "Антон",
+    "last_name": "Власов",
+    "phone": null,
+    "telegram": "@candidate038",
+    "city": null,
+    "bio": null,
+    "hobbies": null,
+    "github_url": null,
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": null,
+    "work_format": null,
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": false,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 10,
+      "status": "insufficient",
+      "missing": [
+        "подтверждение email",
+        "номер телефона",
+        "город, формат и ожидания по зарплате",
+        "навыки",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-039",
+    "email": "candidate039@example.test",
+    "email_verified": true,
+    "first_name": "Варвара",
+    "last_name": "Демина",
+    "phone": "+7 900 139-18-23",
+    "telegram": null,
+    "city": "Воронеж",
+    "bio": "Ищу задачи уровня junior в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-39",
+    "resume_url": "https://files.example/resume/39.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "office",
+    "salary_expectation": 136000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-039",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Командный хакатон ФСП",
+      "year": 2023,
+      "rank_or_place": "участник финала",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2073,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-040",
+    "email": "candidate040@example.test",
+    "email_verified": true,
+    "first_name": "Денис",
+    "last_name": "Капустин",
+    "phone": "+7 900 140-19-23",
+    "telegram": "@candidate040",
+    "city": "Казань",
+    "bio": "Ищу задачи уровня junior в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/40.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "junior",
+    "verified_grade": "junior",
+    "work_format": "remote",
+    "salary_expectation": 143000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_evaluation",
+        "label": "Оценка моделей",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-041",
+    "email": "candidate041@example.test",
+    "email_verified": true,
+    "first_name": "Ева",
+    "last_name": "Логинова",
+    "phone": "+7 900 141-10-24",
+    "telegram": null,
+    "city": "Казань",
+    "bio": "Ищу задачи уровня middle в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-41",
+    "resume_url": "https://files.example/resume/41.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "remote",
+    "salary_expectation": 150000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-041",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Весенний контест ФСП",
+      "year": 2025,
+      "rank_or_place": "дипломант",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2087,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-042",
+    "email": "candidate042@example.test",
+    "email_verified": true,
+    "first_name": "Игорь",
+    "last_name": "Мартынов",
+    "phone": "+7 900 142-11-24",
+    "telegram": "@candidate042",
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня middle в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-42",
+    "resume_url": "https://files.example/resume/42.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "hybrid",
+    "salary_expectation": 157000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-042",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2023,
+      "rank_or_place": "призёр",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2094,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-043",
+    "email": "candidate043@example.test",
+    "email_verified": true,
+    "first_name": "Карина",
+    "last_name": "Нестерова",
+    "phone": null,
+    "telegram": "@candidate043",
+    "city": "Самара",
+    "bio": "Ищу задачи уровня middle в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-43",
+    "resume_url": "https://files.example/resume/43.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "office",
+    "salary_expectation": 164000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 70,
+      "status": "partial",
+      "missing": [
+        "номер телефона"
+      ]
+    }
+  },
+  {
+    "id": "cand-044",
+    "email": "candidate044@example.test",
+    "email_verified": true,
+    "first_name": "Леонид",
+    "last_name": "Орлов",
+    "phone": "+7 900 144-13-24",
+    "telegram": "@candidate044",
+    "city": "Воронеж",
+    "bio": "Ищу задачи уровня middle в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-44",
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "remote",
+    "salary_expectation": 171000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-044",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2025,
+      "rank_or_place": "финалист",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2108,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_evaluation",
+        "label": "Оценка моделей",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 90,
+      "status": "partial",
+      "missing": [
+        "прикреплённое резюме"
+      ]
+    }
+  },
+  {
+    "id": "cand-045",
+    "email": "candidate045@example.test",
+    "email_verified": false,
+    "first_name": "Мила",
+    "last_name": "Петрова",
+    "phone": "+7 900 145-14-24",
+    "telegram": null,
+    "city": "Казань",
+    "bio": null,
+    "hobbies": null,
+    "github_url": "https://github.com/example-45",
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": null,
+    "work_format": "hybrid",
+    "salary_expectation": 178000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 40,
+        "correct": 4,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 50,
+        "correct": 5,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 60,
+        "correct": 6,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 50,
+        "correct": 5,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 50,
+      "status": "partial",
+      "missing": [
+        "подтверждение email",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-046",
+    "email": "candidate046@example.test",
+    "email_verified": true,
+    "first_name": "Никита",
+    "last_name": "Рыбаков",
+    "phone": "+7 900 146-15-24",
+    "telegram": "@candidate046",
+    "city": null,
+    "bio": "Ищу задачи уровня middle в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-46",
+    "resume_url": "https://files.example/resume/46.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "office",
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-046",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2024,
+      "rank_or_place": "призёр",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2122,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 95,
+      "status": "partial",
+      "missing": [
+        "город, формат и ожидания по зарплате"
+      ]
+    }
+  },
+  {
+    "id": "cand-047",
+    "email": "candidate047@example.test",
+    "email_verified": true,
+    "first_name": "Оксана",
+    "last_name": "Савельева",
+    "phone": "+7 900 147-16-24",
+    "telegram": "@candidate047",
+    "city": "Самара",
+    "bio": null,
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/47.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "remote",
+    "salary_expectation": 192000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-048",
+    "email": "candidate048@example.test",
+    "email_verified": false,
+    "first_name": "Павел",
+    "last_name": "Тарасов",
+    "phone": null,
+    "telegram": "@candidate048",
+    "city": null,
+    "bio": null,
+    "hobbies": null,
+    "github_url": null,
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": null,
+    "work_format": null,
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": false,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 10,
+      "status": "insufficient",
+      "missing": [
+        "подтверждение email",
+        "номер телефона",
+        "город, формат и ожидания по зарплате",
+        "навыки",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-049",
+    "email": "candidate049@example.test",
+    "email_verified": true,
+    "first_name": "Раиса",
+    "last_name": "Уварова",
+    "phone": "+7 900 149-18-24",
+    "telegram": null,
+    "city": "Казань",
+    "bio": "Ищу задачи уровня middle в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-49",
+    "resume_url": "https://files.example/resume/49.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "office",
+    "salary_expectation": 206000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-049",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Весенний контест ФСП",
+      "year": 2024,
+      "rank_or_place": "дипломант",
+      "sport_category": "первый разряд",
+      "score_or_rating": 2143,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-050",
+    "email": "candidate050@example.test",
+    "email_verified": true,
+    "first_name": "Сергей",
+    "last_name": "Фролов",
+    "phone": "+7 900 150-19-24",
+    "telegram": "@candidate050",
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня middle в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/50.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "middle",
+    "verified_grade": "middle",
+    "work_format": "remote",
+    "salary_expectation": 213000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_evaluation",
+        "label": "Оценка моделей",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-051",
+    "email": "candidate051@example.test",
+    "email_verified": true,
+    "first_name": "Татьяна",
+    "last_name": "Харитонова",
+    "phone": "+7 900 151-10-25",
+    "telegram": null,
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня senior в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-51",
+    "resume_url": "https://files.example/resume/51.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "remote",
+    "salary_expectation": 230000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-051",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Командный хакатон ФСП",
+      "year": 2023,
+      "rank_or_place": "участник финала",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 2157,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-052",
+    "email": "candidate052@example.test",
+    "email_verified": true,
+    "first_name": "Эдуард",
+    "last_name": "Цветков",
+    "phone": "+7 900 152-11-25",
+    "telegram": "@candidate052",
+    "city": "Самара",
+    "bio": "Ищу задачи уровня senior в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-52",
+    "resume_url": "https://files.example/resume/52.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "hybrid",
+    "salary_expectation": 237000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-052",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2024,
+      "rank_or_place": "финалист",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 2164,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-053",
+    "email": "candidate053@example.test",
+    "email_verified": true,
+    "first_name": "Юлия",
+    "last_name": "Шубина",
+    "phone": null,
+    "telegram": "@candidate053",
+    "city": "Воронеж",
+    "bio": "Ищу задачи уровня senior в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-53",
+    "resume_url": "https://files.example/resume/53.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "office",
+    "salary_expectation": 244000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 70,
+      "status": "partial",
+      "missing": [
+        "номер телефона"
+      ]
+    }
+  },
+  {
+    "id": "cand-054",
+    "email": "candidate054@example.test",
+    "email_verified": true,
+    "first_name": "Яков",
+    "last_name": "Щербаков",
+    "phone": "+7 900 154-13-25",
+    "telegram": "@candidate054",
+    "city": "Казань",
+    "bio": "Ищу задачи уровня senior в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": "https://github.com/example-54",
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "remote",
+    "salary_expectation": 251000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-054",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Осенний турнир",
+      "year": 2023,
+      "rank_or_place": "призёр",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 2178,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_evaluation",
+        "label": "Оценка моделей",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 90,
+      "status": "partial",
+      "missing": [
+        "прикреплённое резюме"
+      ]
+    }
+  },
+  {
+    "id": "cand-055",
+    "email": "candidate055@example.test",
+    "email_verified": false,
+    "first_name": "Агата",
+    "last_name": "Юдина",
+    "phone": "+7 900 155-14-25",
+    "telegram": null,
+    "city": "Екатеринбург",
+    "bio": null,
+    "hobbies": null,
+    "github_url": "https://github.com/example-55",
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": null,
+    "work_format": "hybrid",
+    "salary_expectation": 258000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 40,
+        "correct": 4,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 50,
+        "correct": 5,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 60,
+        "correct": 6,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 50,
+        "correct": 5,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 60,
+        "correct": 6,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 50,
+      "status": "partial",
+      "missing": [
+        "подтверждение email",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-056",
+    "email": "candidate056@example.test",
+    "email_verified": true,
+    "first_name": "Вадим",
+    "last_name": "Яковлев",
+    "phone": "+7 900 156-15-25",
+    "telegram": "@candidate056",
+    "city": null,
+    "bio": "Ищу задачи уровня senior в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-56",
+    "resume_url": "https://files.example/resume/56.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "office",
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-056",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Открытый кубок алгоритмов",
+      "year": 2025,
+      "rank_or_place": "финалист",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 2192,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 95,
+      "status": "partial",
+      "missing": [
+        "город, формат и ожидания по зарплате"
+      ]
+    }
+  },
+  {
+    "id": "cand-057",
+    "email": "candidate057@example.test",
+    "email_verified": true,
+    "first_name": "Галина",
+    "last_name": "Абрамова",
+    "phone": "+7 900 157-16-25",
+    "telegram": "@candidate057",
+    "city": "Воронеж",
+    "bio": null,
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/57.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "remote",
+    "salary_expectation": 272000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "git",
+        "label": "Git",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-058",
+    "email": "candidate058@example.test",
+    "email_verified": false,
+    "first_name": "Дмитрий",
+    "last_name": "Быков",
+    "phone": null,
+    "telegram": "@candidate058",
+    "city": null,
+    "bio": null,
+    "hobbies": null,
+    "github_url": null,
+    "resume_url": null,
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": null,
+    "work_format": null,
+    "salary_expectation": null,
+    "salary_tax_type": "net",
+    "skills": [],
+    "mentor_available": false,
+    "visibility_public": false,
+    "onboarding_completed": false,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": null,
+        "correct": null,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "docker",
+        "label": "Docker",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 10,
+      "status": "insufficient",
+      "missing": [
+        "подтверждение email",
+        "номер телефона",
+        "город, формат и ожидания по зарплате",
+        "навыки",
+        "прикреплённое резюме",
+        "подтверждение грейда тестом"
+      ]
+    }
+  },
+  {
+    "id": "cand-059",
+    "email": "candidate059@example.test",
+    "email_verified": true,
+    "first_name": "Елена",
+    "last_name": "Воронова",
+    "phone": "+7 900 159-18-25",
+    "telegram": null,
+    "city": "Екатеринбург",
+    "bio": "Ищу задачи уровня senior в направлении Data Science / ML.",
+    "hobbies": null,
+    "github_url": "https://github.com/example-59",
+    "resume_url": "https://files.example/resume/59.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "office",
+    "salary_expectation": 286000,
+    "salary_tax_type": "gross",
+    "skills": [
+      "Python",
+      "Pandas",
+      "SQL",
+      "Вероятность и статистика"
+    ],
+    "mentor_available": true,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": "FSP-DEMO-059",
+    "fsp_verified": true,
+    "fsp_achievement": {
+      "tournament_name": "Командный хакатон ФСП",
+      "year": 2025,
+      "rank_or_place": "участник финала",
+      "sport_category": "кандидат в мастера",
+      "score_or_rating": 2213,
+      "is_demo": true
+    },
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  },
+  {
+    "id": "cand-060",
+    "email": "candidate060@example.test",
+    "email_verified": true,
+    "first_name": "Зоя",
+    "last_name": "Гусева",
+    "phone": "+7 900 160-19-25",
+    "telegram": "@candidate060",
+    "city": "Самара",
+    "bio": "Ищу задачи уровня senior в направлении Data Science / ML.",
+    "hobbies": "Шахматы и настольные игры",
+    "github_url": null,
+    "resume_url": "https://files.example/resume/60.pdf",
+    "specialization": "Data Science / ML",
+    "programming_language": "Python",
+    "declared_grade": "senior",
+    "verified_grade": "senior",
+    "work_format": "remote",
+    "salary_expectation": 293000,
+    "salary_tax_type": "net",
+    "skills": [
+      "Python",
+      "Pandas"
+    ],
+    "mentor_available": false,
+    "visibility_public": true,
+    "onboarding_completed": true,
+    "fsp_id": null,
+    "fsp_verified": false,
+    "fsp_achievement": null,
+    "required_test_results": [
+      {
+        "code": "ds_python",
+        "label": "Python",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_pandas",
+        "label": "Pandas",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      },
+      {
+        "code": "ds_sql",
+        "label": "SQL",
+        "kind": "required",
+        "percentage": 70,
+        "correct": 7,
+        "total": 10
+      },
+      {
+        "code": "ds_statistics",
+        "label": "Вероятность и статистика",
+        "kind": "required",
+        "percentage": 80,
+        "correct": 8,
+        "total": 10
+      },
+      {
+        "code": "ds_ab",
+        "label": "A/B-тестирование",
+        "kind": "required",
+        "percentage": 90,
+        "correct": 9,
+        "total": 10
+      },
+      {
+        "code": "ds_ml",
+        "label": "Машинное обучение",
+        "kind": "required",
+        "percentage": 100,
+        "correct": 10,
+        "total": 10
+      }
+    ],
+    "additional_test_results": [
+      {
+        "code": "model_evaluation",
+        "label": "Оценка моделей",
+        "kind": "additional",
+        "percentage": 60,
+        "correct": 3,
+        "total": 5
+      },
+      {
+        "code": "model_deployment",
+        "label": "Развёртывание моделей",
+        "kind": "additional",
+        "percentage": 80,
+        "correct": 4,
+        "total": 5
+      }
+    ],
+    "profile_completeness": {
+      "score": 100,
+      "status": "complete",
+      "missing": []
+    }
+  }
+]

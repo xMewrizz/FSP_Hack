@@ -18,6 +18,7 @@ import {
 
 type Candidate = {
   id: number;
+  isDemo?: boolean;
   backendId?: string;
   profileCompleteness?: PublicProfileCompleteness;
   achievementsCount?: number;
@@ -418,6 +419,7 @@ function formatSalaryRange(minimum: number, maximum: number) {
 
 type MatchingCandidate = {
   candidate_id: string;
+  is_demo?: boolean;
   profile_completeness: PublicProfileCompleteness;
   first_name: string;
   last_name: string;
@@ -890,6 +892,7 @@ function mapMatchToCandidate(item: MatchingCandidate, index: number, demoMode = 
   return {
     id: index + 1,
     backendId: item.candidate_id,
+    isDemo: item.is_demo ?? false,
     profileCompleteness: item.profile_completeness,
     achievementsCount: item.achievements_count,
     fspVerified: item.fsp_verified,
@@ -2491,7 +2494,7 @@ function EmployerScreen({
                 <div className="candidate-directory-card__header">
                   <CandidateAvatar initials={candidate.initials} photoUrl={candidate.avatarUrl} corporate={demoMode} />
                   <div><strong>{candidate.name}</strong><span>{candidate.location} · {candidate.format}</span></div>
-                  {candidate.fspVerified && <span className="candidate-directory-card__badge"><Icon name="check" size={13} /> ФСП</span>}
+                  {candidate.isDemo ? <span className="candidate-directory-card__badge">ДЕМО</span> : candidate.fspVerified && <span className="candidate-directory-card__badge"><Icon name="check" size={13} /> ФСП</span>}
           </div>
                 <div className="candidate-directory-card__grade"><strong>{candidate.role}</strong><span>{candidate.level} · {candidate.verifiedGrade ? "подтверждён" : "заявлен"}</span></div>
                 {demoMode && candidate.radar.length > 0 && <div className="candidate-directory-card__radar"><Radar values={candidate.radar} target={candidate.jobRadar} axisLabels={labels.slice(0, candidate.radar.length)} description={`Демонстрационное сравнение карты навыков ${candidate.name}`} /><span>ДЕМО · ПРОФИЛЬ / ВАКАНСИЯ</span></div>}
@@ -4888,8 +4891,8 @@ function ResumeModal({
                 {candidate.resumeEmployers.map((company) => <p key={company}>{company}</p>)}
                 <p>Сведения о компании можно сверить в <a href="https://egrul.nalog.ru/" target="_blank" rel="noopener noreferrer">реестре ФНС</a>. Наличие компании не подтверждает работу кандидата в ней.</p>
               </section> : null}
-              <section className="resume-section"><span>ФСП</span><p>{candidate.fspVerified ? `Профиль подтверждён, достижений: ${candidate.achievementsCount ?? 0}` : "Подтверждённых достижений нет"}</p></section>
-              <Button onClick={onInvite}>Пригласить кандидата <Icon name="send" /></Button>
+              <section className="resume-section"><span>ФСП</span><p>{candidate.isDemo ? `Демонстрационные данные, достижений: ${candidate.achievementsCount ?? 0}` : candidate.fspVerified ? `Профиль подтверждён, достижений: ${candidate.achievementsCount ?? 0}` : "Подтверждённых достижений нет"}</p></section>
+              <Button disabled={candidate.isDemo} onClick={onInvite}>{candidate.isDemo ? "Демонстрационный профиль" : "Пригласить кандидата"} <Icon name="send" /></Button>
             </aside>
           </div>
       </ModalFrame>
@@ -5709,6 +5712,10 @@ function App() {
     filtered.find((candidate) => candidate.id === selectedId) ?? filtered[0] ?? candidates[0];
   const activeNeed = employerNeeds.find((need) => need.id === activeNeedId);
   const openInvite = () => {
+    if (selected.isDemo) {
+      showNotice("Это демонстрационный профиль. Для приглашения выберите действующего кандидата.", "error");
+      return;
+    }
     setOfferDescription("Приглашаем в продуктовую команду. Будем рады обсудить задачи и ваш опыт.");
     setInviteSalaryMin(activeNeed ? String(activeNeed.salary_min) : "");
     setInviteSalaryMax(activeNeed ? String(activeNeed.salary_max) : "");
@@ -6253,8 +6260,8 @@ function App() {
               <Button variant="outline" onClick={() => toggleCompare(selected.id)}>
                 <Icon name="compare" /> Сравнить
               </Button>
-              <Button onClick={openInvite}>
-                Пригласить <Icon name="send" />
+              <Button disabled={selected.isDemo} onClick={openInvite}>
+                {selected.isDemo ? "Демо-профиль" : "Пригласить"} <Icon name="send" />
               </Button>
             </div>
             </>

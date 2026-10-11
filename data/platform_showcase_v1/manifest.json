@@ -1,0 +1,36 @@
+{
+  "note": "Вымышленные профили. Не связаны с реальными людьми и компаниями.",
+  "pairs": [
+    {
+      "specialization": "Backend",
+      "grade": "junior"
+    },
+    {
+      "specialization": "Backend",
+      "grade": "middle"
+    },
+    {
+      "specialization": "Backend",
+      "grade": "senior"
+    },
+    {
+      "specialization": "Data Science / ML",
+      "grade": "junior"
+    },
+    {
+      "specialization": "Data Science / ML",
+      "grade": "middle"
+    },
+    {
+      "specialization": "Data Science / ML",
+      "grade": "senior"
+    }
+  ],
+  "candidates": 60,
+  "candidates_per_pair": 10,
+  "with_one_fsp_achievement": 30,
+  "mentor_available": 24,
+  "companies": 8,
+  "vacancies": 15,
+  "tasks": 6
+}

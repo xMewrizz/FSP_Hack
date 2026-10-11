@@ -1,0 +1,116 @@
+[
+  {
+    "id": "task-01",
+    "company_id": "northline",
+    "vacancy_id": "vac-001",
+    "title": "Проверка входных данных API",
+    "description": "Опишите, как обработать некорректное тело запроса и какой код ответа вернуть клиенту.",
+    "task_type": "manual_review",
+    "reference_answer": "Вернуть 400 и сообщение о поле с ошибкой, не обрабатывая запрос дальше.",
+    "evaluation_criteria": [
+      "Назван код 400",
+      "Указано конкретное поле",
+      "Запрос не выполняется после ошибки"
+    ],
+    "specialization": "Backend",
+    "min_grade": "junior",
+    "max_grade": "junior",
+    "max_score": 10,
+    "is_active": true
+  },
+  {
+    "id": "task-02",
+    "company_id": "lumen",
+    "vacancy_id": "vac-004",
+    "title": "Повтор безопасного запроса",
+    "description": "Клиент повторил GET из-за таймаута. Что должен сделать сервис?",
+    "task_type": "manual_review",
+    "reference_answer": "Повторно вернуть то же представление ресурса, не создавая новую сущность.",
+    "evaluation_criteria": [
+      "GET не создаёт ресурс",
+      "Повтор не меняет состояние",
+      "Ответ соответствует текущему ресурсу"
+    ],
+    "specialization": "Backend",
+    "min_grade": "middle",
+    "max_grade": "middle",
+    "max_score": 10,
+    "is_active": true
+  },
+  {
+    "id": "task-03",
+    "company_id": "fieldnote",
+    "vacancy_id": "vac-006",
+    "title": "Идемпотентная запись",
+    "description": "Платёж с тем же ключом идемпотентности пришёл второй раз после успеха первого.",
+    "task_type": "manual_review",
+    "reference_answer": "Вернуть сохранённый результат первого запроса и не списывать деньги снова.",
+    "evaluation_criteria": [
+      "Ключ идемпотентности сохранён вместе с результатом",
+      "Повтор не создаёт второе списание",
+      "Ответ совпадает с первым успешным"
+    ],
+    "specialization": "Backend",
+    "min_grade": "senior",
+    "max_grade": "senior",
+    "max_score": 10,
+    "is_active": true
+  },
+  {
+    "id": "task-04",
+    "company_id": "vectorlab",
+    "vacancy_id": "vac-008",
+    "title": "Пропуски в обучающей таблице",
+    "description": "В целевой колонке есть пустые значения. Как подготовить таблицу к обучению?",
+    "task_type": "manual_review",
+    "reference_answer": "Удалить строки без цели и не заполнять цель средним по всей таблице.",
+    "evaluation_criteria": [
+      "Строки без цели исключены",
+      "Цель не заполняется статистикой всего набора",
+      "Остальные колонки не удаляются без причины"
+    ],
+    "specialization": "Data Science / ML",
+    "min_grade": "junior",
+    "max_grade": "junior",
+    "max_score": 10,
+    "is_active": true
+  },
+  {
+    "id": "task-05",
+    "company_id": "kiln",
+    "vacancy_id": "vac-011",
+    "title": "Утечка при масштабировании",
+    "description": "Признаки нужно стандартизировать до кросс-валидации. Где считать среднее и отклонение?",
+    "task_type": "manual_review",
+    "reference_answer": "Считать параметры только на обучающей части каждого разбиения и применять их к проверке.",
+    "evaluation_criteria": [
+      "Параметры не считаются на тесте",
+      "Преобразование входит в разбиение",
+      "Назван риск утечки"
+    ],
+    "specialization": "Data Science / ML",
+    "min_grade": "middle",
+    "max_grade": "middle",
+    "max_score": 10,
+    "is_active": true
+  },
+  {
+    "id": "task-06",
+    "company_id": "relay",
+    "vacancy_id": "vac-014",
+    "title": "Сдвиг данных после выката",
+    "description": "После выката скоринг стал чаще отвечать ошибкой, а качество на отложенных метках ещё неизвестно. Что проверить сначала?",
+    "task_type": "manual_review",
+    "reference_answer": "Сравнить распределение входных признаков и кодов ошибок с периодом до выката, затем решить, откатывать ли модель.",
+    "evaluation_criteria": [
+      "Сравниваются входы до и после выката",
+      "Учитываются ошибки сервиса",
+      "Решение об откате не ждёт всех отложенных меток"
+    ],
+    "specialization": "Data Science / ML",
+    "min_grade": "senior",
+    "max_grade": "senior",
+    "max_score": 10,
+    "is_active": true
+  }
+]

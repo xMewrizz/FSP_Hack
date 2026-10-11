@@ -146,6 +146,7 @@ def _match_item(
     trust_score_val, trust_flags_val = calculate_trust_score(candidate)
     return CandidateMatchItem(
         candidate_id=candidate.id,
+        is_demo=not candidate.user.is_active and candidate.user.email.endswith("@example.test"),
         profile_completeness=calculate_profile_completeness(candidate, email_verified=candidate.user.is_verified),
         first_name=candidate.first_name,
         last_name=candidate.last_name,
@@ -525,6 +526,7 @@ class MatchingService:
             items.append(
                 CandidateMatchItem(
                     candidate_id=candidate.id,
+                    is_demo=not candidate.user.is_active and candidate.user.email.endswith("@example.test"),
                     profile_completeness=calculate_profile_completeness(candidate, email_verified=candidate.user.is_verified),
                     first_name=candidate.first_name,
                     last_name=candidate.last_name,
