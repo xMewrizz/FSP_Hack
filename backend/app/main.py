@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import engine
 from app.models.base import Base
 from app.models.test import GradeAssessment
+from app.models.user import User
 
 
 @asynccontextmanager
@@ -209,7 +210,13 @@ async def lifespan(app: FastAPI):
         await conn.execute(text(
             "UPDATE candidate_profiles SET visibility_public = FALSE WHERE agreed_publication = FALSE AND visibility_public = TRUE"
         ))
-        policies = (await conn.execute(select(GradeAssessment.scoring_policy))).scalars().all()
+        # Showcase accounts are inactive and cannot take tests. Their imported
+        # historical scores are demo data, not assessments from the private bank.
+        policies = (await conn.execute(
+            select(GradeAssessment.scoring_policy)
+            .join(User, User.id == GradeAssessment.user_id)
+            .where(~(User.is_active.is_(False) & User.email.endswith("@example.test")))
+        )).scalars().all()
         validate_assessment_bank_ids(policies)
     from app.services.open_question_queue import run_evaluation_worker
     worker = asyncio.create_task(run_evaluation_worker())
