@@ -4789,6 +4789,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         <div className="jobs-grid">
           {jobsTab === "vacancies" && visibleVacancies.map((vacancy) => {
             const application = jobApplications.find((item) => item.vacancy_id === vacancy.id);
+            const showcaseVacancy = vacancy.title.startsWith("Демо ·");
             const companyName = vacancy.company?.company_name ?? "Компания";
             const salary = `${new Intl.NumberFormat("ru-RU").format(vacancy.salary_min)}–${new Intl.NumberFormat("ru-RU").format(vacancy.salary_max)} ₽ ${vacancy.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}`;
             return <article className="job-card" key={vacancy.id}>
@@ -4796,7 +4797,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               <div className="job-salary">{salary}</div>
               <p>{vacancy.description || "Работодатель пока не добавил описание вакансии."}</p>
               <div className="tags">{vacancy.required_skills.map((tag) => <span key={tag}>{tag}</span>)}</div>
-              <div className="job-card__footer"><span>{vacancy.specialization} · {vacancy.required_grade} · {vacancy.work_format === "remote" ? "Удалённо" : vacancy.work_format === "hybrid" ? "Гибрид" : "Офис"}{vacancy.city ? ` · ${vacancy.city}` : ""}</span><Button variant={application ? "outline" : "primary"} disabled={Boolean(application) || applyingTo === vacancy.id} onClick={() => void applyToVacancy(vacancy)}>{application ? applicationStatusLabel(application.status) : applyingTo === vacancy.id ? "Отправляем…" : "Откликнуться"}</Button></div>
+              <div className="job-card__footer"><span>{vacancy.specialization} · {vacancy.required_grade} · {vacancy.work_format === "remote" ? "Удалённо" : vacancy.work_format === "hybrid" ? "Гибрид" : "Офис"}{vacancy.city ? ` · ${vacancy.city}` : ""}</span>{showcaseVacancy ? <span>Демонстрационная вакансия · отклики закрыты</span> : <Button variant={application ? "outline" : "primary"} disabled={Boolean(application) || applyingTo === vacancy.id} onClick={() => void applyToVacancy(vacancy)}>{application ? applicationStatusLabel(application.status) : applyingTo === vacancy.id ? "Отправляем…" : "Откликнуться"}</Button>}</div>
             </article>;
           })}
           {jobsTab === "applications" && visibleApplications.map((application) => (
