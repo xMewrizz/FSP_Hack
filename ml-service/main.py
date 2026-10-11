@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -29,9 +30,9 @@ def health():
 @app.post("/parse-need")
 async def parse_need_text(data: NeedText):
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            return await suggest_need(data.text, client)
-    except (httpx.HTTPError, ValueError):
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            return await asyncio.wait_for(suggest_need(data.text, client), timeout=120.0)
+    except (httpx.HTTPError, ValueError, TimeoutError):
         raise HTTPException(status_code=503, detail="Не удалось получить предложения от модели") from None
 
 
