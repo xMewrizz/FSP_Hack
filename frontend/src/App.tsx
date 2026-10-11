@@ -3898,7 +3898,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     return (
       <div className="page-content">
         {profileLoading && <div className="empty-state">Загружаем профиль…</div>}
-        {profile && <div className="notice-box" role="status"><strong>Заполненность профиля: {completion.score}/100</strong><span>{completion.missing.length ? `Чтобы повысить балл, добавьте: ${completion.missing.join(", ")}.` : "Ключевые сведения заполнены, email и грейд подтверждены."} Номер телефона учитывается как указанный контакт; его владение платформа пока не проверяет. Необязательные согласия, фото и ФСП ID в балл не входят.</span><details><summary>Как считаются баллы</summary><p>Телефон — 30, подтверждённый грейд — 20, опыт в резюме — 15, специализация и заявленный грейд — 10, город и условия работы — 10, имя — 5, подтверждённый email — 5, навыки — 5.</p></details></div>}
+        {profile && <div className="notice-box" role="status"><strong>Заполненность профиля: {completion.score}/100</strong><span>{completion.missing.length ? `Чтобы повысить балл, добавьте: ${completion.missing.join(", ")}.` : "Ключевые сведения заполнены, email и грейд подтверждены."} Номер телефона учитывается как указанный контакт; его владение платформа пока не проверяет. Текст «О себе», резюме, необязательные согласия, фото и ФСП ID в балл не входят.</span><details><summary>Как считаются баллы</summary><p>Телефон — 30, подтверждённый грейд — 25, подтверждённый email — 20, специализация, язык и заявленный грейд — 10, город и условия работы — 5, имя — 5, навыки — 5.</p></details></div>}
         <div className="settings-layout settings-layout--profile">
           <section className="feature-card">
             <div className="profile-edit-head">

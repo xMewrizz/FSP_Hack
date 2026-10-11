@@ -15,7 +15,7 @@ def calculate_profile_completeness(
 
     checks = [
         ("имя и фамилию", 5, filled(profile.first_name) and filled(profile.last_name)),
-        ("подтверждение email", 5, email_verified),
+        ("подтверждение email", 20, email_verified),
         ("номер телефона", 30, filled(profile.phone)),
         (
             "специализацию, язык и заявленный грейд", 10,
@@ -23,13 +23,12 @@ def calculate_profile_completeness(
             and filled(profile.declared_grade),
         ),
         (
-            "город, формат и ожидания по зарплате", 10,
+            "город, формат и ожидания по зарплате", 5,
             filled(profile.city) and filled(profile.work_format)
             and profile.salary_expectation is not None and profile.salary_expectation > 0,
         ),
-        ("описание опыта в резюме", 15, filled(profile.resume_text)),
         ("навыки", 5, bool(profile.skills)),
-        ("подтверждение грейда тестом", 20, filled(profile.verified_grade)),
+        ("подтверждение грейда тестом", 25, filled(profile.verified_grade)),
     ]
     score = sum(points for _, points, done in checks if done)
     status = "insufficient" if score < 40 else "partial" if score < 100 else "complete"

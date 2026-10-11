@@ -37,11 +37,18 @@ def test_empty_and_unverified_profile():
     result = calculate_profile_completeness(empty, email_verified=False)
     assert result.score == 0
     assert result.status == "insufficient"
-    assert len(result.missing) == 8
+    assert len(result.missing) == 7
 
     result = calculate_profile_completeness(profile(), email_verified=False)
-    assert result.score == 95
+    assert result.score == 80
     assert result.status == "partial"
+
+
+def test_bio_and_resume_do_not_change_completeness():
+    without_description = calculate_profile_completeness(
+        profile(resume_text=None), email_verified=True
+    )
+    assert without_description.score == 100
 
 
 def test_employer_contract_omits_private_completion_hints():
