@@ -3303,6 +3303,10 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [taskDone, setTaskDone] = useState(false);
   const [taskDemoShown, setTaskDemoShown] = useState(false);
   const [demoTaskRadar, setDemoTaskRadar] = useState([6.2, 7.1, 6.8, 7.4]);
+  const [openDemoTask, setOpenDemoTask] = useState<"sql" | "api" | null>(null);
+  const [demoTaskAnswer, setDemoTaskAnswer] = useState("");
+  const [demoTaskFile, setDemoTaskFile] = useState<File | null>(null);
+  const [demoTaskSubmitted, setDemoTaskSubmitted] = useState(false);
   const [saved, setSaved] = useState(false);
   const [jobVacancies, setJobVacancies] = useState<VacancyRecord[]>([]);
   const [jobApplications, setJobApplications] = useState<CandidateVacancyApplication[]>([]);
@@ -4591,13 +4595,26 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   }
 
   if (active === "Задания") {
+    const demoTask = openDemoTask === "sql" ? {
+      eyebrow: "ПЛАТФОРМЕННАЯ · 10–15 МИН",
+      title: "Оптимизация SQL-запроса",
+      description: "Найдите причину медленного выполнения запроса и предложите индексы. Клиент сообщает, что отчёт по заказам стал выполняться 18 секунд вместо 2.",
+      criteria: ["Опишите причину деградации и план диагностики", "Предложите безопасную схему индексов", "Укажите, как проверить эффект на реальном трафике"],
+      format: "Текстовый ответ и, при необходимости, SQL-файл",
+    } : openDemoTask === "api" ? {
+      eyebrow: "ОТ NOVATECH · 10 МИН",
+      title: "Code review обработчика API",
+      description: "Проверьте обработчик API, который принимает повторные запросы клиента после таймаута. Найдите проблемы безопасности и производительности.",
+      criteria: ["Объясните найденные риски и их влияние", "Предложите исправление для идемпотентности", "Опишите, какие тесты добавите перед релизом"],
+      format: "Развёрнутый ответ и, при необходимости, файл с кодом",
+    } : null;
     return (
       <div className="page-content">
         <div className="task-hero"><div><span>АКТУАЛЬНОСТЬ ПРОФИЛЯ</span><strong>Профиль активен</strong><p>Последняя активность 2 дня назад. Баллы радара не затухают.</p></div><div className="recency-scale"><span className="active">Активен</span><span>Недавно активен</span><span>Устаревает</span><span>Неактивен</span></div></div>
         <div className="task-demo-note"><Icon name="sparkle" size={18} /><span>Примеры заданий и обновления радара ниже — демонстрация интерфейса, не реальные результаты.</span></div>
         <div className="task-list">
-          <article className="task-card"><div className="task-card__type">&lt;/&gt;</div><div><span>ПЛАТФОРМЕННАЯ · 10–15 МИН</span><strong>Оптимизация SQL-запроса</strong><p>Найдите причину медленного выполнения запроса и предложите индексы.</p><div className="tags"><span>Базы данных</span><span>Пример обновления +0,4</span></div></div><div className="task-card__action"><span>до 24 мая</span><Button onClick={() => { setTaskDone(true); onNotify("Демо-задание открыто. Его результат не изменяет реальные данные."); }}>{taskDone ? "В работе" : "Начать"}</Button></div></article>
-          <article className="task-card"><div className="task-card__type task-card__type--red"><Icon name="briefcase" /></div><div><span>ОТ NOVATECH · 10 МИН</span><strong>Code review обработчика API</strong><p>Найдите проблемы безопасности и производительности в сниппете.</p><div className="tags"><span>API</span><span>Code Quality</span></div></div><div className="task-card__action"><span>до 27 мая</span><Button variant="outline">Открыть</Button></div></article>
+          <article className="task-card"><div className="task-card__type">&lt;/&gt;</div><div><span>ПЛАТФОРМЕННАЯ · 10–15 МИН</span><strong>Оптимизация SQL-запроса</strong><p>Найдите причину медленного выполнения запроса и предложите индексы.</p><div className="tags"><span>Базы данных</span><span>Пример обновления +0,4</span></div></div><div className="task-card__action"><span>до 24 мая</span><Button onClick={() => { setTaskDone(true); setOpenDemoTask("sql"); setDemoTaskSubmitted(false); }}>{taskDone ? "Открыть решение" : "Открыть задание"}</Button></div></article>
+          <article className="task-card"><div className="task-card__type task-card__type--red"><Icon name="briefcase" /></div><div><span>ОТ NOVATECH · 10 МИН</span><strong>Code review обработчика API</strong><p>Найдите проблемы безопасности и производительности в сниппете.</p><div className="tags"><span>API</span><span>Code Quality</span></div></div><div className="task-card__action"><span>до 27 мая</span><Button variant="outline" onClick={() => { setOpenDemoTask("api"); setDemoTaskSubmitted(false); }}>Открыть задание</Button></div></article>
         </div>
         <section className="feature-card task-radar-card">
           <div className="feature-head"><div><span>ИНТЕРАКТИВНЫЙ ПРИМЕР</span><strong>Как задание может изменить карту</strong></div><span className="task-radar-card__badge">ДЕМО-ПРОФИЛЬ</span></div>
@@ -4607,6 +4624,16 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           </div>
         </section>
         <section className="feature-card"><div className="feature-head"><div><span>ИСТОРИЯ</span><strong>Решённые задания</strong></div></div><div className="history-table"><div><span>12 мая</span><strong>Debug-кейс: очередь сообщений</strong><b>+0.3 API</b><em>9/10</em></div><div><span>28 апреля</span><strong>Архитектурное эссе</strong><b>+0.4 Architecture</b><em>8/10</em></div></div></section>
+        {openDemoTask && demoTask && <ModalFrame className="demo-task-modal" labelledBy="demo-task-title" onClose={() => setOpenDemoTask(null)}>
+          <div className="demo-task-modal__head"><div><span>{demoTask.eyebrow}</span><strong id="demo-task-title">{demoTask.title}</strong><small>Демо-задание · решение сохраняется только в демонстрационном интерфейсе</small></div><button type="button" className="icon-button" onClick={() => setOpenDemoTask(null)} aria-label="Закрыть задание"><Icon name="close" /></button></div>
+          <section className="demo-task-modal__brief"><span>УСЛОВИЕ</span><p>{demoTask.description}</p></section>
+          <section className="demo-task-modal__criteria"><span>КРИТЕРИИ ОЦЕНКИ</span><ul>{demoTask.criteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul></section>
+          <div className="demo-task-modal__meta"><span>Формат ответа</span><strong>{demoTask.format}</strong></div>
+          <label className="field"><span>ВАШЕ РЕШЕНИЕ</span><textarea rows={8} value={demoTaskAnswer} onChange={(event) => setDemoTaskAnswer(event.target.value)} placeholder="Опишите решение и ход рассуждений…" /></label>
+          <label className="demo-task-modal__file"><span>ПРИКРЕПИТЬ ФАЙЛ</span><input type="file" accept=".txt,.md,.sql,.py,.pdf,.zip" onChange={(event) => setDemoTaskFile(event.target.files?.[0] ?? null)} />{demoTaskFile && <small>{demoTaskFile.name}</small>}</label>
+          {demoTaskSubmitted && <div className="demo-task-modal__success" role="status"><Icon name="check" /> Демо-решение принято для просмотра. Оценка не изменяет грейд.</div>}
+          <div className="demo-task-modal__actions"><Button variant="ghost" onClick={() => setOpenDemoTask(null)}>Закрыть</Button><Button disabled={(!demoTaskAnswer.trim() && !demoTaskFile) || demoTaskSubmitted} onClick={() => { setDemoTaskSubmitted(true); setTaskDone(true); onNotify("Демо-решение прикреплено. Оно доступно только для демонстрации."); }}>Отправить решение <Icon name="send" /></Button></div>
+        </ModalFrame>}
       </div>
     );
   }
