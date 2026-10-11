@@ -12403,6 +12403,10 @@ select,
   gap: 1rem;
 }
 
+.app-shell .specialty-radar-gallery__grid--single {
+  grid-template-columns: minmax(0, 42rem);
+}
+
 .app-shell .specialty-radar-card {
   min-width: 0;
   overflow: hidden;
@@ -12453,6 +12457,11 @@ select,
   margin: 0.25rem auto;
 }
 
+.app-shell .specialty-radar-card .grade-radar-empty {
+  min-height: 13rem;
+  padding: 1.25rem;
+}
+
 .app-shell .specialty-radar-card > ul {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -12489,6 +12498,14 @@ select,
 .app-shell .specialty-radar-card > ul li small {
   color: var(--muted-light);
   font: inherit;
+}
+
+.app-shell .last-base-set-card > .topic-summary {
+  margin-top: 0.45rem;
+}
+
+.app-shell .last-base-set-card > .topic-summary > div:first-child {
+  border-top: 0;
 }
 
 .app-shell .additional-specialization-card {

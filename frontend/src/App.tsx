@@ -1462,48 +1462,40 @@ function SpecialtyRadarGallery({
   currentSpecialization,
   currentSkills,
   currentComplete,
-  comparisonRoadmap,
 }: {
   currentSpecialization?: string | null;
   currentSkills: GradeRoadmapData["skills"];
   currentComplete: boolean;
-  comparisonRoadmap?: GradeRoadmapData | null;
 }) {
-  const samples = [...SPECIALTY_RADAR_SAMPLES].sort((left, right) =>
-    left.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase() ? -1 : right.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase() ? 1 : 0,
-  );
+  const sample = SPECIALTY_RADAR_SAMPLES.find((item) => item.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase());
+  const shownSkills = currentComplete ? currentSkills : null;
+  const values = shownSkills ? shownSkills.map((skill) => skill.level_out_of_ten ?? 0) : sample?.values ?? [];
+  const axisLabels = shownSkills ? shownSkills.map((skill) => skill.label) : sample?.labels ?? [];
+  const hasResults = currentComplete && Boolean(shownSkills);
 
   return (
     <section className="specialty-radar-gallery" aria-labelledby="specialty-radar-title">
       <div className="specialty-radar-gallery__head">
-        <div><span>КАРТЫ КОМПЕТЕНЦИЙ</span><h2 id="specialty-radar-title">Радар по направлениям</h2></div>
-        <p>Синяя заливка — уровень навыка, пунктир — максимум 10. Демо-карты — примеры, а не ваша оценка.</p>
+        <div><span>МОИ КОМПЕТЕНЦИИ</span><h2 id="specialty-radar-title">Моя карта компетенций</h2></div>
+        <p>Синяя заливка показывает ваши результаты тестирования, пунктир — максимум 10.</p>
       </div>
-      <div className="specialty-radar-gallery__grid">
-        {samples.map((sample) => {
-          const isCurrent = sample.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase();
-          const shownSkills = isCurrent && currentComplete ? currentSkills
-            : comparisonRoadmap?.specialization.toLowerCase() === sample.specialization.toLowerCase() ? comparisonRoadmap.skills : null;
-          const hasResults = Boolean(shownSkills);
-          const values = shownSkills ? shownSkills.map((skill) => skill.level_out_of_ten ?? 0) : sample.values;
-          const axisLabels = shownSkills ? shownSkills.map((skill) => skill.label) : sample.labels;
-          return (
-            <article className={`specialty-radar-card${hasResults ? " specialty-radar-card--current" : ""}`} key={sample.specialization}>
-              <div className="specialty-radar-card__head">
-                <strong>{sample.specialization}</strong>
-                <span>{hasResults ? "ВАШИ РЕЗУЛЬТАТЫ" : isCurrent ? "ОЖИДАЮТ ТЕСТА" : "ДЕМО-ПРИМЕР"}</span>
-              </div>
-              {isCurrent && !currentComplete
-                ? <div className="grade-radar-empty"><strong>Ваша карта пока не готова</strong><p>Пройдите все базовые тесты, чтобы увидеть свои результаты.</p></div>
-                : <Radar values={values} target={values.map(() => 10)} axisLabels={axisLabels} description={`Радар компетенций: ${sample.specialization}`} />}
-              {(!isCurrent || currentComplete) && <ul>
-                {axisLabels.map((label, index) => (
-                  <li key={`${sample.specialization}-${label}`}><span>{label}</span><strong>{values[index].toFixed(1)}<small> / 10</small></strong></li>
-                ))}
-              </ul>}
-            </article>
-          );
-        })}
+      <div className="specialty-radar-gallery__grid specialty-radar-gallery__grid--single">
+        <article className={`specialty-radar-card${hasResults ? " specialty-radar-card--current" : ""}`}>
+          <div className="specialty-radar-card__head">
+            <strong>{currentSpecialization ?? "Специализация не выбрана"}</strong>
+            <span>{hasResults ? "ВАШИ РЕЗУЛЬТАТЫ" : currentSpecialization ? "ОЖИДАЮТ ТЕСТА" : "НУЖНО НАСТРОИТЬ"}</span>
+          </div>
+          {currentSpecialization && !currentComplete
+            ? <div className="grade-radar-empty"><strong>Ваша карта пока не готова</strong><p>Пройдите все базовые тесты, чтобы увидеть свои результаты.</p></div>
+            : hasResults
+              ? <Radar values={values} target={values.map(() => 10)} axisLabels={axisLabels} description={`Радар компетенций: ${currentSpecialization}`} />
+              : <div className="grade-radar-empty"><strong>Выберите специализацию</strong><p>После настройки направления здесь появится ваша карта компетенций.</p></div>}
+          {hasResults && <ul>
+            {axisLabels.map((label, index) => (
+              <li key={`${currentSpecialization}-${label}`}><span>{label}</span><strong>{values[index].toFixed(1)}<small> / 10</small></strong></li>
+            ))}
+          </ul>}
+        </article>
       </div>
     </section>
   );
@@ -4555,7 +4547,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             <Button variant="outline" onClick={() => onNavigate("Тестирование")}>Перейти к тестам</Button>
           </section>
         </div>
-        <SpecialtyRadarGallery currentSpecialization={profile?.specialization} currentSkills={gradeSkills} currentComplete={baselineComplete} comparisonRoadmap={comparisonRoadmap} />
+        <SpecialtyRadarGallery currentSpecialization={profile?.specialization} currentSkills={gradeSkills} currentComplete={baselineComplete} />
         <section className="feature-card additional-specialization-card">
           <div className="feature-head"><div><span>МОИ СПЕЦИАЛИЗАЦИИ</span><strong>Добавьте специализацию и заявите грейд</strong></div></div>
           <p className="feature-description feature-description--left">По каждой специализации можно заявить свой грейд и подтвердить его отдельным набором тестов. Все подтверждённые направления участвуют в подборе.</p>
@@ -4592,7 +4584,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Результаты проверок</strong></div><Button onClick={() => onNavigate("Тестирование")}>Пройти тест</Button></div>
           {testHistory.length ? <div className="history-table history-table--tests">{testHistory.map((item) => <div key={item.id}><span>{new Date(item.created_at).toLocaleDateString("ru-RU")}</span><strong>{item.skill_code ? `${roadmap?.skills.find((skill) => skill.code === item.skill_code)?.label ?? additionalTests.find((skill) => skill.code === item.skill_code)?.label ?? item.skill_code}${item.assessment_id ? ` · ${item.target_grade}` : ""}` : `${item.specialization} · ${item.target_grade}`}</strong><b>{item.status === "completed" ? item.assessment_id ? "Обязательный навык" : item.skill_code ? item.passed ? "Дополнительный навык подтверждён" : "Дополнительный навык не подтверждён" : "Общий тест прежнего формата" : item.status === "expired" ? "Срок истёк" : item.status === "cancelled" ? "Прерван" : "В процессе"}</b><em>{item.status === "completed" ? `${item.percentage}%` : "—"}</em></div>)}</div> : <div className="empty-state">Истории тестирования пока нет</div>}
         </section>
-        {roadmap && <section className="feature-card"><div className="feature-head"><div><span>ПОСЛЕДНИЙ БАЗОВЫЙ НАБОР</span><strong>{roadmap.specialization} · {roadmap.target_grade}</strong></div></div><div className="topic-summary">{roadmap.skills.map((skill) => <div key={skill.code}><span>{skill.label}</span><strong>{skill.status === "completed" ? `${skill.level_out_of_ten} из 10 на уровне ${roadmap.target_grade}` : "Не пройден"}</strong></div>)}</div>{roadmap.status === "completed" && <p className="feature-description feature-description--left">Итого {roadmap.percentage}% · {roadmap.passed ? "грейд подтверждён" : "грейд не подтверждён"}</p>}</section>}
+        {roadmap && <section className="feature-card last-base-set-card"><div className="feature-head"><div><span>ПОСЛЕДНИЙ БАЗОВЫЙ НАБОР</span><strong>{roadmap.specialization} · {roadmap.target_grade}</strong></div></div><div className="topic-summary">{roadmap.skills.map((skill) => <div key={skill.code}><span>{skill.label}</span><strong>{skill.status === "completed" ? `${skill.level_out_of_ten} из 10 на уровне ${roadmap.target_grade}` : "Не пройден"}</strong></div>)}</div>{roadmap.status === "completed" && <p className="feature-description feature-description--left">Итого {roadmap.percentage}% · {roadmap.passed ? "грейд подтверждён" : "грейд не подтверждён"}</p>}</section>}
         {additionalTests.some((skill) => skill.passed) && <section className="feature-card"><div className="feature-head"><div><span>ДОПОЛНИТЕЛЬНЫЕ НАВЫКИ</span><strong>Подтверждённые результаты</strong></div></div><div className="topic-summary">{additionalTests.filter((skill) => skill.passed).map((skill) => <div key={skill.code}><span>{skill.label}</span><strong>{skill.latest_percentage}%</strong></div>)}</div></section>}
       </div>
     );
