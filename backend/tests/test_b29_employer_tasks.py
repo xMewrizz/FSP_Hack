@@ -57,6 +57,43 @@ async def register_and_login(
 
 
 @pytest.mark.asyncio
+async def test_task_submission_opens_private_dialogue_for_both_participants(client: AsyncClient):
+    _, employer = await register_and_login(client, "task_chat_employer@fsp.ru", "employer")
+    _, candidate = await register_and_login(client, "task_chat_candidate@fsp.ru", "candidate")
+    _, outsider = await register_and_login(client, "task_chat_outsider@fsp.ru", "candidate")
+    created = await client.post("/api/v1/employer/tasks", headers=employer, json={
+        "title": "Спроектировать API", "description": "Опишите решение", "task_type": "manual_review",
+        "specialization": "Backend", "min_grade": "junior", "max_grade": "senior",
+        "evaluation_criteria": ["Корректность"],
+    })
+    assert created.status_code == 201
+    submitted = await client.post(
+        f"/api/v1/candidate/tasks/{created.json()['id']}/submit",
+        headers=candidate, json={"answer_text": "Предлагаю выделить контракт и обработать ошибки."},
+    )
+    assert submitted.status_code == 200
+    submission_id = submitted.json()["id"]
+    messages_url = f"/api/v1/tasks/submissions/{submission_id}/messages"
+    assert (await client.get(messages_url, headers=outsider)).status_code == 404
+    assert (await client.post(messages_url, headers=outsider, json={"body": "Чужой чат"})).status_code == 404
+    assert (await client.post(messages_url, headers=employer, json={"body": "   "})).status_code == 422
+    assert (await client.get(messages_url, headers=employer)).json() == []
+    sent = await client.post(messages_url, headers=employer, json={"body": "Расскажите про ошибки API."})
+    assert sent.status_code == 201
+    assert sent.json()["is_mine"] is True
+    candidate_history = await client.get(messages_url, headers=candidate)
+    assert [item["is_mine"] for item in candidate_history.json()] == [False]
+    reply = await client.post(messages_url, headers=candidate, json={"body": "Добавлю коды 4xx и 5xx."})
+    assert reply.status_code == 201
+    assert [item["is_mine"] for item in (await client.get(messages_url, headers=employer)).json()] == [True, False]
+    for headers in (candidate, employer):
+        listed = await client.get("/api/v1/tasks/conversations", headers=headers)
+        assert listed.status_code == 200
+        assert any(item["submission_id"] == submission_id for item in listed.json())
+    assert (await client.get("/api/v1/tasks/conversations", headers=outsider)).json() == []
+
+
+@pytest.mark.asyncio
 async def test_employer_creates_auto_check_task(client: AsyncClient):
     _, emp_headers = await register_and_login(client, "emp1@b29.ru", "employer", "Яндекс")
 

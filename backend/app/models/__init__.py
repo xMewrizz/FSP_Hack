@@ -16,7 +16,7 @@ from app.models.network_conversation import NetworkConversation, NetworkMessage
 from app.models.resume_version import ResumeVersion
 from app.models.test import GradeAssessment, OpenQuestionSubmission, Question, TestSession
 from app.models.candidate_activity import CandidateActivity
-from app.models.employer_task import EmployerTask, EmployerTaskSubmission, TaskAttachment
+from app.models.employer_task import EmployerTask, EmployerTaskMessage, EmployerTaskSubmission, TaskAttachment
 from app.models.token import EmailVerification, RefreshToken
 from app.models.user import User
 from app.models.vacancy import Vacancy, VacancyAccess, VacancyApplication
@@ -33,6 +33,7 @@ __all__ = [
     "EmployerProfile",
     "EmployerTask",
     "EmployerTaskSubmission",
+    "EmployerTaskMessage",
     "TaskAttachment",
     "EmployerOrganization",
     "EmployerTeamInvitation",

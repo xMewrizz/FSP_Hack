@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent,
 import { apiGet, apiPost, apiPut, apiRequest, clearSession, saveSession } from "./api";
 import OpenQuestions from "./OpenQuestions";
 import TaskWorkspace from "./TaskWorkspace";
+import TaskChatPanel, { type TaskConversation } from "./TaskChatPanel";
 import spiderCode from "./assets/spider-code.png";
 import spiderIdea from "./assets/spider-idea.png";
 import spiderMap from "./assets/spider-map.png";
@@ -3000,6 +3001,7 @@ function DialogsScreen({
   const [invitations, setInvitations] = useState<DialogueInvitation[]>([]);
   const [networkConversations, setNetworkConversations] = useState<NetworkConversation[]>([]);
   const [applicationChats, setApplicationChats] = useState<ApplicationDialogue[]>([]);
+  const [taskConversations, setTaskConversations] = useState<TaskConversation[]>([]);
   const [mentors, setMentors] = useState<MentorProfile[]>([]);
   const [selectedTarget, setSelectedTarget] = useState<string | null>(initialTarget);
   const [skillQuery, setSkillQuery] = useState("");
@@ -3020,10 +3022,12 @@ function DialogsScreen({
       const applicationRequest = demoMode
         ? apiGet<ApplicationDialogue[]>("/vacancies/applications/conversations")
         : Promise.resolve([] as ApplicationDialogue[]);
-      const [invitationItems, networkItems, applicationItems] = await Promise.all([invitationRequest, networkRequest, applicationRequest]);
+      const taskRequest = demoMode ? Promise.resolve([] as TaskConversation[]) : apiGet<TaskConversation[]>("/tasks/conversations");
+      const [invitationItems, networkItems, applicationItems, taskItems] = await Promise.all([invitationRequest, networkRequest, applicationRequest, taskRequest]);
       setInvitations(invitationItems.filter((item) => item.status === "accepted"));
       setNetworkConversations(networkItems);
       setApplicationChats(applicationItems);
+      setTaskConversations(taskItems);
       setError("");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Не удалось загрузить диалоги");
@@ -3084,6 +3088,8 @@ function DialogsScreen({
     ? selectedTarget.slice("application:".length)
     : null;
   const selectedApplicationChat = applicationChats.find((item) => item.id === applicationTarget);
+  const taskTarget = selectedTarget?.startsWith("task:") ? selectedTarget.slice("task:".length) : null;
+  const selectedTaskConversation = taskConversations.find((item) => item.submission_id === taskTarget);
   const normalizedConversationQuery = conversationQuery.trim().toLocaleLowerCase();
   const filteredInvitations = invitations.filter((item) =>
     [employer ? item.candidate_name : item.company_name, item.need_title ?? ""]
@@ -3099,6 +3105,10 @@ function DialogsScreen({
       item.vacancy_title,
       item.last_message,
     ].some((value) => value.toLocaleLowerCase().includes(normalizedConversationQuery)),
+  );
+  const filteredTaskConversations = taskConversations.filter((item) =>
+    [item.other_name, item.task_title, item.last_message ?? ""]
+      .some((value) => value.toLocaleLowerCase().includes(normalizedConversationQuery)),
   );
 
   if (!employer && initialMode === "mentors") {
@@ -3149,6 +3159,12 @@ function DialogsScreen({
               <CandidateAvatar initials={getAvatarInitials(otherName)} corporate /><span className="dialogue-list-item__body"><strong>{otherName}</strong><small>{item.vacancy_title}</small><span>{item.last_message || "Отклик · ждёт ответа"}</span></span><Icon name="briefcase" size={15} />
             </button>;
           })}
+          {filteredTaskConversations.map((item) => {
+            const target = `task:${item.submission_id}`;
+            return <button type="button" className={`dialogue-list-item ${selectedTarget === target ? "dialogue-list-item--active" : ""}`} key={target} onClick={() => setSelectedTarget(target)}>
+              <CandidateAvatar initials={getAvatarInitials(item.other_name)} corporate /><span className="dialogue-list-item__body"><strong>{item.other_name}</strong><small>Задание · {item.task_title}</small><span>{item.last_message || "Переписка по решению задания"}</span></span><Icon name="briefcase" size={15} />
+            </button>;
+          })}
           {filteredInvitations.map((item) => {
             const target = `invitation:${item.id}`;
             const otherName = employer ? item.candidate_name : item.company_name;
@@ -3162,7 +3178,7 @@ function DialogsScreen({
               <CandidateAvatar initials={getAvatarInitials(item.other_name)} corporate /><span className="dialogue-list-item__body"><strong>{item.other_name}</strong><small>Наставник · {item.skill_focus}</small><span>{item.status === "pending" ? item.can_accept ? "Новый запрос" : "Ожидает ответа" : item.last_message || "Диалог наставничества"}</span></span><Icon name={item.can_accept ? "sparkle" : "chevron"} size={15} />
             </button>;
           })}
-          {!loading && filteredInvitations.length === 0 && filteredApplicationChats.length === 0 && (employer || filteredNetworkConversations.length === 0) && <div className="dialogues-empty">{normalizedConversationQuery ? "Совпадений не найдено. Попробуйте изменить запрос." : "Пока нет диалогов. Принятые приглашения и отклики на вакансии появятся здесь."}</div>}
+          {!loading && filteredInvitations.length === 0 && filteredApplicationChats.length === 0 && filteredTaskConversations.length === 0 && (employer || filteredNetworkConversations.length === 0) && <div className="dialogues-empty">{normalizedConversationQuery ? "Совпадений не найдено. Попробуйте изменить запрос." : "Пока нет диалогов. Принятые приглашения и ответы на задания появятся здесь."}</div>}
           </>
         </aside>
         <section className="dialogues-thread">
@@ -3178,7 +3194,8 @@ function DialogsScreen({
             onRefresh={refresh}
           />}
           {selectedNetworkConversation && <NetworkChatPanel conversation={selectedNetworkConversation} onRefresh={refresh} onNotify={onNotify} />}
-          {!selectedInvitation && !selectedNetworkConversation && <div className="dialogues-placeholder"><div><strong>Выберите диалог</strong><span>История, контекст приглашения и отправка сообщений будут здесь.</span></div></div>}
+          {selectedTaskConversation && <TaskChatPanel key={selectedTaskConversation.submission_id} submissionId={selectedTaskConversation.submission_id} taskTitle={selectedTaskConversation.task_title} otherName={selectedTaskConversation.other_name} onMessageSent={() => void refresh()} />}
+          {!selectedInvitation && !selectedApplicationChat && !selectedNetworkConversation && !selectedTaskConversation && <div className="dialogues-placeholder"><div><strong>Выберите диалог</strong><span>История и отправка сообщений будут здесь.</span></div></div>}
         </section>
       </div>
     </div>

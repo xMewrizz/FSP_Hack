@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { apiGet, apiPost, apiRequest } from "./api";
 import { ALL_GRADES, ALL_SPECIALIZATIONS } from "./catalog";
+import TaskChatPanel from "./TaskChatPanel";
 
 type TaskFile = { id: string; file_name: string; download_url: string };
 type TaskSubmission = {
@@ -165,6 +166,7 @@ export default function TaskWorkspace({
   const notifyRef = useRef(onNotify);
   const [tasks, setTasks] = useState<EmployerTask[]>(demoMode ? (role === "candidate" ? demoCandidateTasks : demoTasks) : []);
   const [selectedTaskId, setSelectedTaskId] = useState(demoMode && role === "employer" ? demoTasks[0].id : "");
+  const [openChatSubmissionId, setOpenChatSubmissionId] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<TaskSubmission[]>(demoMode && role === "employer" ? [demoSubmissions[0]] : []);
   const [mockSubmissions, setMockSubmissions] = useState(demoSubmissions);
   const [busy, setBusy] = useState(false);
@@ -477,7 +479,7 @@ export default function TaskWorkspace({
                 </> : <>
                   <p>{submission.feedback || "Работодатель оценил решение."}</p>
                   {submission.contact_consent && <div className="task-workspace__invite">
-                    <h4>Кандидат разрешил представителю компании связаться</h4>
+                    <h4>Пригласить кандидата к сотрудничеству</h4>
                     <label className="field"><span>СПОСОБ СВЯЗИ</span><input value={inviteContact} onChange={(event) => setInviteContact(event.target.value)} placeholder="Почта, телефон или ссылка на чат" /></label>
                     <div className="field-row field-row--flush">
                       <label className="field"><span>ЗАРПЛАТА ОТ, ₽</span><input type="number" min="1" value={inviteSalaryMin} onChange={(event) => setInviteSalaryMin(event.target.value)} /></label>
@@ -486,6 +488,7 @@ export default function TaskWorkspace({
                     <button type="button" className="button" onClick={() => void inviteCandidate(submission)}>Отправить приглашение</button>
                   </div>}
                 </>}
+                {!demoMode && <><button type="button" className="button button--outline" onClick={() => setOpenChatSubmissionId((current) => current === submission.id ? null : submission.id)}>{openChatSubmissionId === submission.id ? "Скрыть переписку" : "Написать в личку"}</button>{openChatSubmissionId === submission.id && <TaskChatPanel submissionId={submission.id} taskTitle={selectedTask.title} otherName={submission.candidate_name ?? "Кандидат"} />}</>}
               </article>)}
               {!submissions.length && <p className="empty-state">Ответов на это задание пока нет.</p>}
             </div>
@@ -508,9 +511,10 @@ export default function TaskWorkspace({
           <label className="field"><span>ВАШЕ РЕШЕНИЕ</span><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} /></label>
           <label className="field"><span>ССЫЛКИ НА МАТЕРИАЛЫ ИЛИ ПРИМЕР РЕШЕНИЯ</span><textarea placeholder="https://example.com/your-work" value={links} onChange={(event) => setLinks(event.target.value)} /></label>
           {fileControls}
-          <div className="task-workspace__candidate-status task-workspace__candidate-status--pending"><TaskIcon name="briefcase" size={17} /><span>После проверки задания представитель компании сможет связаться с вами.</span></div>
+          <div className="task-workspace__candidate-status task-workspace__candidate-status--pending"><TaskIcon name="briefcase" size={17} /><span>После отправки решения вы сможете переписываться с работодателем внутри сервиса. Контакты откроются ему только после принятия приглашения.</span></div>
           <button type="button" className="button" disabled={busy || uploading} onClick={() => void submitAnswer(task)}><TaskIcon name="check" size={16} />{busy ? "Отправляем…" : "Отправить решение"}</button>
         </>}
+        {task.my_submission && !demoMode && <><button type="button" className="button button--outline" onClick={() => setOpenChatSubmissionId((current) => current === task.my_submission?.id ? null : task.my_submission?.id ?? null)}>{openChatSubmissionId === task.my_submission.id ? "Скрыть переписку" : "Написать работодателю"}</button>{openChatSubmissionId === task.my_submission.id && <TaskChatPanel submissionId={task.my_submission.id} taskTitle={task.title} otherName={task.company_name ?? "Работодатель"} />}</>}
       </article>)}
       {!tasks.length && <div className="empty-state">Для вашего направления пока нет активных заданий.</div>}
     </div>}

@@ -11114,6 +11114,20 @@ select,
   gap: 0.75rem;
 }
 
+.app-shell .task-workspace .task-conversation {
+  width: 100%;
+  max-height: 34rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  padding: 0.9rem;
+  color: var(--text);
+}
+
+.app-shell .task-workspace__submission .task-conversation .conversation-message p {
+  color: var(--text);
+}
+
 .app-shell .conversation-panel__header {
   display: flex;
   align-items: center;
