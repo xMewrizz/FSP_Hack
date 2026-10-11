@@ -392,7 +392,7 @@ const DEMO_PASSWORD = "Password123!";
 const isDemoAccountEmail = (email: string) =>
   Object.values(DEMO_ACCOUNTS).some((demoEmail) => demoEmail === email.trim().toLocaleLowerCase());
 
-const EMPLOYER_PAGES = ["Обзор", "Подборка", "Банк кандидатов", "Потребности", "Задания", "Диалоги", "Наставники компании", "Приглашения", "Вакансии компании", "Аналитика", "Настройки"];
+const EMPLOYER_PAGES = ["Обзор", "Подборка", "Банк кандидатов", "Потребности", "Задания", "Диалоги", "Приглашения", "Вакансии компании", "Аналитика", "Настройки"];
 const CANDIDATE_PAGES = ["Обзор", "Профиль", "Тестирование", "Мой грейд", "Задания", "Диалоги", "Поиск ментора", "Приглашения", "Вакансии", "Настройки"];
 
 function pageForRole(page: string, role: "employer" | "candidate") {
@@ -479,17 +479,6 @@ type EmployerTeamRecord = {
   members: Array<{ user_id: string; email: string; company_name: string; is_owner: boolean; team_role: "owner" | "team_lead" | "hr" }>;
   invitations: Array<{ id: string; invited_email: string; status: "pending" | "accepted" | "cancelled"; created_at: string; team_role: "team_lead" | "hr" }>;
   received_invitations: Array<{ id: string; invited_email: string; status: "pending" | "accepted" | "cancelled"; created_at: string; team_role: "team_lead" | "hr" }>;
-};
-
-type EmployerMentorRecord = {
-  user_id: string;
-  name: string;
-  specialization: string | null;
-  verified_grade: string | null;
-  skills: string[];
-  city: string | null;
-  company_link: string;
-  photo_url?: string | null;
 };
 
 type RequestedSkillTest = {
@@ -1542,7 +1531,6 @@ const pageCopy: Record<string, { eyebrow: string; title: string }> = {
   Тестирование: { eyebrow: "ПРОВЕРКА НАВЫКОВ", title: "Тестирование" },
   "Мой грейд": { eyebrow: "ВАШ ПРОФЕССИОНАЛЬНЫЙ ПРОФИЛЬ", title: "Мой грейд" },
   Задания: { eyebrow: "ПРАКТИЧЕСКИЕ ЗАДАНИЯ", title: "Задания и решения" },
-  "Наставники компании": { eyebrow: "ВНУТРЕННЯЯ ЭКСПЕРТИЗА", title: "Наставники компании" },
   Вакансии: { eyebrow: "ОТКРЫТЫЕ ПОЗИЦИИ", title: "Вакансии" },
   "Вакансии компании": { eyebrow: "ВАШИ ПУБЛИКАЦИИ И ОТКЛИКИ", title: "Мои вакансии" },
 };
@@ -2137,9 +2125,6 @@ function EmployerScreen({
   const [needSaving, setNeedSaving] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<EmployerProfileData | null>(null);
   const [companyLoading, setCompanyLoading] = useState(false);
-  const [companyMentors, setCompanyMentors] = useState<EmployerMentorRecord[]>([]);
-  const [companyMentorsLoading, setCompanyMentorsLoading] = useState(false);
-  const [companyMentorQuery, setCompanyMentorQuery] = useState("");
   const [bankItems, setBankItems] = useState<Candidate[]>([]);
   const [bankFilters, setBankFilters] = useState<BankFilters>(() => {
     const defaults = { query: "", skill: "", specialization: "", grade: "", format: "", city: "", education: "", course: "", ageMin: "", ageMax: "", fspOnly: false };
@@ -2183,19 +2168,12 @@ function EmployerScreen({
         .then(setNeeds)
         .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить потребности", "error"));
     }
-    if (active === "Настройки" || active === "Наставники компании") {
-      if (active === "Настройки") {
-        setCompanyLoading(true);
-        apiGet<EmployerProfileData>("/employer/profile")
-          .then(setCompanyProfile)
-          .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить компанию", "error"))
-          .finally(() => setCompanyLoading(false));
-      }
-      setCompanyMentorsLoading(true);
-      apiGet<EmployerMentorRecord[]>("/employer/mentors")
-        .then(setCompanyMentors)
-        .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить наставников компании", "error"))
-        .finally(() => setCompanyMentorsLoading(false));
+    if (active === "Настройки") {
+      setCompanyLoading(true);
+      apiGet<EmployerProfileData>("/employer/profile")
+        .then(setCompanyProfile)
+        .catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить компанию", "error"))
+        .finally(() => setCompanyLoading(false));
     }
   }, [active]);
 
@@ -2673,39 +2651,6 @@ function EmployerScreen({
     return <Invitations employer onNotify={onNotify} onNavigate={onNavigate} />;
   }
 
-  if (active === "Наставники компании") {
-    const query = companyMentorQuery.trim().toLocaleLowerCase();
-    const shownMentors = companyMentors.filter((mentor) =>
-      [mentor.name, mentor.specialization ?? "", mentor.verified_grade ?? "", mentor.city ?? "", ...mentor.skills]
-        .some((value) => value.toLocaleLowerCase().includes(query)),
-    );
-    return <div className="page-content company-mentors-page">
-      <section className="company-mentors-hero">
-        <div>
-          <span>HR · ВНУТРЕННИЕ НАСТАВНИКИ</span>
-          <h2>Кто готов делиться опытом</h2>
-          <p>Кандидаты, связанные с компанией откликом или принятым приглашением и включившие доступность наставничества.</p>
-        </div>
-        <strong>{companyMentors.length}<small> наставников</small></strong>
-      </section>
-      <div className="company-mentors-toolbar">
-        <label className="search-field"><Icon name="search" /><input aria-label="Поиск по наставникам" placeholder="Имя, направление или навык" value={companyMentorQuery} onChange={(event) => setCompanyMentorQuery(event.target.value)} /></label>
-        <span>Показываем только профили с подтверждённым грейдом и открытой видимостью.</span>
-      </div>
-      <section className="company-mentors-grid" aria-label="Наставники компании">
-        {companyMentorsLoading ? <div className="empty-state">Загружаем наставников…</div> : shownMentors.length ? shownMentors.map((mentor) => <article className="company-mentor-card" key={mentor.user_id}>
-          <div className="company-mentor-card__person">
-            <CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} photoUrl={mentor.photo_url} large corporate={demoMode} />
-            <div><strong>{mentor.name}</strong><span>{mentor.specialization ?? "Специализация не указана"} · {mentor.verified_grade ?? "Грейд не подтверждён"}</span></div>
-          </div>
-          <div className="company-mentor-card__meta"><span>{mentor.city ?? "Город не указан"}</span><span>{mentor.company_link}</span></div>
-          <div className="mini-tags">{mentor.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
-          <div className="company-mentor-card__footer"><span><i /> Готов(а) быть наставником</span><small>Связь с компанией подтверждена</small></div>
-        </article>) : <div className="empty-state">{companyMentors.length ? "По вашему запросу наставники не найдены." : "Пока нет связанных с компанией кандидатов, включивших наставничество."}</div>}
-      </section>
-    </div>;
-  }
-
   if (!demoMode && active === "Аналитика") {
     const activeNeeds = needs.filter((need) => need.is_active);
     const publishedVacancies = vacancies.filter((vacancy) => vacancy.is_published).length;
@@ -2833,7 +2778,7 @@ function EmployerScreen({
               <CandidateAvatar initials={`${application.candidate.first_name[0] ?? ""}${application.candidate.last_name[0] ?? ""}`} corporate={demoMode} />
               <div className="vacancy-application__person"><strong>{application.candidate.first_name} {application.candidate.last_name}</strong><span>{application.candidate.specialization ?? "Специализация не указана"} · {application.candidate.verified_grade ?? "Грейд не подтверждён"} · {application.candidate.city ?? "Город не указан"}</span><span>{application.candidate.email}{application.candidate.phone ? ` · ${application.candidate.phone}` : ""}{application.candidate.telegram ? ` · ${application.candidate.telegram}` : ""}</span>{application.cover_letter && <p>{application.cover_letter}</p>}</div>
               <span className="vacancy-application__status">{application.status === "accepted" ? "Принят" : application.status === "rejected" ? "Отклонён" : application.status === "reviewed" ? "Просмотрен" : "Новый"}</span>
-              {demoMode && <Button variant="outline" onClick={() => onNavigate("Диалоги", `application:${application.id}`)}>Открыть диалог</Button>}
+              <Button variant="outline" onClick={() => onNavigate("Диалоги", `application:${application.id}`)}>Написать кандидату</Button>
               {application.status !== "accepted" && application.status !== "rejected" && <div className="vacancy-application__actions"><Button variant="outline" onClick={() => void updateVacancyApplication(application.id, "reviewed")}>Просмотрен</Button><Button onClick={() => void updateVacancyApplication(application.id, "accepted")}>Принять</Button><Button variant="ghost" onClick={() => void updateVacancyApplication(application.id, "rejected")}>Отклонить</Button></div>}
             </article>
           ))}
@@ -2858,15 +2803,6 @@ function EmployerScreen({
         <section className="feature-card">
           <div className="feature-head"><div><span>ИНТЕГРАЦИИ</span><strong>Подключения компании</strong></div></div>
           <div className="integration-card"><Icon name="settings" /><div><strong>ATS-интеграция</strong><span>Подключение не настроено</span></div></div>
-        </section>
-        <section className="feature-card employer-mentors">
-          <div className="feature-head"><div><span>СВЯЗАННЫЕ С КОМПАНИЕЙ ПРОФИЛИ</span><strong>Кандидаты-наставники</strong></div><Button variant="outline" onClick={() => onNavigate("Наставники компании")}>Открыть список · {companyMentors.length}</Button></div>
-          <p className="feature-description feature-description--left">Здесь показаны пользователи платформы, которые откликались на вакансии или приняли приглашение компании и включили доступность наставничества.</p>
-          {companyMentorsLoading ? <div className="empty-state">Загружаем наставников…</div> : companyMentors.length ? companyMentors.map((mentor) => <article className="employer-mentor-row" key={mentor.user_id}>
-            <CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} photoUrl={mentor.photo_url} corporate={demoMode} />
-            <div><strong>{mentor.name}</strong><span>{mentor.specialization ?? "Специализация не указана"} · {mentor.verified_grade ?? "Грейд не подтверждён"} · {mentor.city ?? "Город не указан"}</span><small>{mentor.company_link}</small><div className="mini-tags">{mentor.skills.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}</div></div>
-            <span className="employer-mentor-row__badge">Наставник</span>
-          </article>) : <div className="empty-state">Пока нет связанных с компанией кандидатов, доступных как наставники.</div>}
         </section>
         <EmployerTeamWorkspace onNotify={onNotify} />
       </div>
@@ -3019,9 +2955,7 @@ function DialogsScreen({
       const networkRequest = employer
         ? Promise.resolve([] as NetworkConversation[])
         : apiGet<NetworkConversation[]>("/network/conversations");
-      const applicationRequest = demoMode
-        ? apiGet<ApplicationDialogue[]>("/vacancies/applications/conversations")
-        : Promise.resolve([] as ApplicationDialogue[]);
+      const applicationRequest = apiGet<ApplicationDialogue[]>("/vacancies/applications/conversations");
       const taskRequest = demoMode ? Promise.resolve([] as TaskConversation[]) : apiGet<TaskConversation[]>("/tasks/conversations");
       const [invitationItems, networkItems, applicationItems, taskItems] = await Promise.all([invitationRequest, networkRequest, applicationRequest, taskRequest]);
       setInvitations(invitationItems.filter((item) => item.status === "accepted"));
@@ -3178,7 +3112,7 @@ function DialogsScreen({
               <CandidateAvatar initials={getAvatarInitials(item.other_name)} corporate /><span className="dialogue-list-item__body"><strong>{item.other_name}</strong><small>Наставник · {item.skill_focus}</small><span>{item.status === "pending" ? item.can_accept ? "Новый запрос" : "Ожидает ответа" : item.last_message || "Диалог наставничества"}</span></span><Icon name={item.can_accept ? "sparkle" : "chevron"} size={15} />
             </button>;
           })}
-          {!loading && filteredInvitations.length === 0 && filteredApplicationChats.length === 0 && filteredTaskConversations.length === 0 && (employer || filteredNetworkConversations.length === 0) && <div className="dialogues-empty">{normalizedConversationQuery ? "Совпадений не найдено. Попробуйте изменить запрос." : "Пока нет диалогов. Принятые приглашения и ответы на задания появятся здесь."}</div>}
+          {!loading && filteredInvitations.length === 0 && filteredApplicationChats.length === 0 && filteredTaskConversations.length === 0 && (employer || filteredNetworkConversations.length === 0) && <div className="dialogues-empty">{normalizedConversationQuery ? "Совпадений не найдено. Попробуйте изменить запрос." : "Пока нет диалогов. Отклики на вакансии, принятые приглашения и ответы на задания появятся здесь."}</div>}
           </>
         </aside>
         <section className="dialogues-thread">
@@ -3255,7 +3189,7 @@ function VacancyApplicationChat({
   const otherName = employer ? application.candidate_name : application.company_name;
   return <div className="conversation-panel application-conversation">
     <header className="conversation-panel__header"><div><span>ОТКЛИК НА ВАКАНСИЮ · {application.status === "pending" ? "НА РАССМОТРЕНИИ" : application.status.toUpperCase()}</span><strong>{otherName}</strong><small>{application.vacancy_title}</small></div><CandidateAvatar initials={getAvatarInitials(otherName)} corporate /></header>
-    <div className="application-conversation__note"><Icon name="info" size={15} /> Демо-чат отклика. История сохраняется в этой демонстрационной сессии.</div>
+    <div className="application-conversation__note"><Icon name="info" size={15} /> Переписка доступна кандидату и работодателю по этому отклику.</div>
     {error && <div className="conversation-error" role="alert">{error}</div>}
     <div className="conversation-messages" aria-label="Переписка по отклику">
       {loading ? <div className="empty-state">Загружаем историю…</div> : messages.length === 0 ? <div className="empty-state">Начните общение по отклику.</div> : messages.map((message) => <div className={`conversation-message-row${message.is_mine ? " conversation-message-row--mine" : ""}`} key={message.id}>{message.is_mine ? <span className="conversation-message__avatar" aria-hidden="true">Я</span> : <CandidateAvatar initials={getAvatarInitials(otherName)} corporate className="conversation-message__avatar" />}<article className={`conversation-message ${message.is_mine ? "conversation-message--mine" : ""}`}><p>{message.body}</p><time dateTime={message.created_at}>{new Date(message.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</time></article></div>)}
@@ -4842,6 +4776,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               <div className="job-card__top"><div className="invitation-logo">{application.company_name.slice(0, 2).toUpperCase()}</div><div><strong>{application.vacancy_title}</strong><span>{application.company_name}</span></div><b className={`job-card__status job-card__status--${application.status}`}>{applicationStatusLabel(application.status)}</b></div>
               <div className="job-salary">{new Intl.NumberFormat("ru-RU").format(application.salary_min)}–{new Intl.NumberFormat("ru-RU").format(application.salary_max)} ₽ {application.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}</div>
               <p>{application.status === "pending" ? "Отклик отправлен. Работодатель ещё не ответил." : application.status === "reviewed" ? "Работодатель рассматривает отклик." : application.status === "accepted" ? "Работодатель принял отклик." : "Работодатель отклонил отклик."}</p>
+              <Button variant="outline" onClick={() => onNavigate("Диалоги", `application:${application.id}`)}>Написать работодателю</Button>
             </article>
           ))}
           {!jobsLoading && (jobsTab === "applications" ? visibleApplications.length === 0 : visibleVacancies.length === 0) && <div className="empty-state">{jobsTab === "applications" ? "Откликов по этому запросу нет" : "Подходящих опубликованных вакансий пока нет"}</div>}
@@ -5780,7 +5715,6 @@ function App() {
           ["briefcase", "Потребности"],
           ["briefcase", "Задания"],
           ["chat", "Диалоги"],
-          ["school", "Наставники компании"],
           ["mail", "Приглашения"],
           ["briefcase", "Вакансии компании"],
           ["chart", "Аналитика"],
@@ -5806,7 +5740,7 @@ function App() {
   const taskDemoMode = offlineDemo || window.localStorage.getItem("fsp-demo-session") === "true";
   const groupLabels: Record<string, string> =
     role === "employer"
-      ? { Обзор: "ГЛАВНОЕ", Потребности: "ПОДБОР", Задания: "РАБОТА", Диалоги: "ОБЩЕНИЕ", "Наставники компании": "КОМАНДА", Приглашения: "РАБОТА", Аналитика: "ДАННЫЕ" }
+      ? { Обзор: "ГЛАВНОЕ", Потребности: "ПОДБОР", Задания: "РАБОТА", Диалоги: "ОБЩЕНИЕ", Приглашения: "РАБОТА", Аналитика: "ДАННЫЕ" }
       : { Обзор: "ГЛАВНОЕ", Профиль: "ПРОФИЛЬ", Тестирование: "ОЦЕНКА", Диалоги: "ОБЩЕНИЕ", "Поиск ментора": "РОСТ", Приглашения: "РАБОТА" };
 
   const showNotice = (message: string, type: "success" | "error" = "success") => {

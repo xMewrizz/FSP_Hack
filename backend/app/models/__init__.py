@@ -20,6 +20,7 @@ from app.models.employer_task import EmployerTask, EmployerTaskMessage, Employer
 from app.models.token import EmailVerification, RefreshToken
 from app.models.user import User
 from app.models.vacancy import Vacancy, VacancyAccess, VacancyApplication
+from app.models.vacancy_message import VacancyApplicationMessage
 
 __all__ = [
     "Base",
@@ -53,4 +54,5 @@ __all__ = [
     "Vacancy",
     "VacancyAccess",
     "VacancyApplication",
+    "VacancyApplicationMessage",
 ]

@@ -201,6 +201,40 @@ async def test_vacancy_and_application_lifecycle_b30(client: AsyncClient):
     )
     assert onb2.status_code == 200
 
+    # Отклик создаёт приватный диалог между кандидатом и работодателем.
+    employer_threads = await client.get(
+        "/api/v1/vacancies/applications/conversations", headers=emp1_headers
+    )
+    assert employer_threads.status_code == 200
+    assert employer_threads.json()[0]["id"] == application_id
+    assert employer_threads.json()[0]["candidate_name"] == "Султан Разработчик"
+    candidate_threads = await client.get(
+        "/api/v1/vacancies/applications/conversations", headers=cand_headers
+    )
+    assert candidate_threads.status_code == 200
+    assert candidate_threads.json()[0]["id"] == application_id
+    assert (await client.get(
+        "/api/v1/vacancies/applications/conversations", headers=emp2_headers
+    )).json() == []
+
+    message_url = f"/api/v1/vacancies/applications/{application_id}/messages"
+    assert (await client.get(message_url, headers=emp2_headers)).status_code == 404
+    assert (await client.post(message_url, headers=emp2_headers, json={"body": "Чужой чат"})).status_code == 404
+    sent = await client.post(message_url, headers=emp1_headers, json={"body": "  Здравствуйте!  "})
+    assert sent.status_code == 201
+    assert sent.json()["body"] == "Здравствуйте!"
+    assert (await client.post(message_url, headers=cand_headers, json={"body": "  "})).status_code == 422
+    reply = await client.post(message_url, headers=cand_headers, json={"body": "Добрый день!"})
+    assert reply.status_code == 201
+    employer_messages = (await client.get(message_url, headers=emp1_headers)).json()["messages"]
+    candidate_messages = (await client.get(message_url, headers=cand_headers)).json()["messages"]
+    assert [item["body"] for item in employer_messages] == ["Здравствуйте!", "Добрый день!"]
+    assert [item["is_mine"] for item in employer_messages] == [True, False]
+    assert [item["is_mine"] for item in candidate_messages] == [False, True]
+    assert (await client.get(
+        "/api/v1/vacancies/applications/conversations", headers=emp1_headers
+    )).json()[0]["last_message"] == "Добрый день!"
+
     # Другой работодатель НЕ МОЖЕТ смотреть отклики чужой вакансии (152-ФЗ)
     forbidden_resp = await client.get(
         f"/api/v1/vacancies/{vacancy_id}/applications",

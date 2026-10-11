@@ -14,6 +14,7 @@ from app.api.v1.employer_tasks import router as employer_tasks_router
 from app.api.v1.task_messages import router as task_messages_router
 from app.api.v1.testing import router as testing_router
 from app.api.v1.vacancies import router as vacancies_router
+from app.api.v1.vacancy_messages import router as vacancy_messages_router
 
 api_v1_router = APIRouter()
 
@@ -37,6 +38,7 @@ api_v1_router.include_router(testing_router)
 api_v1_router.include_router(needs_router)
 api_v1_router.include_router(matching_router)
 api_v1_router.include_router(invitations_router)
+api_v1_router.include_router(vacancy_messages_router)
 api_v1_router.include_router(vacancies_router)
 api_v1_router.include_router(employer_tasks_router)
 api_v1_router.include_router(task_messages_router)
