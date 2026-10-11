@@ -11000,6 +11000,10 @@ select,
   outline-offset: -2px;
 }
 
+.app-shell .dialogues-search input:focus-visible {
+  outline: none;
+}
+
 .app-shell .dialogue-list-item > svg {
   flex: 0 0 auto;
   color: var(--muted);
