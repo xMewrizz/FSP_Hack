@@ -6151,7 +6151,7 @@ function App() {
                 role="button"
                 tabIndex={0}
                 aria-pressed={selected.id === candidate.id}
-                aria-label={`Открыть резюме: ${candidate.name}, ${candidate.role}`}
+                aria-label={`Открыть резюме: ${candidate.name}, ${candidate.role}, балл подбора ${candidate.score} из 100`}
                   onClick={() => chooseCandidate(candidate)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -6166,6 +6166,7 @@ function App() {
                     <div className="candidate-card__name">{candidate.name}</div>
                     <div>{candidate.role}</div>
                   </div>
+                  <div className="match" title="Балл соответствия активной потребности, из 100"><strong>{candidate.score}<small>/100</small></strong><span>БАЛЛ ПОДБОРА</span></div>
                 </div>
               </article>
             ))}

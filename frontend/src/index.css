@@ -13629,8 +13629,9 @@ select,
   position: sticky;
   z-index: 2;
   top: 0;
-  background: var(--background);
-  padding: 0.5rem 0;
+  background: var(--bg);
+  padding: 0.5rem 0.35rem 0.7rem 0;
+  border-bottom: 1px solid var(--line);
 }
 
 .app-shell .candidates-list > .list-head > div {
@@ -13717,6 +13718,14 @@ select,
   border-radius: 0.8rem;
   background: rgba(64, 47, 255, 0.06);
   padding: 0.4rem 0.55rem;
+}
+
+.app-shell .candidate-card--compact .match {
+  width: auto;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 2.7rem;
+  margin-left: auto;
 }
 
 .app-shell .candidate-card--compact .match strong {
