@@ -461,17 +461,6 @@ type MatchingCandidate = {
   };
 };
 
-type CandidateReviewRecord = {
-  candidate_profile_id: string;
-  workspace_active: boolean;
-  notes: string;
-  pipeline_status: "new" | "contact_search" | "contacted" | "screening" | "interview" | "offer" | "onboarding" | "mentor_work" | "hired" | "rejected";
-  contact_status: "not_started" | "searching" | "found" | "unavailable";
-  background_check_status: "not_started" | "pending" | "clear" | "review" | "blocked";
-  updated_at: string | null;
-  messages: Array<{ id: string; sender_user_id: string; sender_name: string; body: string; created_at: string }>;
-};
-
 type EmployerTeamRecord = {
   current_user_id: string;
   organization_id: string | null;
@@ -1040,6 +1029,7 @@ function Icon({
     sparkle: <><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3ZM19 14l1 2.5 2.5 1-2.5 1L19 21l-1-2.5-2.5-1 2.5-1L19 14Z" /></>,
     info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>,
     upload: <><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v4h16v-4" /></>,
+    download: <><path d="M12 4v12m-5-5 5 5 5-5" /><path d="M4 17v3h16v-3" /></>,
     school: <><path d="m2 10 10-6 10 6-10 6-10-6Z" /><path d="M6 12v5c3.5 3 8.5 3 12 0v-5M22 10v6" /></>,
     arrowUpRight: <><path d="M7 17 17 7M7 7h10v10" /></>,
     compare: (
@@ -1738,143 +1728,6 @@ function CandidateAvatar({
         <path d="M35 47c3 2 7 2 10 0" fill="none" stroke="#8a5149" strokeWidth="1.7" strokeLinecap="round" />
       </svg>}
     </div>
-  );
-}
-
-function CandidateReviewWorkspace({
-  candidateId,
-  onNotify,
-}: {
-  candidateId?: string;
-  onNotify: (message: string, type?: "success" | "error") => void;
-}) {
-  const notifyRef = useRef(onNotify);
-  notifyRef.current = onNotify;
-  const [review, setReview] = useState<CandidateReviewRecord | null>(null);
-  const [notes, setNotes] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [workspaceBusy, setWorkspaceBusy] = useState(false);
-  const [receivedInvitations, setReceivedInvitations] = useState<EmployerTeamRecord["received_invitations"]>([]);
-
-  useEffect(() => {
-    if (!candidateId) {
-      setReview(null);
-      setNotes("");
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setReview(null);
-    setNotes("");
-    apiGet<CandidateReviewRecord>(`/matching/candidates/${candidateId}/review`)
-      .then((data) => {
-        if (!cancelled) {
-          setReview(data);
-          setNotes(data.notes);
-          if (!data.workspace_active) {
-            return apiGet<EmployerTeamRecord>("/employer/team").then((team) => {
-              if (!cancelled) setReceivedInvitations(team.received_invitations);
-            });
-          }
-          setReceivedInvitations([]);
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) notifyRef.current(error instanceof Error ? error.message : "Не удалось загрузить HR-карточку", "error");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [candidateId]);
-
-  const activateWorkspace = async (invitationId?: string) => {
-    if (!candidateId) return;
-    setWorkspaceBusy(true);
-    try {
-      if (invitationId) {
-        await apiPost<EmployerTeamRecord>(`/employer/team/invitations/${invitationId}/accept`);
-      } else {
-        await apiPost<EmployerTeamRecord>("/employer/team/workspace");
-      }
-      const updated = await apiGet<CandidateReviewRecord>(`/matching/candidates/${candidateId}/review`);
-      setReview(updated);
-      setNotes(updated.notes);
-      setReceivedInvitations([]);
-      onNotify(invitationId ? "Вы присоединились к HR-команде" : "HR-команда компании создана");
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : "Не удалось подключить HR-команду", "error");
-    } finally {
-      setWorkspaceBusy(false);
-    }
-  };
-
-  const saveReview = async (patch: Partial<CandidateReviewRecord>) => {
-    if (!candidateId) return;
-    setSaving(true);
-    try {
-      const updated = await apiPut<CandidateReviewRecord>(`/matching/candidates/${candidateId}/review`, patch);
-      setReview(updated);
-      setNotes(updated.notes);
-      onNotify("Внутренняя карточка сохранена");
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : "Не удалось сохранить HR-карточку", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!candidateId || !message.trim()) return;
-    setSending(true);
-    try {
-      const updated = await apiPost<CandidateReviewRecord>(
-        `/matching/candidates/${candidateId}/review/messages`,
-        { body: message.trim() },
-      );
-      setReview(updated);
-      setMessage("");
-    } catch (error) {
-      onNotify(error instanceof Error ? error.message : "Не удалось отправить сообщение команде", "error");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <section className="feature-card candidate-review" aria-label="Внутренняя карточка кандидата">
-      <div className="feature-head">
-        <div><span>ВНУТРЕННЯЯ КАРТОЧКА · ВИДНА ТОЛЬКО КОМАНДЕ</span><strong>Заметки, этапы и чат коллег</strong></div>
-        {review?.updated_at && <small>Обновлено {new Date(review.updated_at).toLocaleDateString("ru-RU")}</small>}
-      </div>
-      <p className="candidate-review__privacy">Внутренние заметки и статусы видны только участникам вашей команды. Контакты не ищутся автоматически, а проверка безопасности не запускается.</p>
-      {loading ? <div className="empty-state">Загружаем заметки команды…</div> : !candidateId ? <div className="empty-state">Командная карточка появится для кандидата с публичным подтверждённым профилем.</div> : review && !review.workspace_active ? <div className="candidate-review__setup"><div><strong>Подключите команду, чтобы вести этого кандидата вместе</strong><p>Ваши заметки, этап подбора и сообщения будут доступны только коллегам, принявшим приглашение в HR-команду.</p></div>{receivedInvitations.map((invitation) => <div className="candidate-review__invite" key={invitation.id}><span>Вас пригласили в команду <strong>{invitation.invited_email}</strong></span><Button disabled={workspaceBusy} onClick={() => void activateWorkspace(invitation.id)}>{workspaceBusy ? "Подключаем…" : "Принять приглашение"}</Button></div>)}<Button variant="outline" disabled={workspaceBusy} onClick={() => void activateWorkspace()}>{workspaceBusy ? "Создаём команду…" : receivedInvitations.length ? "Или создать свою HR-команду" : "Создать HR-команду компании"}</Button></div> : review ? <>
-        <div className="candidate-review__statuses">
-          <label className="field"><span>ЭТАП ПОДБОРА</span><select value={review.pipeline_status} disabled={saving} onChange={(event) => void saveReview({ pipeline_status: event.target.value as CandidateReviewRecord["pipeline_status"] })}>
-            <option value="new">Новый</option><option value="contact_search">Поиск контакта</option><option value="contacted">Связались</option><option value="screening">Скрининг</option><option value="interview">Интервью</option><option value="offer">Оффер</option><option value="onboarding">Онбординг</option><option value="mentor_work">Работа с ментором</option><option value="hired">Нанят</option><option value="rejected">Отказ</option>
-          </select></label>
-          <label className="field"><span>ПОИСК КОНТАКТА</span><select value={review.contact_status} disabled={saving} onChange={(event) => void saveReview({ contact_status: event.target.value as CandidateReviewRecord["contact_status"] })}>
-            <option value="not_started">Не начат</option><option value="searching">В процессе</option><option value="found">Найден</option><option value="unavailable">Недоступен</option>
-          </select></label>
-          <label className="field"><span>ПРОВЕРКА СБ · ВРУЧНУЮ</span><select value={review.background_check_status} disabled={saving} onChange={(event) => void saveReview({ background_check_status: event.target.value as CandidateReviewRecord["background_check_status"] })}>
-            <option value="not_started">Не начата</option><option value="pending">В процессе</option><option value="clear">Завершена без замечаний</option><option value="review">Требует внимания</option><option value="blocked">Есть ограничения</option>
-          </select></label>
-        </div>
-        <label className="field candidate-review__notes"><span>ВНУТРЕННИЕ ЗАМЕТКИ</span><textarea value={notes} maxLength={12000} onChange={(event) => setNotes(event.target.value)} placeholder="Ожидания, вопросы для интервью, договорённости…" /></label>
-        <div className="candidate-review__save"><small>{notes.length.toLocaleString("ru-RU")} / 12 000</small><Button variant="outline" disabled={saving || notes === review.notes} onClick={() => void saveReview({ notes })}>{saving ? "Сохраняем…" : "Сохранить заметки"}</Button></div>
-        <div className="candidate-review__messages">
-          <div className="section-title"><span>ОБСУЖДЕНИЕ КОМАНДЫ</span></div>
-          {review.messages.length === 0 ? <p className="candidate-review__empty">Пока нет внутренних сообщений. Обсуждение останется внутри команды.</p> : <div className="candidate-review__message-list">{review.messages.map((item) => <article key={item.id}><div><strong>{item.sender_name}</strong><time>{new Date(item.created_at).toLocaleString("ru-RU")}</time></div><p>{item.body}</p></article>)}</div>}
-          <form className="candidate-review__composer" onSubmit={(event) => void sendMessage(event)}><textarea aria-label="Сообщение команде" value={message} maxLength={4000} onChange={(event) => setMessage(event.target.value)} placeholder="Сообщение коллегам…" /><Button type="submit" disabled={sending || !message.trim()}>{sending ? "Отправляем…" : "Написать"}</Button></form>
-        </div>
-      </> : <div className="empty-state">Не удалось загрузить внутреннюю карточку.</div>}
-    </section>
   );
 }
 
@@ -6265,12 +6118,11 @@ function App() {
               <Button disabled={selected.isDemo} onClick={openInvite}>
                 {selected.isDemo ? "Демо-профиль" : "Пригласить"} <Icon name="send" />
               </Button>
+              <Button className="profile-panel__download" variant="outline" disabled={!selected.backendId} onClick={() => selected.backendId && void downloadAttachedResume(`/candidates/${selected.backendId}/pdf`).catch((error) => showNotice(error instanceof Error ? error.message : "Не удалось скачать резюме", "error"))}>
+                <Icon name="download" /> Скачать резюме в PDF
+              </Button>
             </div>
             </>
-            <section className="candidate-review-section">
-              <div className="section-title"><span>ЗАМЕТКИ И ОБСУЖДЕНИЕ КОМАНДЫ</span></div>
-              <CandidateReviewWorkspace candidateId={selected.backendId} onNotify={showNotice} />
-            </section>
           </aside>}
         </div>
         )}

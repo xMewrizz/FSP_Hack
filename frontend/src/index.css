@@ -1555,6 +1555,10 @@ button {
   padding: 1.0625rem 1.375rem 0.5rem;
 }
 
+.profile-panel__actions .profile-panel__download {
+  grid-column: 1 / -1;
+}
+
 .privacy-note {
   padding: 0 1.375rem;
   color: var(--muted);
