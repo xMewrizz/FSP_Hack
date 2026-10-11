@@ -352,7 +352,9 @@ class CandidateService:
                 TestSession.candidate_profile_id == candidate_profile_id,
                 TestSession.assessment_id.is_(None),
                 TestSession.skill_code.is_not(None),
+                TestSession.target_grade == "all",
                 TestSession.status == "completed",
+                TestSession.passed.is_(True),
             )
             .order_by(TestSession.completed_at.desc(), TestSession.created_at.desc())
         )

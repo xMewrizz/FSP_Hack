@@ -797,6 +797,8 @@ type AdditionalSkillTestData = {
   latest_percentage: number | null;
   level_out_of_ten: number | null;
   latest_session_id: string | null;
+  passed: boolean | null;
+  retry_available_at: string | null;
 };
 
 type CandidateSpecializationTrackData = {
@@ -832,6 +834,8 @@ type TestResultData = {
     correct_answers: string[];
     is_correct: boolean;
     explanation: string;
+    earned_score?: number | null;
+    max_score?: number | null;
   }>;
   feedback: string;
   suggested_grade: string | null;
@@ -1632,6 +1636,11 @@ const DEFAULT_SKILLS_BY_SPEC: Record<string, Array<{ name: string; weight: numbe
   ],
 };
 
+const ADDITIONAL_SKILL_SUGGESTIONS: Record<string, string[]> = {
+  Backend: ["Redis и кэширование"],
+  "Data Science / ML": ["Git", "Подготовка данных", "Оценка моделей", "Развёртывание моделей", "Анализ данных"],
+};
+
 function getAvatarInitials(name: string) {
   return name.trim().split(/\s+/).map((part) => part[0] ?? "").join("").slice(0, 2).toLocaleUpperCase();
 }
@@ -2071,7 +2080,7 @@ function EmployerScreen({
   ] : []);
   const [newSkillName, setNewSkillName] = useState("");
   const [skillSuggestionsOpen, setSkillSuggestionsOpen] = useState(false);
-  const skillSuggestions = (DEFAULT_SKILLS_BY_SPEC[needSpecialization] ?? []).map((item) => item.name).filter((name) =>
+  const skillSuggestions = [...(DEFAULT_SKILLS_BY_SPEC[needSpecialization] ?? []).map((item) => item.name), ...(ADDITIONAL_SKILL_SUGGESTIONS[needSpecialization] ?? [])].filter((name) =>
     name.toLocaleLowerCase().startsWith(newSkillName.trim().toLocaleLowerCase())
     && !skillItems.some((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase()),
   );
@@ -3442,7 +3451,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [question, setQuestion] = useState(0);
   const [answer, setAnswer] = useState("");
   const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
-  const [submittedAnswers, setSubmittedAnswers] = useState<Array<{ question_id: string; selected_answers: string[] }>>([]);
+  const [submittedAnswers, setSubmittedAnswers] = useState<Array<{ question_id: string; selected_answers: string[]; answer_text?: string }>>([]);
   const [testSession, setTestSession] = useState<TestStartData | null>(null);
   const [testResult, setTestResult] = useState<TestResultData | null>(null);
   const [radarComparison, setRadarComparison] = useState<RadarComparison | null>(null);
@@ -4007,12 +4016,11 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     }
   };
 
-  const startAdditionalSkill = async (skillCode: string, targetGrade: string) => {
+  const startAdditionalSkill = async (skillCode: string) => {
     if (!hasTestConfidentialityConsent()) return;
     setTestStarting(true);
     try {
       const session = await apiPost<TestStartData>(`/testing/additional/${skillCode}/start`, {
-        target_grade: targetGrade,
         ...(selectedSpecialization ? { specialization: selectedSpecialization } : {}),
       });
       setTestPurpose("grade");
@@ -4038,10 +4046,11 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     if (!currentQuestion) return;
     const answerEntry = {
       question_id: currentQuestion.id,
-      selected_answers: currentQuestion.question_type === "multiple_choice" ? selectedAnswers : answer ? [answer] : [],
+      selected_answers: currentQuestion.question_type === "open_answer" ? [] : currentQuestion.question_type === "multiple_choice" ? selectedAnswers : answer ? [answer] : [],
+      ...(currentQuestion.question_type === "open_answer" ? { answer_text: answer.trim() } : {}),
     };
 
-    if (!answerEntry.selected_answers.length) return;
+    if (!answerEntry.selected_answers.length && !("answer_text" in answerEntry && answerEntry.answer_text)) return;
     const answers = [...submittedAnswers, answerEntry];
     if (question + 1 === testSession.total_questions) {
       const previousSkills = roadmap?.skills ?? [];
@@ -4380,13 +4389,13 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <div className="test-result">
             <div className="result-check"><Icon name={testResult?.passed === null ? "chart" : testResult?.passed ? "check" : "close"} size={34} /></div>
             <span>РЕЗУЛЬТАТ ТЕСТА</span>
-            <strong>{testResult?.grade_confirmed ? `Подтверждён ${testResult.target_grade}` : roadmap?.stopped_early && roadmap.id === testResult?.assessment_id ? roadmap.retake_used ? "Набор завершён" : "Нужна пересдача навыка" : "Результат навыка сохранён"}</strong>
+            <strong>{testResult?.grade_confirmed ? `Подтверждён ${testResult.target_grade}` : testResult?.skill_code && !testResult.assessment_id ? testResult.passed ? "Дополнительный навык подтверждён" : "Дополнительный навык пока не подтверждён" : roadmap?.stopped_early && roadmap.id === testResult?.assessment_id ? roadmap.retake_used ? "Набор завершён" : "Нужна пересдача навыка" : "Результат навыка сохранён"}</strong>
             <p>{testResult?.feedback}</p>
             <div className="result-score">
-              <b>{testResult?.correct_count !== undefined ? `${testResult.correct_count} из ${testResult.total_questions} заданий` : `${testResult?.percentage ?? 0}%`}</b>
-              <span>{testPurpose === "grade" ? `${testResult?.percentage ?? 0}% правильных ответов` : `${testResult?.score ?? 0} из ${testResult?.max_score ?? 0} баллов`}</span>
+              <b>{testResult?.skill_code && !testResult.assessment_id ? `${testResult.score} из ${testResult.max_score} баллов` : testResult?.correct_count !== undefined ? `${testResult.correct_count} из ${testResult.total_questions} заданий` : `${testResult?.percentage ?? 0}%`}</b>
+              <span>{testResult?.percentage ?? 0}% итогового балла</span>
               {testPurpose === "grade" && testResult?.assessment_id && <span>Для грейда нужны все обязательные навыки: от 75% суммарно и от 50% по каждому.</span>}
-              {testPurpose === "grade" && testResult?.skill_code && !testResult.assessment_id && <span>Это дополнительный навык; его баллы не входят в расчёт грейда.</span>}
+              {testPurpose === "grade" && testResult?.skill_code && !testResult.assessment_id && <span>Порог подтверждения — 75% баллов. Развёрнутый ответ весит 2 балла. Результат не зависит от грейда.</span>}
             </div>
             {radarComparison && <section className="result-radar" aria-label="Изменение карты навыков после теста">
               <div className="result-radar__copy">
@@ -4408,10 +4417,10 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 <div className="question-review">
                   <h3>Разбор заданий</h3>
                   {testResult.question_review.map((item, index) => <div className="question-review__item" key={item.code}>
-                    <strong>{index + 1}. {item.topic} — {item.is_correct ? "верно" : "ошибка"}</strong>
+                    <strong>{index + 1}. {item.topic} — {item.earned_score ?? (item.is_correct ? 1 : 0)} из {item.max_score ?? 1} баллов</strong>
                     <p>{item.question_text}</p>
                     <p>Ваш ответ: {item.selected_answers.join("; ") || "нет ответа"}</p>
-                    {!item.is_correct && <p>Правильный ответ: {item.correct_answers.join("; ")}</p>}
+                    {!item.is_correct && item.correct_answers.length > 0 && <p>Правильный ответ: {item.correct_answers.join("; ")}</p>}
                     <p>{item.explanation}</p>
                   </div>)}
                 </div>
@@ -4436,7 +4445,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         <div className="test-shell">
           <div className="test-top">
             <div>
-              <span>{`${testSession?.assessment_id ? "ОБЯЗАТЕЛЬНЫЙ" : "ДОПОЛНИТЕЛЬНЫЙ"} НАВЫК: ${roadmap?.skills.find((item) => item.code === testSession?.skill_code)?.label ?? additionalTests.find((item) => item.code === testSession?.skill_code)?.label ?? testSession?.skill_code} · ${testSession?.specialization} · ${testSession?.target_grade}`}</span>
+              <span>{`${testSession?.assessment_id ? "ОБЯЗАТЕЛЬНЫЙ" : "ДОПОЛНИТЕЛЬНЫЙ"} НАВЫК: ${roadmap?.skills.find((item) => item.code === testSession?.skill_code)?.label ?? additionalTests.find((item) => item.code === testSession?.skill_code)?.label ?? testSession?.skill_code} · ${testSession?.specialization}${testSession?.assessment_id ? ` · ${testSession?.target_grade}` : ""}`}</span>
               <strong>Внимательно прочитайте задание</strong>
             </div>
             <div className="test-step" aria-label={`Задание ${question + 1} из ${testSession?.total_questions}`}>
@@ -4446,7 +4455,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           </div>
           <Progress value={((question + 1) / (testSession?.total_questions ?? 1)) * 100} />
           <div className="test-content test-content--focused">
-            <div className="question-card"><span>{currentQuestion.topic}</span><strong>{currentQuestion.question_text}</strong><div className="answers">{currentQuestion.options.map((option) => {
+            <div className="question-card"><span>{currentQuestion.topic}</span><strong>{currentQuestion.question_text}</strong>{currentQuestion.question_type === "open_answer" ? <textarea className="additional-open-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} rows={9} placeholder="Опишите решение своими словами" aria-label="Развёрнутый ответ" /> : <div className="answers">{currentQuestion.options.map((option) => {
               const selected = currentQuestion.question_type === "multiple_choice" ? selectedAnswers.includes(option.id) : answer === option.id;
               return <button type="button" key={option.id} className={selected ? "selected" : ""} onClick={() => {
                 if (currentQuestion.question_type === "multiple_choice") {
@@ -4455,9 +4464,9 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                   setAnswer(option.id);
                 }
               }}><i />{option.text}</button>;
-            })}</div></div>
+            })}</div>}</div>
           </div>
-          <div className="test-footer"><span>Ответы проверяются после завершения теста</span><Button disabled={testSubmitting || !(answer || selectedAnswers.length)} onClick={() => void submitCurrentAnswer()}>{testSubmitting ? "Проверяем…" : question + 1 === testSession?.total_questions ? "Завершить тест" : "Ответить и продолжить"} <Icon name="chevron" /></Button></div>
+          <div className="test-footer"><span>{testSubmitting ? "Проверяем развёрнутый ответ моделью; это может занять до двух минут" : "Ответы проверяются после завершения теста"}</span><Button disabled={testSubmitting || !(answer.trim() || selectedAnswers.length)} onClick={() => void submitCurrentAnswer()}>{testSubmitting ? "Проверяем…" : question + 1 === testSession?.total_questions ? "Завершить тест" : "Ответить и продолжить"} <Icon name="chevron" /></Button></div>
         </div>
       );
     }
@@ -4557,12 +4566,12 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               <img className="additional-competencies__mascot" src={spiderIdea} alt="" aria-hidden="true" />
             </div>
             {additionalTests.length ? <div className="additional-competencies__grid">{additionalTests.map((skill) => (
-              <article className="additional-skill-card" key={`${skill.code}-${skill.target_grade}`}>
+              <article className="additional-skill-card" key={skill.code}>
                 <div className="additional-skill-card__mark"><Icon name="sparkle" size={17} /></div>
-                <div className="additional-skill-card__info"><strong>{skill.label}</strong><span>{skill.target_grade} · {skill.level_out_of_ten !== null ? `Результат ${skill.level_out_of_ten} / 10` : "Пока не проверена"}</span></div>
+                <div className="additional-skill-card__info"><strong>{skill.label}</strong><span>{skill.passed ? `Подтверждён · ${skill.latest_percentage}%` : skill.latest_percentage !== null ? `Пока не подтверждён · ${skill.latest_percentage}%` : "Пока не проверен"}</span>{skill.retry_available_at && Date.parse(skill.retry_available_at) > Date.now() && <span>Пересдача с {new Date(skill.retry_available_at).toLocaleDateString("ru-RU")}</span>}</div>
                 <div className="additional-skill-card__actions">
                   {skill.latest_session_id && skill.latest_percentage !== null ? <span className="additional-skill-card__score">{skill.latest_percentage}%</span> : null}
-                  <Button variant="outline" disabled={testStarting || !profile?.agreed_test_confidentiality} onClick={() => void startAdditionalSkill(skill.code, skill.target_grade)}>{testStarting ? "…" : skill.latest_session_id ? "Повторить" : "Начать"}</Button>
+                  <Button variant="outline" disabled={testStarting || !profile?.agreed_test_confidentiality || Boolean(skill.retry_available_at && Date.parse(skill.retry_available_at) > Date.now())} onClick={() => void startAdditionalSkill(skill.code)}>{testStarting ? "…" : skill.latest_session_id ? "Пересдать" : "Начать"}</Button>
                 </div>
               </article>
             ))}</div> : <div className="additional-competencies__empty"><Icon name="sparkle" size={19} /><span>Новые тесты появятся здесь, когда по дополнительным навыкам будут готовы задания.</span></div>}
@@ -4648,10 +4657,10 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         </section>
         <section className="feature-card grade-history-card">
           <div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Результаты проверок</strong></div><Button onClick={() => onNavigate("Тестирование")}>Пройти тест</Button></div>
-          {testHistory.length ? <div className="history-table history-table--tests">{testHistory.map((item) => <div key={item.id}><span>{new Date(item.created_at).toLocaleDateString("ru-RU")}</span><strong>{item.skill_code ? `${roadmap?.skills.find((skill) => skill.code === item.skill_code)?.label ?? additionalTests.find((skill) => skill.code === item.skill_code)?.label ?? item.skill_code} · ${item.target_grade}` : `${item.specialization} · ${item.target_grade}`}</strong><b>{item.status === "completed" ? item.assessment_id ? "Обязательный навык" : item.skill_code ? "Дополнительный навык" : "Общий тест прежнего формата" : item.status === "expired" ? "Срок истёк" : item.status === "cancelled" ? "Прерван" : "В процессе"}</b><em>{item.status === "completed" ? `${item.percentage}%` : "—"}</em></div>)}</div> : <div className="empty-state">Истории тестирования пока нет</div>}
+          {testHistory.length ? <div className="history-table history-table--tests">{testHistory.map((item) => <div key={item.id}><span>{new Date(item.created_at).toLocaleDateString("ru-RU")}</span><strong>{item.skill_code ? `${roadmap?.skills.find((skill) => skill.code === item.skill_code)?.label ?? additionalTests.find((skill) => skill.code === item.skill_code)?.label ?? item.skill_code}${item.assessment_id ? ` · ${item.target_grade}` : ""}` : `${item.specialization} · ${item.target_grade}`}</strong><b>{item.status === "completed" ? item.assessment_id ? "Обязательный навык" : item.skill_code ? item.passed ? "Дополнительный навык подтверждён" : "Дополнительный навык не подтверждён" : "Общий тест прежнего формата" : item.status === "expired" ? "Срок истёк" : item.status === "cancelled" ? "Прерван" : "В процессе"}</b><em>{item.status === "completed" ? `${item.percentage}%` : "—"}</em></div>)}</div> : <div className="empty-state">Истории тестирования пока нет</div>}
         </section>
         {roadmap && <section className="feature-card"><div className="feature-head"><div><span>ПОСЛЕДНИЙ БАЗОВЫЙ НАБОР</span><strong>{roadmap.specialization} · {roadmap.target_grade}</strong></div></div><div className="topic-summary">{roadmap.skills.map((skill) => <div key={skill.code}><span>{skill.label}</span><strong>{skill.status === "completed" ? `${skill.level_out_of_ten} из 10 на уровне ${roadmap.target_grade}` : "Не пройден"}</strong></div>)}</div>{roadmap.status === "completed" && <p className="feature-description feature-description--left">Итого {roadmap.percentage}% · {roadmap.passed ? "грейд подтверждён" : "грейд не подтверждён"}</p>}</section>}
-        {additionalTests.some((skill) => skill.latest_session_id) && <section className="feature-card"><div className="feature-head"><div><span>ДОПОЛНИТЕЛЬНЫЕ НАВЫКИ</span><strong>Отдельные результаты</strong></div></div><div className="topic-summary">{additionalTests.filter((skill) => skill.latest_session_id).map((skill) => <div key={`${skill.code}-${skill.target_grade}`}><span>{skill.label}</span><strong>{skill.level_out_of_ten} из 10 на уровне {skill.target_grade}</strong></div>)}</div></section>}
+        {additionalTests.some((skill) => skill.passed) && <section className="feature-card"><div className="feature-head"><div><span>ДОПОЛНИТЕЛЬНЫЕ НАВЫКИ</span><strong>Подтверждённые результаты</strong></div></div><div className="topic-summary">{additionalTests.filter((skill) => skill.passed).map((skill) => <div key={skill.code}><span>{skill.label}</span><strong>{skill.latest_percentage}%</strong></div>)}</div></section>}
       </div>
     );
   }

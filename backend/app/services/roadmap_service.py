@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import secrets
 import uuid
 
 from fastapi import HTTPException
@@ -10,6 +11,7 @@ from app.core.assessment_catalog import (
     SKILL_QUESTION_CODES, available_extra_skills,
 )
 from app.core.assessment_catalog_ds import DS_QUESTION_CODES, DS_REQUIRED_SKILLS
+from app.core.additional_skill_bank import ADDITIONAL_SKILLS, ADDITIONAL_ALTERNATES
 from app.core.assessment_bank import active_bank_id
 from app.core.catalog import ALL_SPECIALIZATIONS, CatalogError, is_testable, normalize_specialization, validate_test_pair
 from app.core.grade_policy import OVERALL_MINIMUM, SKILL_MINIMUM, SkillResult, assess_grade
@@ -598,73 +600,93 @@ class RoadmapService:
         if profile is None:
             raise HTTPException(404, "Сначала заполните профиль кандидата")
         selected_specialization = normalize_specialization(specialization or profile.specialization)
-        specialty_track = None
-        if selected_specialization != profile.specialization:
-            specialty_track = await db.scalar(select(CandidateSpecializationTrack).where(
-                CandidateSpecializationTrack.candidate_profile_id == profile.id,
-                CandidateSpecializationTrack.specialization == selected_specialization,
-            ))
-        verified_grade = specialty_track.verified_grade if specialty_track else (
-            profile.verified_grade if profile.verified_specialization == selected_specialization else None
-        )
         available = available_extra_skills(selected_specialization or "")
-        if not verified_grade:
-            return []
-        available = [item for item in available if item[2] == verified_grade]
         sessions = (await db.execute(select(TestSession).where(
             TestSession.user_id == user.id,
             TestSession.specialization == selected_specialization,
             TestSession.assessment_id.is_(None),
             TestSession.skill_code.is_not(None),
+            TestSession.target_grade == "all",
             TestSession.status == "completed",
         ).order_by(TestSession.created_at.desc()))).scalars().all()
-        latest = {(item.skill_code, item.target_grade): item for item in reversed(sessions)}
+        latest = {item.skill_code: item for item in reversed(sessions)}
+        confirmed = {item.skill_code: item for item in reversed(sessions) if item.passed}
         return [AdditionalSkillTestResponse(
             code=code, label=label, target_grade=grade,
-            latest_percentage=latest[(code, grade)].percentage if (code, grade) in latest else None,
-            level_out_of_ten=round(latest[(code, grade)].percentage / 10, 1) if (code, grade) in latest else None,
-            latest_session_id=latest[(code, grade)].id if (code, grade) in latest else None,
+            latest_percentage=(confirmed.get(code) or latest.get(code)).percentage if code in latest else None,
+            level_out_of_ten=round((confirmed.get(code) or latest.get(code)).percentage / 10, 1) if code in latest else None,
+            latest_session_id=(confirmed.get(code) or latest.get(code)).id if code in latest else None,
+            passed=code in confirmed if code in latest else None,
+            retry_available_at=(latest[code].completed_at + timedelta(days=7)) if code in latest and latest[code].completed_at else None,
         ) for code, label, grade in available]
 
     @staticmethod
     async def start_additional(
-        db: AsyncSession, user: User, skill_code: str, grade: str,
+        db: AsyncSession, user: User, skill_code: str, grade: str | None = None,
         specialization: str | None = None,
     ) -> TestStartResponse:
         profile = await db.scalar(select(CandidateProfile).where(CandidateProfile.user_id == user.id).with_for_update())
         if profile is None:
             raise HTTPException(404, "Сначала заполните профиль кандидата")
         selected_specialization = normalize_specialization(specialization or profile.specialization)
-        specialty_track = None
-        if selected_specialization != profile.specialization:
-            specialty_track = await db.scalar(select(CandidateSpecializationTrack).where(
-                CandidateSpecializationTrack.candidate_profile_id == profile.id,
-                CandidateSpecializationTrack.specialization == selected_specialization,
-            ).with_for_update())
-        verified_grade = specialty_track.verified_grade if specialty_track else (
-            profile.verified_grade if profile.verified_specialization == selected_specialization else None
-        )
-        if not verified_grade:
-            raise HTTPException(409, "Сначала подтвердите грейд по этой специализации")
-        if grade != verified_grade:
-            raise HTTPException(400, "Дополнительный навык проверяется на текущем подтверждённом грейде")
-        if (skill_code, grade) not in {(code, available_grade) for code, _, available_grade in available_extra_skills(selected_specialization or "")}:
-            raise HTTPException(400, "Для этого дополнительного навыка и уровня тест пока недоступен")
+        if skill_code not in {code for code, _, _ in available_extra_skills(selected_specialization or "")}:
+            raise HTTPException(400, "Для этого дополнительного навыка тест пока недоступен")
         existing = await db.scalar(select(TestSession).where(
             TestSession.user_id == user.id,
             TestSession.specialization == selected_specialization,
             TestSession.assessment_id.is_(None),
             TestSession.skill_code == skill_code,
-            TestSession.target_grade == grade,
             TestSession.status == "in_progress",
         ).order_by(TestSession.created_at.desc()).limit(1))
         if existing is not None:
-            return RoadmapService.session_response(existing)
-        codes = SKILL_QUESTION_CODES[grade][skill_code]
-        return await RoadmapService._create_skill_session(
-            db, user, profile.id, selected_specialization, grade,
-            skill_code, codes, None,
+            if existing.target_grade == "all" and len(existing.questions_snapshot) >= 5:
+                return RoadmapService.session_response(existing)
+            existing.status = "cancelled"
+            await db.flush()
+        latest = await db.scalar(select(TestSession).where(
+            TestSession.user_id == user.id,
+            TestSession.specialization == selected_specialization,
+            TestSession.assessment_id.is_(None),
+            TestSession.skill_code == skill_code,
+            TestSession.target_grade == "all",
+            TestSession.status == "completed",
+        ).order_by(TestSession.completed_at.desc()).limit(1))
+        latest_completed_at = latest.completed_at if latest else None
+        if latest_completed_at and latest_completed_at.tzinfo is None:
+            latest_completed_at = latest_completed_at.replace(tzinfo=timezone.utc)
+        if latest_completed_at and latest_completed_at + timedelta(days=7) > datetime.now(timezone.utc):
+            raise HTTPException(429, "Пересдача доступна через 7 дней после завершения предыдущей попытки")
+        attempts = await db.scalar(select(func.count(TestSession.id)).where(
+            TestSession.user_id == user.id,
+            TestSession.specialization == selected_specialization,
+            TestSession.assessment_id.is_(None),
+            TestSession.skill_code == skill_code,
+            TestSession.target_grade == "all",
+            TestSession.status == "completed",
+        )) or 0
+        form = ADDITIONAL_SKILLS[skill_code]["questions"] if attempts % 2 == 0 else ADDITIONAL_ALTERNATES[skill_code]
+        randomizer = secrets.SystemRandom()
+        snapshot = []
+        for question in form:
+            options = list(question["options"])
+            randomizer.shuffle(options)
+            correct_texts = {option["text"] for option in question["options"] if option["id"] in question["correct_answers"]}
+            new_options = [{"id": str(index), "text": option["text"]} for index, option in enumerate(options)]
+            snapshot.append({
+                **question, "id": str(uuid.uuid4()), "family_code": question["code"],
+                "variant_id": "A" if attempts % 2 == 0 else "B",
+                "options": new_options,
+                "correct_answers": [option["id"] for option in new_options if option["text"] in correct_texts],
+            })
+        session = TestSession(
+            user_id=user.id, candidate_profile_id=profile.id, assessment_id=None,
+            skill_code=skill_code, specialization=selected_specialization,
+            target_grade="all", status="in_progress", questions_snapshot=snapshot, answers_data=[],
         )
+        db.add(session)
+        await db.commit()
+        await db.refresh(session)
+        return RoadmapService.session_response(session)
 
     @staticmethod
     async def _create_skill_session(

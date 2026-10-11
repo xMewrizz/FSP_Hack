@@ -79,13 +79,13 @@ async def test_matching_only_confirmed_and_order_matches_b14(client: AsyncClient
                         ))
                     db.add(CandidateTestSession(
                         user_id=user.id, candidate_profile_id=profile.id,
-                        specialization="Backend", target_grade="middle", skill_code="git",
-                        status="completed", percentage=70,
+                        specialization="Backend", target_grade="all", skill_code="git",
+                        status="completed", percentage=80, passed=True,
                     ))
                     db.add(CandidateTestSession(
                         user_id=user.id, candidate_profile_id=profile.id,
                         specialization="Backend", target_grade="junior", skill_code="git",
-                        status="completed", percentage=99,
+                        status="completed", percentage=99, passed=False,
                     ))
                     failed_assessment = GradeAssessment(
                         user_id=user.id, candidate_profile_id=profile.id,
@@ -115,7 +115,7 @@ async def test_matching_only_confirmed_and_order_matches_b14(client: AsyncClient
                  "salary_tax_type": "gross", "fsp_verified": False, "fsp_achievements": [],
                  "requested_skill_tests": (
                      [{"name": name, "percentage": result} for name, result in
-                      (("Python", 80), ("SQL", 60), ("HTTP API", 90), ("Git", 70))]
+                         (("Python", 80), ("SQL", 60), ("HTTP API", 90), ("Git", 80))]
                      if profile.id == profiles[0].id else []
                  )}
                 for profile, percentage in ((profiles[0], 90.0), (profiles[1], 76.0))
@@ -138,7 +138,7 @@ async def test_matching_only_confirmed_and_order_matches_b14(client: AsyncClient
     skill_tests = next(item for item in data["candidates"] if item["candidate_id"] == str(profiles[0].id))["requested_skill_tests"]
     assert [(item["name"], item["percentage"], item["test_kind"]) for item in skill_tests] == [
         ("Python", 80, "base"), ("SQL", 60, "base"),
-        ("HTTP API", 90, "base"), ("Git", 70, "additional"),
+        ("HTTP API", 90, "base"), ("Git", 80, "additional"),
         ("Docker", None, None), ("FastAPI", None, None),
         ("PostgreSQL", None, None),
     ]

@@ -105,10 +105,8 @@ async def start_additional_test(
     db: AsyncSession = Depends(get_db),
 ):
     await _require_test_confidentiality_consent(db, current_user)
-    if data.target_grade is None:
-        raise HTTPException(400, "Укажите уровень дополнительного теста")
     return await roadmap_service.start_additional(
-        db, current_user, skill_code, data.target_grade.value, data.specialization,
+        db, current_user, skill_code, data.target_grade.value if data.target_grade else None, data.specialization,
     )
 
 

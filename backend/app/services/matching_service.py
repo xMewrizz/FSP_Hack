@@ -54,7 +54,7 @@ def _requested_skill_tests_dict(
             "name": name,
             "weight": weight,
             "percentage": session.percentage if session else None,
-            "test_grade": session.target_grade if session else None,
+            "test_grade": session.target_grade if base_session else None,
             "test_kind": ("base" if base_session else "additional") if session else None,
             "completed_at": session.completed_at if session else None,
         })
@@ -338,6 +338,7 @@ class MatchingService:
                 TestSession.target_grade,
                 TestSession.specialization,
                 TestSession.percentage,
+                TestSession.passed,
                 TestSession.completed_at,
             )
             .where(
@@ -355,14 +356,11 @@ class MatchingService:
         additional_by_candidate: dict[uuid.UUID, dict[str, Any]] = {}
         for session in sessions:
             candidate = by_id[session.candidate_profile_id]
-            if (
-                session.target_grade.casefold() != (candidate.verified_grade or "").casefold()
-                or session.specialization.casefold() != (candidate.verified_specialization or candidate.specialization or "").casefold()
-            ):
+            if session.specialization.casefold() != (candidate.verified_specialization or candidate.specialization or "").casefold():
                 continue
-            if session.assessment_id is not None and session.assessment_id == confirmed_assessments.get(candidate.id):
+            if session.assessment_id is not None and session.assessment_id == confirmed_assessments.get(candidate.id) and session.target_grade.casefold() == (candidate.verified_grade or "").casefold():
                 base_by_candidate.setdefault(candidate.id, {}).setdefault(session.skill_code, session)
-            elif session.assessment_id is None:
+            elif session.assessment_id is None and session.target_grade == "all" and session.passed:
                 additional_by_candidate.setdefault(candidate.id, {}).setdefault(session.skill_code, session)
         need_reqs = _parse_need_requirements(need)
         skill_tests_by_candidate = {

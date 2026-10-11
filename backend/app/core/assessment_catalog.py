@@ -6,6 +6,7 @@
 
 from app.core.question_bank import PREDEFINED_QUESTIONS
 from app.core.assessment_catalog_ds import DS_REQUIRED_SKILLS
+from app.core.additional_skill_bank import ADDITIONAL_SKILLS, available_additional_skills
 
 
 BACKEND_REQUIRED_SKILLS: tuple[tuple[str, str], ...] = (
@@ -20,6 +21,7 @@ SKILL_LABELS = {
     **dict(BACKEND_REQUIRED_SKILLS),
     **dict(DS_REQUIRED_SKILLS),
     "git": "Git и контроль версий",
+    **{code: data["label"] for code, data in ADDITIONAL_SKILLS.items()},
 }
 
 # Только точные названия тем тестов. FastAPI, PostgreSQL и другие технологии
@@ -35,6 +37,9 @@ BACKEND_MATCHING_SKILL_CODES = {
     "надежность сервиса": "reliability",
     "git": "git",
     "git и контроль версий": "git",
+    "docker": "docker",
+    "redis": "redis",
+    "redis и кэширование": "redis",
 }
 
 BACKEND_QUESTION_CODES: dict[str, dict[str, tuple[str, ...]]] = {
@@ -69,15 +74,7 @@ SKILL_QUESTION_CODES["junior"]["git"] = (
 
 
 def available_extra_skills(specialization: str) -> list[tuple[str, str, str]]:
-    if specialization != "Backend":
-        return []
-    required = {code for code, _ in BACKEND_REQUIRED_SKILLS}
-    return [
-        (code, SKILL_LABELS[code], grade)
-        for grade, groups in SKILL_QUESTION_CODES.items()
-        for code, codes in groups.items()
-        if code not in required and len(codes) >= 3
-    ]
+    return [(code, label, "all") for code, label in available_additional_skills(specialization)]
 
 
 def backend_curriculum_gaps() -> list[tuple[str, str, int]]:
@@ -135,7 +132,7 @@ def get_testing_catalog() -> dict:
                     {"code": code, "label": label, "grade": grade}
                     for code, label, grade in available_extra_skills("Backend")
                 ],
-                "note": "Базовый тест доступен на Python для грейдов junior, middle, senior. Дополнительный тест: Git Junior.",
+                "note": "Базовый тест доступен на Python для трёх грейдов. Дополнительные навыки проверяются отдельно и не зависят от грейда.",
             },
             {
                 "specialization": "Data Science / ML",
@@ -149,7 +146,10 @@ def get_testing_catalog() -> dict:
                     {"code": code, "label": label}
                     for code, label in DS_REQUIRED_SKILLS
                 ],
-                "additional_skills": [],
+                "additional_skills": [
+                    {"code": code, "label": label, "grade": grade}
+                    for code, label, grade in available_extra_skills("Data Science / ML")
+                ],
                 "note": "Базовый набор доступен на Python для Junior, Middle, Senior (Python, Pandas, SQL, статистика, A/B, ML).",
             },
             {

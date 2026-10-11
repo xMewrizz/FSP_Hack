@@ -15559,3 +15559,22 @@ select,
     padding: 16px;
   }
 }
+.app-shell .additional-open-answer {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  margin-top: 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--border, #d8dbe7);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.app-shell .additional-open-answer:focus {
+  outline: 2px solid #5743ff;
+  outline-offset: 2px;
+}

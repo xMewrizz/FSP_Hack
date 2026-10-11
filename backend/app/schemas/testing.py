@@ -40,7 +40,8 @@ class TestStartResponse(BaseModel):
 
 class AnswerSubmission(BaseModel):
     question_id: str
-    selected_answers: list[str]
+    selected_answers: list[str] = Field(default_factory=list)
+    answer_text: str | None = None
 
 
 class TestSubmitRequest(BaseModel):
@@ -64,6 +65,8 @@ class QuestionReview(BaseModel):
     correct_answers: list[str]
     is_correct: bool
     explanation: str
+    earned_score: float | None = None
+    max_score: float | None = None
 
 
 class TestResultResponse(BaseModel):
@@ -149,6 +152,8 @@ class AdditionalSkillTestResponse(BaseModel):
     latest_percentage: float | None = None
     level_out_of_ten: float | None = None
     latest_session_id: uuid.UUID | None = None
+    passed: bool | None = None
+    retry_available_at: datetime | None = None
 
 
 class CandidateSpecializationTrackRequest(BaseModel):
