@@ -49,11 +49,7 @@ class InvitationService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Кандидат не найден",
             )
-        if not candidate.user.is_active and candidate.user.email.endswith("@example.test"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Это демонстрационный профиль. Для настоящего приглашения выберите действующего кандидата.",
-            )
+        is_demo = not candidate.user.is_active and candidate.user.email.endswith("@example.test")
 
         need_title = None
         if data.need_id:
@@ -78,7 +74,7 @@ class InvitationService:
             salary_max=data.salary_max,
             salary_tax_type=data.salary_tax_type,
             currency=data.currency,
-            status="sent",
+            status="demo" if is_demo else "sent",
         )
         db.add(invitation)
         await db.commit()
@@ -235,7 +231,8 @@ class InvitationService:
         cand_name = f"{candidate.first_name} {candidate.last_name}".strip() or "Кандидат"
 
         contacts = None
-        if reveal_contacts and candidate.user:
+        is_demo = not candidate.user.is_active and candidate.user.email.endswith("@example.test")
+        if reveal_contacts and candidate.user and not is_demo:
             contacts = CandidateContactsRevealed(
                 email=candidate.user.email,
                 phone=candidate.phone,
@@ -261,6 +258,7 @@ class InvitationService:
             created_at=invitation.created_at,
             accepted_at=invitation.accepted_at,
             candidate_contacts=contacts,
+            is_demo=is_demo,
         )
 
 

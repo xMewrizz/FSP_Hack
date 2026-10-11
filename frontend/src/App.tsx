@@ -713,6 +713,7 @@ type DialogueInvitation = {
   candidate_name: string;
   need_title: string | null;
   status: string;
+  is_demo?: boolean;
   created_at: string;
 };
 
@@ -2686,6 +2687,7 @@ function Invitations({ employer = false, onNotify, onNavigate }: { employer?: bo
     salary_tax_type: "gross" | "net";
     currency: string;
     status: string;
+    is_demo?: boolean;
     candidate_reply: string | null;
     candidate_contacts: { email: string; phone: string | null; telegram: string | null } | null;
   }>>([]);
@@ -2719,9 +2721,10 @@ function Invitations({ employer = false, onNotify, onNavigate }: { employer?: bo
     viewed: "Просмотрено",
     accepted: "Принято",
     rejected: "Отклонено",
+    demo: "Демо",
   };
   const filteredItems = items.filter((item) =>
-    filter === "Все" || statusLabels[item.status] === filter,
+    filter === "Все" || statusLabels[item.status] === filter || (item.status === "demo" && filter === "Отправлено"),
   );
   const actOnInvitation = async (id: string, action: "accept" | "reject") => {
     setPendingId(id);
@@ -2751,17 +2754,18 @@ function Invitations({ employer = false, onNotify, onNavigate }: { employer?: bo
                 : <div className="invitation-logo">{item.company_name.slice(0, 2).toUpperCase()}</div>}
               <div className="invitation-main">
                 <span>{employer ? "КАНДИДАТ" : "ПРИГЛАШЕНИЕ ОТ КОМПАНИИ"}</span>
-                <strong>{employer ? item.candidate_name : item.company_name}</strong>
+                <strong>{employer ? item.candidate_name : item.company_name}{item.is_demo ? " · ДЕМО" : ""}</strong>
                 <p>{item.need_title ?? "Предложение о работе"}</p>
                 <p className="invitation-description">{item.offer_description}</p>
                 <div className="tags"><span>{money(item.salary_min)}–{money(item.salary_max)} ₽ {item.salary_tax_type === "net" ? "на руки" : "до вычета НДФЛ"}</span>{(employer || item.status !== "accepted") && <span>Связь: {item.contact_method}</span>}</div>
                 {item.candidate_reply && <p className="invitation-description">Ответ: {item.candidate_reply}</p>}
+                {item.is_demo && <p className="invitation-description">Учебный профиль: приглашение и сообщения сохраняются, ответа реального кандидата не будет.</p>}
               </div>
               <div className="invitation-status"><span className={`status-pill status-pill--${item.status === "accepted" ? "green" : item.status === "rejected" ? "rose" : item.status === "sent" ? "blue" : "violet"}`}>{statusLabels[item.status] ?? item.status}</span></div>
               {!employer && ["sent", "viewed"].includes(item.status) && <div className="invitation-actions"><Button variant="ghost" disabled={pendingId === item.id} onClick={() => actOnInvitation(item.id, "reject")}>Отклонить</Button><Button disabled={pendingId === item.id} onClick={() => actOnInvitation(item.id, "accept")}>{pendingId === item.id ? "Сохраняем…" : "Принять"}</Button></div>}
               {employer && item.candidate_contacts && <div className="contact-box"><span>КОНТАКТ КАНДИДАТА</span><strong>{item.candidate_contacts.email}</strong>{item.candidate_contacts.telegram && <small>{item.candidate_contacts.telegram}</small>}{item.candidate_contacts.phone && <small>{item.candidate_contacts.phone}</small>}</div>}
               {!employer && item.status === "accepted" && <div className="contact-box"><span>КОНТАКТ КОМПАНИИ</span><strong>{item.contact_method}</strong></div>}
-              {item.status === "accepted" && <div className="invitation-chat-action"><Button variant="outline" onClick={() => onNavigate("Диалоги", `invitation:${item.id}`)}>Перейти к диалогу{unreadByInvitation[item.id] ? ` · ${unreadByInvitation[item.id]} новых` : ""}</Button></div>}
+              {(item.status === "accepted" || (employer && item.status === "demo" && item.is_demo)) && <div className="invitation-chat-action"><Button variant="outline" onClick={() => onNavigate("Диалоги", `invitation:${item.id}`)}>Перейти к диалогу{unreadByInvitation[item.id] ? ` · ${unreadByInvitation[item.id]} новых` : ""}</Button></div>}
             </article>
           ))}
         </div>
@@ -2811,7 +2815,7 @@ function DialogsScreen({
       const applicationRequest = apiGet<ApplicationDialogue[]>("/vacancies/applications/conversations");
       const taskRequest = demoMode ? Promise.resolve([] as TaskConversation[]) : apiGet<TaskConversation[]>("/tasks/conversations");
       const [invitationItems, networkItems, applicationItems, taskItems] = await Promise.all([invitationRequest, networkRequest, applicationRequest, taskRequest]);
-      setInvitations(invitationItems.filter((item) => item.status === "accepted"));
+      setInvitations(invitationItems.filter((item) => item.status === "accepted" || (employer && item.status === "demo" && item.is_demo)));
       setNetworkConversations(networkItems);
       setApplicationChats(applicationItems);
       setTaskConversations(taskItems);
@@ -2956,7 +2960,7 @@ function DialogsScreen({
             const target = `invitation:${item.id}`;
             const otherName = employer ? item.candidate_name : item.company_name;
             return <button type="button" className={`dialogue-list-item ${selectedTarget === target ? "dialogue-list-item--active" : ""}`} key={target} onClick={() => setSelectedTarget(target)}>
-              <CandidateAvatar initials={getAvatarInitials(otherName)} corporate /><span className="dialogue-list-item__body"><strong>{otherName}</strong><small>{item.need_title || "Принятое приглашение"}</small><span>Рабочее приглашение</span></span><Icon name="chevron" size={15} />
+              <CandidateAvatar initials={getAvatarInitials(otherName)} corporate /><span className="dialogue-list-item__body"><strong>{otherName}</strong><small>{item.need_title || "Приглашение"}</small><span>{item.is_demo ? "Демо · без ответа кандидата" : "Рабочее приглашение"}</span></span><Icon name="chevron" size={15} />
             </button>;
           })}
           {!employer && filteredNetworkConversations.map((item) => {
@@ -2973,6 +2977,7 @@ function DialogsScreen({
             embedded
             invitationId={selectedInvitation.id}
             title={employer ? selectedInvitation.candidate_name : selectedInvitation.company_name}
+            isDemo={selectedInvitation.is_demo && selectedInvitation.status === "demo"}
             onClose={() => { setSelectedTarget(null); window.dispatchEvent(new Event("fsp-invitations-updated")); }}
           />}
           {selectedApplicationChat && <VacancyApplicationChat
@@ -3130,11 +3135,13 @@ function NetworkChatPanel({
 function InvitationChatDialog({
   invitationId,
   title,
+  isDemo = false,
   onClose,
   embedded = false,
 }: {
   invitationId: string;
   title: string;
+  isDemo?: boolean;
   onClose: () => void;
   embedded?: boolean;
 }) {
@@ -3234,7 +3241,7 @@ function InvitationChatDialog({
   const content = (
     <>
       <div className="conversation-modal__header">
-        <div><span>ПРИНЯТОЕ ПРИГЛАШЕНИЕ</span><strong id="conversation-title">{title}</strong><small>Переписка сохраняется для участников приглашения</small></div>
+        <div><span>{isDemo ? "ДЕМОНСТРАЦИОННЫЙ ДИАЛОГ" : "ПРИНЯТОЕ ПРИГЛАШЕНИЕ"}</span><strong id="conversation-title">{title}</strong><small>{isDemo ? "Ваши сообщения сохраняются. Профиль вымышленный, ответа кандидата не будет." : "Переписка сохраняется для участников приглашения"}</small></div>
         <CandidateAvatar initials={getAvatarInitials(title)} corporate />
         {embedded ? null : <button type="button" className="icon-button" aria-label="Закрыть чат" onClick={requestClose}><Icon name="close" /></button>}
       </div>
@@ -4741,7 +4748,7 @@ function ResumeModal({
                 <p>Сведения о компании можно сверить в <a href="https://egrul.nalog.ru/" target="_blank" rel="noopener noreferrer">реестре ФНС</a>. Наличие компании не подтверждает работу кандидата в ней.</p>
               </section> : null}
               <section className="resume-section"><span>ФСП</span><p>{candidate.isDemo ? `Демонстрационные данные, достижений: ${candidate.achievementsCount ?? 0}` : candidate.fspVerified ? `Профиль подтверждён, достижений: ${candidate.achievementsCount ?? 0}` : "Подтверждённых достижений нет"}</p></section>
-              <Button disabled={candidate.isDemo} onClick={onInvite}>{candidate.isDemo ? "Демонстрационный профиль" : "Пригласить кандидата"} <Icon name="send" /></Button>
+              <Button onClick={onInvite}>{candidate.isDemo ? "Отправить демо-приглашение" : "Пригласить кандидата"} <Icon name="send" /></Button>
             </aside>
           </div>
       </ModalFrame>
@@ -5561,10 +5568,6 @@ function App() {
     filtered.find((candidate) => candidate.id === selectedId) ?? filtered[0] ?? candidates[0];
   const activeNeed = employerNeeds.find((need) => need.id === activeNeedId);
   const openInvite = () => {
-    if (selected.isDemo) {
-      showNotice("Это демонстрационный профиль. Для приглашения выберите действующего кандидата.", "error");
-      return;
-    }
     setOfferDescription("Приглашаем в продуктовую команду. Будем рады обсудить задачи и ваш опыт.");
     setInviteSalaryMin(activeNeed ? String(activeNeed.salary_min) : "");
     setInviteSalaryMax(activeNeed ? String(activeNeed.salary_max) : "");
@@ -5767,7 +5770,7 @@ function App() {
       setInviteDirty(false);
       setInviteDiscardConfirm(false);
       window.dispatchEvent(new Event("fsp-invitations-updated"));
-      showNotice(`Кандидат приглашён: ${selected.name}`);
+      showNotice(selected.isDemo ? `Демо-приглашение сохранено: ${selected.name}. Диалог доступен во вкладке «Диалоги».` : `Кандидат приглашён: ${selected.name}`);
     } catch (requestError) {
       showNotice(requestError instanceof Error ? requestError.message : "Не удалось отправить приглашение", "error");
     } finally {
@@ -6113,8 +6116,8 @@ function App() {
               <Button variant="outline" onClick={() => toggleCompare(selected.id)}>
                 <Icon name="compare" /> Сравнить
               </Button>
-              <Button disabled={selected.isDemo} onClick={openInvite}>
-                {selected.isDemo ? "Демо-профиль" : "Пригласить"} <Icon name="send" />
+              <Button onClick={openInvite}>
+                {selected.isDemo ? "Демо-приглашение" : "Пригласить"} <Icon name="send" />
               </Button>
               <Button className="profile-panel__download" variant="outline" disabled={!selected.backendId} onClick={() => selected.backendId && void downloadAttachedResume(`/candidates/${selected.backendId}/pdf`).catch((error) => showNotice(error instanceof Error ? error.message : "Не удалось скачать резюме", "error"))}>
                 <Icon name="download" /> Скачать резюме в PDF
@@ -6200,6 +6203,7 @@ function App() {
               <CandidateAvatar initials={selected.initials} photoUrl={selected.avatarUrl} corporate={taskDemoMode} />
               <div><strong>{selected.role} · {selected.level}</strong><span>{formatMatchScore(selected.score)} в подборе под потребность</span></div>
             </div>
+            {selected.isDemo && <div className="salary-note">Это вымышленный кандидат. Приглашение и ваши сообщения появятся в демонстрационном диалоге, но кандидат не сможет ответить.</div>}
             <label className="field">
               <span>ОПИСАНИЕ ПРЕДЛОЖЕНИЯ</span>
               <textarea value={offerDescription} onChange={(event) => { setOfferDescription(event.target.value); setInviteDirty(true); }} />
@@ -6226,12 +6230,12 @@ function App() {
               <input value={inviteContact} onChange={(event) => { setInviteContact(event.target.value); setInviteDirty(true); }} placeholder="Email или Telegram" />
             </label>
             <div className="salary-note">
-              Зарплатный диапазон и способ расчёта будут показаны кандидату до принятия приглашения.
+              {selected.isDemo ? "Демонстрационные данные сохраняются для показа сценария." : "Зарплатный диапазон и способ расчёта будут показаны кандидату до принятия приглашения."}
             </div>
             <div className="modal__actions">
               <Button variant="ghost" onClick={requestCloseInvite}>Отмена</Button>
               <Button disabled={sent} onClick={submitInvite}>
-                {sent ? "Отправляем…" : "Отправить приглашение"} <Icon name="send" />
+                {sent ? "Отправляем…" : selected.isDemo ? "Создать демо-приглашение" : "Отправить приглашение"} <Icon name="send" />
               </Button>
             </div>
           </ModalFrame>

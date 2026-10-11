@@ -21,6 +21,8 @@ from app.services.employer_task_service import EmployerTaskService
 from app.schemas.invitation import InvitationCreate
 from app.schemas.vacancy import ApplicationCreate
 from app.schemas.employer_task import EmployerTaskSubmissionCreate
+from app.schemas.invitation_message import InvitationMessageCreate
+from app.api.v1.conversations import get_invitation_messages, send_invitation_message
 from conftest import TestingSessionLocal
 
 
@@ -63,12 +65,25 @@ async def test_showcase_import_is_real_and_repeatable():
         assert all(item.test_percentage >= 75 for item in matches.candidates)
         company_user = await db.get(User, showcase_id("user", "company:northline"))
         candidate = await db.get(CandidateProfile, showcase_id("candidate", "cand-001"))
-        with pytest.raises(HTTPException) as invitation_error:
-            await InvitationService.create_invitation(db, company_user, InvitationCreate(
-                candidate_id=candidate.id, offer_description="Приглашаем обсудить работу",
-                contact_method="email", salary_min=100000, salary_max=200000,
-            ))
-        assert invitation_error.value.status_code == 409
+        invitation = await InvitationService.create_invitation(db, company_user, InvitationCreate(
+            candidate_id=candidate.id, offer_description="Приглашаем обсудить работу",
+            contact_method="email", salary_min=100000, salary_max=200000,
+        ))
+        assert invitation.status == "demo"
+        assert invitation.is_demo is True
+        assert invitation.candidate_contacts is None
+        sent = await InvitationService.get_sent_invitations(db, company_user)
+        assert len(sent) == 1 and sent[0].id == invitation.id
+        assert sent[0].is_demo is True and sent[0].candidate_contacts is None
+        message = await send_invitation_message(
+            invitation.id, InvitationMessageCreate(body="Здравствуйте, расскажу о позиции"), company_user, db,
+        )
+        assert message.is_mine is True
+        history = await get_invitation_messages(invitation.id, company_user, db)
+        assert [item.body for item in history.messages] == ["Здравствуйте, расскажу о позиции"]
+        with pytest.raises(HTTPException) as chat_error:
+            await get_invitation_messages(invitation.id, await db.get(User, candidate.user_id), db)
+        assert chat_error.value.status_code == 404
         with pytest.raises(HTTPException) as application_error:
             await VacancyService.apply_to_vacancy(
                 db, candidate.id, showcase_id("vacancy", "vac-001"), ApplicationCreate(),

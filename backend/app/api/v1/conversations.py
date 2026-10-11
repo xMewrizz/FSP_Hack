@@ -38,7 +38,15 @@ async def _get_accepted_participating_invitation(
     invitation = result.scalar_one_or_none()
     if (
         invitation is None
-        or invitation.status != "accepted"
+        or not (
+            invitation.status == "accepted"
+            or (
+                invitation.status == "demo"
+                and not invitation.candidate.user.is_active
+                and invitation.candidate.user.email.endswith("@example.test")
+                and current_user.id == invitation.employer.user_id
+            )
+        )
         or current_user.id not in (
             invitation.candidate.user_id,
             invitation.employer.user_id,

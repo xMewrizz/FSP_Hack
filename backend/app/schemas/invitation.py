@@ -50,5 +50,6 @@ class InvitationResponse(BaseModel):
     created_at: datetime
     accepted_at: datetime | None
     candidate_contacts: CandidateContactsRevealed | None = None
+    is_demo: bool = False
 
     model_config = ConfigDict(from_attributes=True)
