@@ -1019,6 +1019,8 @@ function Icon({
       </>
     ),
     chevron: <path d="m9 18 6-6-6-6" />,
+    chevronUp: <path d="m6 14 6-6 6 6" />,
+    chevronDown: <path d="m6 10 6 6 6-6" />,
     check: <path d="m5 12 4 4L19 6" />,
     close: <path d="M18 6 6 18M6 6l12 12" />,
     logout: (
@@ -5896,9 +5898,8 @@ function App() {
         ) : role === "employer" && active === "Подборка" ? (
           <>
         {activeNeedCollapsed ? <section className="need-summary need-summary--compact need-summary--collapsed" data-tour="active-need">
-          <span className="muted-label">{activeNeed ? `${activeNeed.title} · ${activeNeed.required_grade}` : "Подборка кандидатов"}</span>
-          <Button variant="outline" onClick={() => setActiveNeedCollapsed(false)}>Показать потребность</Button>
-          <Button variant="ghost" onClick={() => document.querySelector("[data-resume-top]")?.scrollIntoView({ behavior: "smooth", block: "start" })}>К резюме</Button>
+          <span className="muted-label">{activeNeed ? `${activeNeed.title} · ${activeNeed.required_grade}` : "Панель подбора свёрнута"}</span>
+          <button type="button" className="need-summary__collapse" aria-label="Развернуть потребность, поиск и фильтры" title="Развернуть панель подбора" onClick={() => setActiveNeedCollapsed(false)}><Icon name="chevronDown" size={19} /></button>
         </section> : <section className="need-summary need-summary--compact" data-tour="active-need">
           <div className="need-summary__icon">
             <Icon name="briefcase" size={21} />
@@ -5927,14 +5928,14 @@ function App() {
           </div>
           <div className="need-summary__actions">
             <Button variant="outline" onClick={() => setActive("Потребности")}>Изменить</Button>
-              <Button variant="ghost" onClick={() => {
-                setActiveNeedCollapsed(true);
-                window.setTimeout(() => document.querySelector("[data-resume-top]")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-              }}>Свернуть к резюме</Button>
+            <button type="button" className="need-summary__collapse" aria-label="Свернуть поиск и фильтры" title="Свернуть поиск и фильтры" onClick={() => {
+              setActiveNeedCollapsed(true);
+              window.setTimeout(() => document.querySelector('[data-tour="candidate-list"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+            }}><Icon name="chevronUp" size={19} /></button>
           </div>
         </section>}
 
-        <section className="toolbar" data-tour="candidate-filters">
+        {!activeNeedCollapsed && <section className="toolbar" data-tour="candidate-filters">
           <div className="search-field">
             <Icon name="search" />
             <input
@@ -5957,9 +5958,9 @@ function App() {
             <button type="button" className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")}><Icon name="grid" /> База</button>
             <button type="button" className={viewMode === "swipe" ? "active" : ""} onClick={() => setViewMode("swipe")}><Icon name="users" /> Свайп</button>
           </div>
-        </section>
+        </section>}
 
-        {filtersOpen && <section className="matching-filter-panel" aria-label="Фильтры подборки">
+        {!activeNeedCollapsed && filtersOpen && <section className="matching-filter-panel" aria-label="Фильтры подборки">
           <label>
             <span>Формат работы</span>
             <select className="bank-select" value={filterFormat} onChange={(event) => setFilterFormat(event.target.value)}>
@@ -6082,7 +6083,17 @@ function App() {
               </div>
               <div className="grade-line__score">{selected.backendId ? `${formatMatchScore(selected.score)} в подборе` : "06.001 / ур. 6"}</div>
             </div>
-            {selected.backendId && <div className="profile-resume__meta"><span>АКТИВНОСТЬ · {selected.activityStatus}</span><span>ПРОФИЛЬ · {selected.profileCompleteness?.score ?? 0}/100 · {profileCompletenessLabel(selected.profileCompleteness?.status ?? "insufficient")}</span></div>}
+            {selected.backendId && <div className="profile-resume__meta"><span>АКТИВНОСТЬ · {selected.activityStatus}</span></div>}
+            {selected.backendId && selected.profileCompleteness && <section className="candidate-profile-score" aria-label={`Заполненность профиля: ${selected.profileCompleteness.score} из 100`}>
+              <div className="candidate-profile-score__head">
+                <div><Icon name="check" size={16} /><span>ПОЛНОТА ПРОФИЛЯ</span></div>
+                <strong>{selected.profileCompleteness.score}<small>/100</small></strong>
+              </div>
+              <div className="candidate-profile-score__track" role="progressbar" aria-label="Заполненность профиля" aria-valuemin={0} aria-valuemax={100} aria-valuenow={selected.profileCompleteness.score}>
+                <i style={{ width: `${Math.max(0, Math.min(100, selected.profileCompleteness.score))}%` }} />
+              </div>
+              <span className={`candidate-profile-score__status candidate-profile-score__status--${selected.profileCompleteness.status}`}>{profileCompletenessLabel(selected.profileCompleteness.status)}</span>
+            </section>}
             {selected.additionalSpecializations?.length ? <section className="profile-resume__section" aria-label="Специализации кандидата">
               <div className="section-title"><span>СПЕЦИАЛИЗАЦИИ КАНДИДАТА</span></div>
               <div className="topic-summary">{selected.additionalSpecializations.map((track) => (
