@@ -13832,6 +13832,26 @@ select,
   font-size: 0.6rem;
 }
 
+.app-shell .candidate-card--compact .candidate-card__fsp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  margin-top: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 0.2rem 0.5rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.app-shell .candidate-card--compact .candidate-card__fsp--present {
+  border-color: color-mix(in srgb, var(--violet-brand) 35%, var(--line));
+  background: color-mix(in srgb, var(--violet-brand) 8%, var(--surface));
+  color: var(--violet-brand);
+}
+
 .app-shell .candidate-card__match-track {
   height: 0.3rem;
   overflow: hidden;

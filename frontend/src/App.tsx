@@ -69,6 +69,14 @@ const formatMatchScore = (score: number) => {
   return `${score} ${form === "one" ? "балл" : form === "few" ? "балла" : "баллов"}`;
 };
 
+const fspAchievementLabel = (candidate: Candidate) => {
+  const count = candidate.achievementsCount ?? 0;
+  if (!count) return "ФСП · нет достижений";
+  const form = new Intl.PluralRules("ru-RU").select(count);
+  const noun = form === "one" ? "достижение" : form === "few" ? "достижения" : "достижений";
+  return `ФСП · ${count} ${noun}${candidate.isDemo ? " (демо)" : ""}`;
+};
+
 const isValidPersonName = (value: string) => {
   const name = value.normalize("NFC").trim().replace(/\s+/g, " ");
   if (name.length > 100) return false;
@@ -5541,7 +5549,7 @@ function App() {
   const activeFilterCount = Number(Boolean(filterFormat)) + Number(Boolean(filterCity));
   const filtered = useMemo(
     () => backendCandidates.filter((candidate) =>
-      (!onlyFsp || candidate.fspVerified) &&
+      (!onlyFsp || (candidate.achievementsCount ?? 0) > 0) &&
       (!filterFormat || candidate.format === filterFormat) &&
       (!filterCity || candidate.location === filterCity) &&
       `${candidate.name} ${candidate.skills.join(" ")}`.toLowerCase().includes(query.toLowerCase()),
@@ -5991,7 +5999,7 @@ function App() {
                 role="button"
                 tabIndex={0}
                 aria-pressed={selected.id === candidate.id}
-                aria-label={`Открыть резюме: ${candidate.name}, ${candidate.role}, балл подбора ${candidate.score} из 100`}
+                aria-label={`Открыть резюме: ${candidate.name}, ${candidate.role}, балл подбора ${candidate.score} из 100, ${fspAchievementLabel(candidate)}`}
                   onClick={() => chooseCandidate(candidate)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -6008,6 +6016,9 @@ function App() {
                   </div>
                   <div className="match" title="Балл соответствия активной потребности, из 100"><strong>{candidate.score}<small>/100</small></strong><span>БАЛЛ ПОДБОРА</span></div>
                 </div>
+                <span className={`candidate-card__fsp ${candidate.achievementsCount ? "candidate-card__fsp--present" : ""}`} title={candidate.isDemo && candidate.achievementsCount ? "Демонстрационные данные: личность и достижение не проверены" : undefined}>
+                  <Icon name="medal" size={14} /> {fspAchievementLabel(candidate)}
+                </span>
               </article>
             ))}
             {filtered.length === 0 && (
@@ -6095,7 +6106,7 @@ function App() {
             </div>
             <div className="profile-metrics">
               <div><span>СИГНАЛЫ ДОВЕРИЯ</span><strong>{selected.trueScoreFlags?.length ? "Есть данные" : "Нет данных"}</strong><small>{selected.trueScoreFlags?.length ? "Подробности — в резюме кандидата" : "Данных для проверки пока нет"}</small></div>
-              <div><span>ФСП</span><strong>{selected.achievementsCount || "—"}</strong><small>{selected.fspVerified ? "тестовая запись; личность не проверена" : "Нет записи"}</small></div>
+              <div><span>ДОСТИЖЕНИЯ ФСП</span><strong>{fspAchievementLabel(selected).replace("ФСП · ", "")}</strong><small>{selected.isDemo && selected.achievementsCount ? "Демонстрационные данные; личность не проверена" : selected.achievementsCount ? "Указаны в профиле кандидата" : "Достижения не добавлены"}</small></div>
               <div><span>ОБНОВЛЕНИЕ ПРОФИЛЯ</span><strong>{selected.updated}</strong><small>По данным профиля</small></div>
             </div>
             <div className="profile-panel__actions">
