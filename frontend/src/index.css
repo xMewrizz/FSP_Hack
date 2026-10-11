@@ -10743,12 +10743,31 @@ select,
 }
 
 .app-shell .mentor-search-page .mentor-finder,
+.app-shell .mentor-search-page .mentor-requests,
 .app-shell .mentor-search-page .mentor-request-card {
   margin: 0;
   border: 1px solid var(--line);
   border-radius: 1rem;
   background: var(--surface);
   padding: 1.25rem;
+}
+
+.app-shell .mentor-requests {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.app-shell .mentor-requests__head,
+.app-shell .mentor-requests .mentor-request-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.app-shell .mentor-requests p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .app-shell .mentor-search-page .mentor-finder {

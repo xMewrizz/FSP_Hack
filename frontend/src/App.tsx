@@ -3065,7 +3065,7 @@ function DialogsScreen({
     if (!mentorTarget || !requestMessage.trim()) return;
     setRequestSending(true);
     try {
-      const conversation = await apiPost<NetworkConversation>("/network/mentorship-requests", {
+      await apiPost<NetworkConversation>("/network/mentorship-requests", {
         mentor_user_id: mentorTarget.user_id,
         skill_focus: skillQuery.trim() || mentorTarget.skills[0] || "Профессиональный рост",
         message: requestMessage.trim(),
@@ -3073,8 +3073,7 @@ function DialogsScreen({
       await refresh();
       setMentorTarget(null);
       setRequestMessage("");
-      onNotify("Запрос наставнику отправлен");
-      onOpenDialogs(`network:${conversation.id}`);
+      onNotify("Запрос наставнику отправлен. Диалог появится после его согласия.");
     } catch (requestError) {
       onNotify(requestError instanceof Error ? requestError.message : "Не удалось отправить запрос", "error");
     } finally {
@@ -3100,7 +3099,7 @@ function DialogsScreen({
       .some((value) => value.toLocaleLowerCase().includes(normalizedConversationQuery)),
   );
   const filteredNetworkConversations = networkConversations.filter((item) =>
-    [item.other_name, item.skill_focus, item.last_message]
+    item.status === "accepted" && [item.other_name, item.skill_focus, item.last_message]
       .some((value) => value.toLocaleLowerCase().includes(normalizedConversationQuery)),
   );
   const filteredApplicationChats = applicationChats.filter((item) =>
@@ -3115,6 +3114,12 @@ function DialogsScreen({
     return <div className="page-content mentor-search-page">
       <div className="dialogues-intro"><div><span>ПРОФЕССИОНАЛЬНЫЙ РОСТ</span><strong>Найдите наставника по навыку</strong><p>Показываем кандидатов, которые подтвердили более высокий грейд и готовы помогать другим.</p></div><div className="dialogues-intro__icon"><Icon name="school" size={22} /></div></div>
       {error && <div className="form-error" role="alert">{error}</div>}
+      <section className="mentor-requests" aria-label="Заявки на наставничество">
+        <div className="mentor-requests__head"><strong>Заявки на наставничество</strong><Button variant="ghost" onClick={() => void refresh()} aria-label="Обновить заявки"><Icon name="refresh" size={15} /></Button></div>
+        {networkConversations.filter((item) => item.status === "pending" && item.can_accept).map((request) => <article className="mentor-card" key={request.id}><strong>{request.other_name}</strong><span>Хочет развить навык: {request.skill_focus}</span><p>{request.last_message}</p><div className="mentor-request-actions"><Button variant="outline" onClick={() => void apiPost(`/network/conversations/${request.id}/decline`, {}).then(() => refresh()).then(() => onNotify("Заявка отклонена")).catch((error) => onNotify(error instanceof Error ? error.message : "Не удалось отклонить заявку", "error"))}>Отклонить</Button><Button onClick={() => void apiPost(`/network/conversations/${request.id}/accept`, {}).then(() => refresh()).then(() => { onNotify("Заявка принята — диалог открыт"); onOpenDialogs(`network:${request.id}`); }).catch((error) => onNotify(error instanceof Error ? error.message : "Не удалось принять заявку", "error"))}>Согласиться</Button></div></article>)}
+        {networkConversations.filter((item) => item.status === "pending" && !item.can_accept).map((request) => <article className="mentor-card" key={request.id}><strong>{request.other_name}</strong><span>Запрос отправлен · {request.skill_focus}</span><p>Ожидаем согласия наставника. После принятия переписка появится в «Диалогах».</p></article>)}
+        {!networkConversations.some((item) => item.status === "pending") && <p>Активных заявок пока нет.</p>}
+      </section>
       <section className="mentor-finder">
         <div><span>ПОИСК НАСТАВНИКА</span><strong>Какой навык хотите развить?</strong><p>{verifiedGrade ? "Поиск доступен для вашего подтверждённого уровня." : "Сначала подтвердите грейд в разделе «Мой грейд»."}</p></div>
         <form onSubmit={(event) => void findMentors(event)}><label htmlFor="mentor-skill">Навык</label><div className="search-field"><Icon name="search" /><input id="mentor-skill" value={skillQuery} onChange={(event) => setSkillQuery(event.target.value)} placeholder="Например, PostgreSQL" /></div><Button type="submit" variant="outline" disabled={!verifiedGrade}><Icon name="search" /> Найти ментора</Button></form>
