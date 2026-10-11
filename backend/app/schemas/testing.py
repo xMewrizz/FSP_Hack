@@ -89,6 +89,14 @@ class TestResultResponse(BaseModel):
     completed_at: datetime | None
     skill_code: str | None = None
     assessment_id: uuid.UUID | None = None
+    review_topics: list[str] = Field(
+        default_factory=list,
+        description="Темы для блока «Ответы по темам». Пустой список, если все ответы верны.",
+    )
+    review_topics_status: str = Field(
+        default="none",
+        description="none — ошибок нет; pending — рекомендации готовятся; ready — темы готовы; unavailable — модель не ответила.",
+    )
 
 
 class TestSessionHistoryItem(BaseModel):

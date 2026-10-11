@@ -1,9 +1,11 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.api.deps import get_current_candidate, get_current_reviewer, get_db
 from app.models.candidate import CandidateProfile
+from app.models.test import TestSession
 from app.models.user import User
 from app.schemas.testing import (
     GradeAssessmentResponse,
@@ -38,7 +40,7 @@ from app.core.code_sandbox.schemas import (
 )
 from app.services.code_sandbox_service import code_sandbox_service
 from app.services.roadmap_service import roadmap_service
-from app.services.testing_service import testing_service
+from app.services.testing_service import finish_review_topics, testing_service
 
 router = APIRouter(prefix="/testing", tags=["Testing & Skill Verification"])
 
@@ -199,11 +201,18 @@ async def start_test(
 async def submit_test(
     session_id: uuid.UUID,
     data: TestSubmitRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
     await _require_test_confidentiality_consent(db, current_user)
-    return await testing_service.submit_test(db, current_user, session_id, data)
+    result = await testing_service.submit_test(db, current_user, session_id, data)
+    if result.review_topics_status == "pending":
+        background_tasks.add_task(
+            finish_review_topics, session_id,
+            async_sessionmaker(bind=db.bind, expire_on_commit=False),
+        )
+    return result
 
 
 @router.get(
@@ -420,6 +429,33 @@ async def get_test_session(
     db: AsyncSession = Depends(get_db),
 ):
     return await testing_service.get_session(db, current_user, session_id)
+
+
+@router.post("/{session_id}/review-topics/retry")
+async def retry_review_topics(
+    session_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    session = await db.scalar(select(TestSession).where(
+        TestSession.id == session_id, TestSession.user_id == current_user.id
+    ))
+    if session is None or session.status != "completed":
+        raise HTTPException(status_code=404, detail="Результат теста не найден")
+    if session.review_topics_status == "ready" or session.review_topics_status == "none":
+        return {"status": session.review_topics_status}
+    if session.review_topics_status == "pending" and session.completed_at:
+        completed_at = session.completed_at.replace(tzinfo=timezone.utc) if session.completed_at.tzinfo is None else session.completed_at
+        if completed_at > datetime.now(timezone.utc) - timedelta(seconds=90):
+            return {"status": "pending"}
+    session.review_topics_status = "pending"
+    await db.commit()
+    background_tasks.add_task(
+        finish_review_topics, session_id,
+        async_sessionmaker(bind=db.bind, expire_on_commit=False),
+    )
+    return {"status": "pending"}
 
 
 @router.post(

@@ -95,6 +95,14 @@ async def lifespan(app: FastAPI):
             await conn.execute(text("ALTER TABLE test_sessions ADD COLUMN assessment_id UUID"))
         if "skill_code" not in test_columns:
             await conn.execute(text("ALTER TABLE test_sessions ADD COLUMN skill_code VARCHAR(50)"))
+        if "review_topics" not in test_columns:
+            await conn.execute(text(
+                "ALTER TABLE test_sessions ADD COLUMN review_topics JSON NOT NULL DEFAULT '[]'"
+            ))
+        if "review_topics_status" not in test_columns:
+            await conn.execute(text(
+                "ALTER TABLE test_sessions ADD COLUMN review_topics_status VARCHAR(20) NOT NULL DEFAULT 'none'"
+            ))
         await conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_test_sessions_assessment_id ON test_sessions (assessment_id)"
         ))

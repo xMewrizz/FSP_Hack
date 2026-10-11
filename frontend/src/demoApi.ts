@@ -1572,6 +1572,7 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     const answers = Array.isArray(body.answers) ? body.answers as Array<{ question_id: string; selected_answers: string[] }> : [];
     const correct = answers.filter((answer) => questions.some((question) => question.id === answer.question_id && answer.selected_answers.includes(question.correct))).length;
     const percentage = Math.round(correct / questions.length * 100);
+    const reviewTopics = [...new Set(questions.filter((question) => !answers.some((answer) => answer.question_id === question.id && answer.selected_answers.includes(question.correct))).map((question) => question.topic))];
     const result = {
       session_id: activeTestId,
       specialization: currentCandidateProfile.specialization,
@@ -1582,6 +1583,8 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       passed: percentage >= 70,
       verified_grade: percentage >= 70 ? currentCandidateProfile.declared_grade : null,
       skill_breakdown: questions.map((question, index) => ({ topic: question.topic, score: index < correct ? 1 : 0, max_score: 1, percentage: index < correct ? 100 : 0 })),
+      review_topics: reviewTopics,
+      review_topics_status: reviewTopics.length ? "ready" : "none",
       feedback: percentage >= 70 ? "Демо-тест пройден. Результат сохранён в этой сессии." : "В демо-тесте пока недостаточно правильных ответов.",
       suggested_grade: percentage >= 90 ? "senior" : null,
     };
