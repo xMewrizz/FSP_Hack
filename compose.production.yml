@@ -49,9 +49,11 @@ services:
     build: ./ml-service
     restart: unless-stopped
     environment:
-      LLM_PROVIDER: openrouter
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set OPENROUTER_API_KEY in .env}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemini-2.5-flash}
+      LIST_API_KEY: ${LIST_API_KEY:-}
+      LIST_API_MODEL: ${LIST_API_MODEL:-gpt-5.6-sol}
 
   sandbox-runner:
     build:

@@ -379,7 +379,7 @@ async def evaluate_open_answer(
             passed=passed,
             feedback=feedback_text,
             criterion_scores=crit_scores,
-            evaluator="llm_openrouter" if provider_name() == "openrouter" else "llm_ollama",
+            evaluator=f"llm_{provider_name()}",
             needs_manual_review=False,
         )
 
