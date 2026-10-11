@@ -3006,7 +3006,6 @@ function DialogsScreen({
   const [mentorTarget, setMentorTarget] = useState<MentorProfile | null>(null);
   const [requestMessage, setRequestMessage] = useState("");
   const [requestSending, setRequestSending] = useState(false);
-  const [verifiedGrade, setVerifiedGrade] = useState<string | null>(null);
   const [conversationQuery, setConversationQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -3018,16 +3017,12 @@ function DialogsScreen({
       const networkRequest = employer
         ? Promise.resolve([] as NetworkConversation[])
         : apiGet<NetworkConversation[]>("/network/conversations");
-      const profileRequest = employer
-        ? Promise.resolve(null)
-        : apiGet<CandidateProfileData>("/candidate/profile");
       const applicationRequest = demoMode
         ? apiGet<ApplicationDialogue[]>("/vacancies/applications/conversations")
         : Promise.resolve([] as ApplicationDialogue[]);
-      const [invitationItems, networkItems, candidateProfile, applicationItems] = await Promise.all([invitationRequest, networkRequest, profileRequest, applicationRequest]);
+      const [invitationItems, networkItems, applicationItems] = await Promise.all([invitationRequest, networkRequest, applicationRequest]);
       setInvitations(invitationItems.filter((item) => item.status === "accepted"));
       setNetworkConversations(networkItems);
-      setVerifiedGrade(candidateProfile?.verified_grade ?? null);
       setApplicationChats(applicationItems);
       setError("");
     } catch (requestError) {
@@ -3047,10 +3042,6 @@ function DialogsScreen({
 
   const findMentors = async (event: FormEvent) => {
     event.preventDefault();
-    if (!verifiedGrade) {
-      onNotify("Сначала подтвердите свой грейд в разделе «Мой грейд», чтобы найти наставника выше вашего уровня.", "error");
-      return;
-    }
     try {
       const params = new URLSearchParams();
       if (skillQuery.trim()) params.set("skill", skillQuery.trim());
@@ -3112,7 +3103,7 @@ function DialogsScreen({
 
   if (!employer && initialMode === "mentors") {
     return <div className="page-content mentor-search-page">
-      <div className="dialogues-intro"><div><span>ПРОФЕССИОНАЛЬНЫЙ РОСТ</span><strong>Найдите наставника по навыку</strong><p>Показываем кандидатов, которые подтвердили более высокий грейд и готовы помогать другим.</p></div><div className="dialogues-intro__icon"><Icon name="school" size={22} /></div></div>
+      <div className="dialogues-intro"><div><span>ПРОФЕССИОНАЛЬНЫЙ РОСТ</span><strong>Найдите наставника по навыку</strong><p>Показываем кандидатов, которые подтвердили свой грейд и согласились быть наставниками.</p></div><div className="dialogues-intro__icon"><Icon name="school" size={22} /></div></div>
       {error && <div className="form-error" role="alert">{error}</div>}
       <section className="mentor-requests" aria-label="Заявки на наставничество">
         <div className="mentor-requests__head"><strong>Заявки на наставничество</strong><Button variant="ghost" onClick={() => void refresh()} aria-label="Обновить заявки"><Icon name="refresh" size={15} /></Button></div>
@@ -3121,8 +3112,8 @@ function DialogsScreen({
         {!networkConversations.some((item) => item.status === "pending") && <p>Активных заявок пока нет.</p>}
       </section>
       <section className="mentor-finder">
-        <div><span>ПОИСК НАСТАВНИКА</span><strong>Какой навык хотите развить?</strong><p>{verifiedGrade ? "Поиск доступен для вашего подтверждённого уровня." : "Сначала подтвердите грейд в разделе «Мой грейд»."}</p></div>
-        <form onSubmit={(event) => void findMentors(event)}><label htmlFor="mentor-skill">Навык</label><div className="search-field"><Icon name="search" /><input id="mentor-skill" value={skillQuery} onChange={(event) => setSkillQuery(event.target.value)} placeholder="Например, PostgreSQL" /></div><Button type="submit" variant="outline" disabled={!verifiedGrade}><Icon name="search" /> Найти ментора</Button></form>
+        <div><span>ПОИСК НАСТАВНИКА</span><strong>Какой навык хотите развить?</strong><p>Найдите кандидата, который согласился помогать другим, и отправьте ему заявку.</p></div>
+        <form onSubmit={(event) => void findMentors(event)}><label htmlFor="mentor-skill">Навык</label><div className="search-field"><Icon name="search" /><input id="mentor-skill" value={skillQuery} onChange={(event) => setSkillQuery(event.target.value)} placeholder="Например, PostgreSQL" /></div><Button type="submit" variant="outline"><Icon name="search" /> Найти ментора</Button></form>
         {mentors.map((mentor) => <article className="mentor-card" key={mentor.user_id}><div className="mentor-card__identity"><CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} photoUrl={mentor.photo_url} /><div><strong>{mentor.name}</strong><span>{mentor.specialization || "IT"} · {mentor.verified_grade}</span></div></div><div className="mini-tags">{mentor.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}</div><Button variant="outline" onClick={() => { setMentorTarget(mentor); setRequestMessage(`Здравствуйте! Хочу прокачать ${skillQuery.trim() || mentor.skills[0] || "навыки"} и подготовиться к следующему грейду. Будете готовы стать моим наставником?`); }}>Запросить поддержку</Button></article>)}
         {mentors.length === 0 && <span className="mentor-finder__hint">Наставники появятся после поиска по навыку.</span>}
       </section>

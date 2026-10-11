@@ -41,8 +41,8 @@ async def register_candidate(client: AsyncClient, email: str, first_name: str, g
 
 
 @pytest.mark.asyncio
-async def test_candidate_can_request_opted_in_higher_grade_mentor(client: AsyncClient):
-    candidate_headers, candidate_user_id = await register_candidate(
+async def test_candidate_can_request_opted_in_mentor_and_chat_after_acceptance(client: AsyncClient):
+    candidate_headers, _ = await register_candidate(
         client, "mentee@example.com", "Иван", "junior"
     )
     mentor_headers, mentor_user_id = await register_candidate(
@@ -53,13 +53,9 @@ async def test_candidate_can_request_opted_in_higher_grade_mentor(client: AsyncC
     )
 
     async with TestingSessionLocal() as db:
-        mentee = await db.scalar(
-            select(CandidateProfile).where(CandidateProfile.user_id == candidate_user_id)
-        )
         mentor = await db.scalar(
             select(CandidateProfile).where(CandidateProfile.user_id == mentor_user_id)
         )
-        mentee.verified_grade = "middle"
         mentor.verified_grade = "senior"
         lower_mentor = await db.scalar(
             select(CandidateProfile).where(CandidateProfile.user_id == lower_mentor_user_id)
@@ -81,9 +77,10 @@ async def test_candidate_can_request_opted_in_higher_grade_mentor(client: AsyncC
         headers=candidate_headers,
     )
     assert mentors.status_code == 200
-    assert [item["user_id"] for item in mentors.json()] == [str(mentor_user_id)]
+    assert {item["user_id"] for item in mentors.json()} == {str(mentor_user_id), str(lower_mentor_user_id)}
     assert "email" not in mentors.json()[0]
-    assert (await client.get("/api/v1/network/mentors", headers=mentor_headers)).json() == []
+    own_search = await client.get("/api/v1/network/mentors", headers=mentor_headers)
+    assert all(item["user_id"] != str(mentor_user_id) for item in own_search.json())
     lower_request = await client.post(
         "/api/v1/network/mentorship-requests",
         headers=candidate_headers,
@@ -93,7 +90,7 @@ async def test_candidate_can_request_opted_in_higher_grade_mentor(client: AsyncC
             "message": "Запрос на наставничество",
         },
     )
-    assert lower_request.status_code == 409
+    assert lower_request.status_code == 201
 
     request = await client.post(
         "/api/v1/network/mentorship-requests",
@@ -110,7 +107,7 @@ async def test_candidate_can_request_opted_in_higher_grade_mentor(client: AsyncC
     assert request.json()["can_accept"] is False
     stats = await client.get("/api/v1/network/stats", headers=candidate_headers)
     assert stats.status_code == 200
-    assert stats.json()["mentorship_requests_sent"] == 1
+    assert stats.json()["mentorship_requests_sent"] == 2
 
     assert (await client.post(
         f"/api/v1/network/conversations/{conversation_id}/messages",

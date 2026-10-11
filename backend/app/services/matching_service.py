@@ -167,7 +167,7 @@ def _match_item(
         birth_year=candidate.birth_year,
         photo_url=f"/candidate/{candidate.id}/photo" if candidate.photo_filename else None,
         github_url=candidate.github_url,
-        resume_text=candidate.resume_text,
+        resume_text=None,
         resume_employers=list(dict.fromkeys(
             company for company, _role in labeled_work_entries(candidate.resume_text or "").values()
         )),
@@ -546,7 +546,7 @@ class MatchingService:
                     birth_year=candidate.birth_year,
                     photo_url=f"/candidate/{candidate.id}/photo" if candidate.photo_filename else None,
                     github_url=candidate.github_url,
-                    resume_text=candidate.resume_text,
+                    resume_text=None,
                     resume_employers=list(dict.fromkeys(
                         company for company, _role in labeled_work_entries(candidate.resume_text or "").values()
                     )),

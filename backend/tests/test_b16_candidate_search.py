@@ -119,6 +119,10 @@ async def test_search_declared_grade_does_not_open_profile_b16(client: AsyncClie
     assert sergey_resp.status_code == 200
     sergey_id = sergey_resp.json()["id"]
     await set_verified_grade(sergey_id, "middle")
+    async with TestingSessionLocal() as session:
+        candidate = await session.get(CandidateProfile, uuid.UUID(sergey_id))
+        candidate.resume_text = "Опыт работы. Контакт: sergey.private@example.com"
+        await session.commit()
 
     # Поиск grade=senior не должен открывать Сергея, несмотря на declared_grade=senior!
     search_sr2 = await client.get(
@@ -140,6 +144,7 @@ async def test_search_declared_grade_does_not_open_profile_b16(client: AsyncClie
     found_item = next(item for item in search_mid.json() if item["candidate_id"] == sergey_id)
     assert found_item["verified_grade"] == "middle"
     assert found_item["declared_grade"] == "senior"
+    assert found_item["resume_text"] is None
     own_profile = await client.get("/api/v1/candidates/profile", headers=sergey_headers)
     assert own_profile.status_code == 200
     assert found_item["profile_completeness"] == {

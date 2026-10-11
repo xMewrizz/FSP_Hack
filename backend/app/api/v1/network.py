@@ -66,22 +66,12 @@ async def search_mentors(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
-    own_profile_result = await db.execute(
-        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
-    )
-    own_profile = own_profile_result.scalar_one_or_none()
-    grade_rank = {"junior": 0, "middle": 1, "senior": 2, "lead": 3}
-    own_grade = (own_profile.verified_grade or "").casefold() if own_profile else ""
-    if own_grade not in grade_rank:
-        return []
-    own_rank = grade_rank[own_grade]
-    higher_grades = [grade for grade, rank in grade_rank.items() if rank > own_rank]
     statement = (
         select(CandidateProfile)
         .where(
             CandidateProfile.mentor_available.is_(True),
             CandidateProfile.user_id != current_user.id,
-            func.lower(CandidateProfile.verified_grade).in_(higher_grades),
+            CandidateProfile.verified_grade.is_not(None),
         )
         .order_by(CandidateProfile.verified_grade, CandidateProfile.last_name)
         .limit(100)
@@ -170,10 +160,6 @@ async def request_mentorship(
 ):
     if data.mentor_user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Нельзя отправить запрос самому себе")
-    requester_result = await db.execute(
-        select(CandidateProfile).where(CandidateProfile.user_id == current_user.id)
-    )
-    requester = requester_result.scalar_one_or_none()
     mentor_result = await db.execute(
         select(CandidateProfile).where(
             CandidateProfile.user_id == data.mentor_user_id,
@@ -184,11 +170,6 @@ async def request_mentorship(
     mentor = mentor_result.scalar_one_or_none()
     if mentor is None:
         raise HTTPException(status_code=404, detail="Наставник больше не принимает запросы")
-    grade_rank = {"junior": 0, "middle": 1, "senior": 2, "lead": 3}
-    requester_rank = grade_rank.get((requester.verified_grade or "").casefold(), -1) if requester else -1
-    mentor_rank = grade_rank.get((mentor.verified_grade or "").casefold(), -1)
-    if requester_rank < 0 or mentor_rank <= requester_rank:
-        raise HTTPException(status_code=409, detail="Наставник должен иметь подтверждённый грейд выше вашего")
     existing_result = await db.execute(
         select(NetworkConversation).where(
             NetworkConversation.status.in_(("pending", "accepted")),
