@@ -33,6 +33,7 @@ def fake_functional_checks(monkeypatch):
             status="success" if valid else "syntax_error", is_safe=valid,
             passed=valid, score=1.0 if valid else 0.0,
             tests_total=12, tests_passed=12 if valid else 0,
+            feedback="" if valid else "Синтаксическая ошибка в решении",
         )
 
     monkeypatch.setattr(code_sandbox_service, "evaluate_question_code", evaluate)
@@ -210,7 +211,21 @@ async def test_get_single_open_question_api(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_submit_open_architecture_answer(client: AsyncClient):
+async def test_submit_open_architecture_answer(client: AsyncClient, monkeypatch):
+    from app.services import open_question_service
+
+    class AvailableML:
+        async def post(self, _url, json):
+            return httpx.Response(200, json={
+                "score": 0.9, "passed": True, "feedback": "Автоматическая оценка",
+                "criterion_scores": {"Критерий 1": 1.0, "Критерий 2": 0.8, "Критерий 3": 0.9},
+                "evaluator": "llm_openrouter", "needs_manual_review": "broken syntax" in json.get("candidate_answer", ""),
+            })
+
+        async def aclose(self):
+            pass
+
+    monkeypatch.setattr(open_question_service.httpx, "AsyncClient", lambda **_kwargs: AvailableML())
     headers = await open_test_candidate_headers(client, "arch_cand@example.com")
     answer = (
         "1. В базе данных создаем таблицу payments с уникальным idempotency_key (UNIQUE constraint) "
@@ -229,7 +244,7 @@ async def test_submit_open_architecture_answer(client: AsyncClient):
     assert body["question_code"] == "OPEN-BE-ARCH-01"
     assert body["score"] >= 0.70
     assert body["passed"] is True
-    assert body["evaluator"] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter", "llm_listapi", "fallback_heuristic")
+    assert body["evaluator"].split("+", 1)[0] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter", "llm_listapi", "fallback_heuristic")
     assert body["needs_manual_review"] is True or body["evaluator"] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter", "llm_listapi")
     assert len(body["criterion_scores"]) >= 3
 
@@ -242,7 +257,21 @@ async def test_submit_open_architecture_answer(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_submit_open_code_answer_and_syntax_error(client: AsyncClient):
+async def test_submit_open_code_answer_and_syntax_error(client: AsyncClient, monkeypatch):
+    from app.services import open_question_service
+
+    class AvailableML:
+        async def post(self, _url, json):
+            return httpx.Response(200, json={
+                "score": 0.9, "passed": True, "feedback": "Автоматическая оценка",
+                "criterion_scores": {"Критерий 1": 1.0, "Критерий 2": 0.8, "Критерий 3": 0.9},
+                "evaluator": "llm_openrouter", "needs_manual_review": "broken syntax" in json.get("candidate_answer", ""),
+            })
+
+        async def aclose(self):
+            pass
+
+    monkeypatch.setattr(open_question_service.httpx, "AsyncClient", lambda **_kwargs: AvailableML())
     headers = await open_test_candidate_headers(client, "code_cand@example.com")
 
     # Валидный код

@@ -101,7 +101,10 @@ async def evaluate_open_answer(
     criteria = dict(model.get("criterion_scores", {}))
     criteria["Функциональные тесты"] = sandbox.score
     feedback = model.get("feedback", "").strip()
-    execution_feedback = f"Код прошёл {sandbox.tests_passed} из {sandbox.tests_total} проверок."
+    if sandbox.status == "syntax_error":
+        execution_feedback = sandbox.feedback or "Синтаксическая ошибка в решении."
+    else:
+        execution_feedback = f"Код прошёл {sandbox.tests_passed} из {sandbox.tests_total} проверок."
     return {
         **model,
         "score": score,
@@ -150,7 +153,8 @@ async def submit_open_question_answer(
     except RuntimeError as exc:
         raise HTTPException(503, "Проверка кода сейчас недоступна. Ответ не отправлен; попробуйте позже.") from exc
 
-    if assessment_id is not None and eval_result.get("evaluator") == "fallback_heuristic":
+    evaluator = str(eval_result.get("evaluator", ""))
+    if assessment_id is not None and evaluator.startswith("fallback_heuristic"):
         raise HTTPException(
             503,
             "Проверка ответа сейчас недоступна. Ответ не отправлен; сохраните его текст и попробуйте позже.",
@@ -303,7 +307,7 @@ async def retry_open_submission_evaluation(
         result = await evaluate_open_answer(question, submission.answer_text, client)
     except RuntimeError as exc:
         raise HTTPException(503, "Проверка кода сейчас недоступна. Попробуйте позже.") from exc
-    if result.get("needs_manual_review") or result.get("evaluator") == "fallback_heuristic":
+    if result.get("needs_manual_review") or str(result.get("evaluator", "")).startswith("fallback_heuristic"):
         raise HTTPException(503, "Автоматическая проверка пока недоступна. Попробуйте позже.")
 
     submission = await db.scalar(select(OpenQuestionSubmission).where(

@@ -34,6 +34,8 @@ class CodeSandboxService:
                 # Кандидату достаточно общего результата пробного запуска.
                 if result.status == "security_violation":
                     feedback = "Код не прошёл проверку допустимых операций"
+                elif result.status == "syntax_error":
+                    feedback = result.feedback or "Синтаксическая ошибка в решении"
                 elif result.status == "time_limit_exceeded":
                     feedback = "Превышено время выполнения"
                 elif result.status == "runtime_error":
