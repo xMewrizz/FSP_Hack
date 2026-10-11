@@ -854,6 +854,8 @@ type TestResultData = {
   }>;
   feedback: string;
   suggested_grade: string | null;
+  review_topics?: string[];
+  review_topics_status?: "none" | "ready" | "unavailable";
 };
 
 type CandidateDiplomaRecord = {
@@ -4488,28 +4490,25 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               </div>
             </section>}
             {testResult?.question_review?.length ? (
-              <>
-                <div className="topic-summary">
-                  <h3>Ответы по темам</h3>
-                  {testResult.skill_breakdown.map((skill) => <div key={skill.topic}><span>{skill.topic}</span><strong>{skill.correct_count} из {skill.total_questions}</strong></div>)}
-                </div>
-                <div className="question-review">
-                  <h3>Разбор заданий</h3>
-                  {testResult.question_review.map((item, index) => <div className="question-review__item" key={item.code}>
-                    <strong>{index + 1}. {item.topic} — {item.earned_score ?? (item.is_correct ? 1 : 0)} из {item.max_score ?? 1} баллов</strong>
-                    <p>{item.question_text}</p>
-                    <p>Ваш ответ: {item.selected_answers.join("; ") || "нет ответа"}</p>
-                    {!item.is_correct && item.correct_answers.length > 0 && <p>Правильный ответ: {item.correct_answers.join("; ")}</p>}
-                    <p>{item.explanation}</p>
-                  </div>)}
-                </div>
-              </>
+              <div className="question-review">
+                <h3>Разбор заданий</h3>
+                {testResult.question_review.map((item, index) => <div className="question-review__item" key={item.code}>
+                  <strong>{index + 1}. {item.topic} — {item.earned_score ?? (item.is_correct ? 1 : 0)} из {item.max_score ?? 1} баллов</strong>
+                  <p>{item.question_text}</p>
+                  <p>Ваш ответ: {item.selected_answers.join("; ") || "нет ответа"}</p>
+                  {!item.is_correct && item.correct_answers.length > 0 && <p>Правильный ответ: {item.correct_answers.join("; ")}</p>}
+                  <p>{item.explanation}</p>
+                </div>)}
+              </div>
             ) : <div className="skill-table">{testResult?.skill_breakdown.map((skill) => <div key={skill.topic}><span>{skill.topic}</span><Progress value={skill.percentage} /><strong>{skill.percentage}%</strong></div>)}</div>}
-            {testResult?.skill_breakdown.some((skill) => skill.percentage < 75) && <section className="result-improvement" aria-label="Темы для повторения">
-              <div><span>СЛЕДУЮЩИЙ ШАГ</span><h2>Темы, которые стоит подтянуть</h2></div>
-              <p>Выделили темы с результатом ниже 75% — начните повторение с них.</p>
-              <ul>{testResult.skill_breakdown.filter((skill) => skill.percentage < 75).sort((left, right) => left.percentage - right.percentage).map((skill) => <li key={skill.topic}><span>{skill.topic}</span><strong>{skill.percentage}%</strong></li>)}</ul>
-            </section>}
+            {testResult?.review_topics_status === "ready" && (testResult.review_topics?.length ?? 0) > 0 && <div className="topic-summary" aria-label="Темы для изучения">
+              <h3>Темы для изучения</h3>
+              {testResult.review_topics?.map((topic) => <div key={topic}><span>{topic}</span></div>)}
+            </div>}
+            {testResult?.review_topics_status === "unavailable" && <div className="topic-summary" aria-label="Темы для изучения">
+              <h3>Темы для изучения</h3>
+              <p>Рекомендации временно недоступны.</p>
+            </div>}
             {testPurpose === "grade" && testResult?.suggested_grade && <p>Можно пройти полный набор на уровень {testResult.suggested_grade}.</p>}
             {testPurpose === "grade" && roadmap?.stopped_early && roadmap.id === testResult?.assessment_id && !roadmap.retake_used && roadmap.expires_at && Date.parse(roadmap.expires_at) > Date.now() && roadmap.skills.some((skill) => skill.percentage !== null && skill.percentage < 50) && <Button disabled={testStarting} onClick={() => void startRoadmapSkill(roadmap.skills.find((skill) => skill.percentage !== null && skill.percentage < 50)!.code)}>Пересдать {roadmap.failed_skill ?? "навык"}</Button>}
             <Button onClick={() => { setTestDone(false); setTestResult(null); }}>К тестированию</Button>
