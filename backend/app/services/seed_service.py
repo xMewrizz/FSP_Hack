@@ -11,6 +11,7 @@ from app.models.invitation import Invitation
 from app.models.need import EmployerNeed
 from app.models.test import TestSession
 from app.models.user import User
+from app.models.vacancy import Vacancy, VacancyApplication
 from app.services.fsp_service import FSP_REGISTRY_FIXTURES
 from app.services.testing_service import testing_service
 
@@ -457,6 +458,150 @@ class SeedService:
                 if ep:
                     employer_profiles.append(ep)
 
+        await db.commit()
+
+        # 3.1 Seed a small public job board and sample applications for the demo accounts.
+        demo_vacancies = [
+            {
+                "employer_email": "hr@yandex-team.ru",
+                "title": "Backend-разработчик Python",
+                "specialization": "Backend",
+                "required_grade": "middle",
+                "required_skills": ["Python", "FastAPI", "PostgreSQL", "Docker"],
+                "salary_min": 220000.0,
+                "salary_max": 300000.0,
+                "salary_tax_type": "gross",
+                "work_format": "remote",
+                "city": "Москва",
+                "description": "Развивайте API сервисов поиска и рекомендаций: проектирование новых методов, оптимизация PostgreSQL и надёжная обработка событий.",
+                "applicant_email": "alex@fsp.ru",
+            },
+            {
+                "employer_email": "hr@yandex-team.ru",
+                "title": "Frontend-разработчик React",
+                "specialization": "Frontend",
+                "required_grade": "middle",
+                "required_skills": ["TypeScript", "React", "Vite", "Playwright"],
+                "salary_min": 200000.0,
+                "salary_max": 280000.0,
+                "salary_tax_type": "net",
+                "work_format": "hybrid",
+                "city": "Москва",
+                "description": "Создавайте быстрые интерфейсы для внутренних продуктов, развивайте дизайн-систему и покрывайте ключевые сценарии тестами.",
+                "applicant_email": "kate@fsp.ru",
+            },
+            {
+                "employer_email": "hr@yandex-team.ru",
+                "title": "Инженер платформы данных",
+                "specialization": "Data Science / ML",
+                "required_grade": "middle",
+                "required_skills": ["Python", "SQL", "Airflow", "ClickHouse"],
+                "salary_min": 230000.0,
+                "salary_max": 320000.0,
+                "salary_tax_type": "gross",
+                "work_format": "hybrid",
+                "city": "Москва",
+                "description": "Стройте конвейеры данных и инструменты для продуктовой аналитики вместе с командой платформы.",
+                "applicant_email": "ds-middle-marina@example.com",
+            },
+            {
+                "employer_email": "hr@yandex-team.ru",
+                "title": "DevOps-инженер",
+                "specialization": "DevOps / SRE",
+                "required_grade": "middle",
+                "required_skills": ["Linux", "Kubernetes", "CI/CD", "Prometheus"],
+                "salary_min": 210000.0,
+                "salary_max": 300000.0,
+                "salary_tax_type": "gross",
+                "work_format": "remote",
+                "city": "Новосибирск",
+                "description": "Поддерживайте инфраструктуру сервисов, улучшайте наблюдаемость и автоматизируйте безопасные релизы.",
+                "applicant_email": "dmitry@fsp.ru",
+            },
+            {
+                "employer_email": "hr@tbank.ru",
+                "title": "Backend-разработчик Java",
+                "specialization": "Backend",
+                "required_grade": "senior",
+                "required_skills": ["Java", "Spring", "Kafka", "PostgreSQL"],
+                "salary_min": 300000.0,
+                "salary_max": 420000.0,
+                "salary_tax_type": "net",
+                "work_format": "hybrid",
+                "city": "Москва",
+                "description": "Проектируйте высоконагруженные сервисы платежей, развивайте потоковую обработку и помогайте команде с архитектурой.",
+                "applicant_email": "backend-senior-pavel@example.ru",
+            },
+            {
+                "employer_email": "hr@tbank.ru",
+                "title": "Инженер по автоматизации тестирования",
+                "specialization": "QA / Testing",
+                "required_grade": "middle",
+                "required_skills": ["Python", "Pytest", "Playwright", "API testing"],
+                "salary_min": 180000.0,
+                "salary_max": 260000.0,
+                "salary_tax_type": "gross",
+                "work_format": "remote",
+                "city": "Санкт-Петербург",
+                "description": "Развивайте автотесты веб-продуктов, подключайте проверки к CI и помогайте командам быстрее находить регрессии.",
+                "applicant_email": "qa-middle-irina@example.ru",
+            },
+        ]
+        employer_by_email = {
+            email: profile
+            for email, profile in (await db.execute(
+                select(User.email, EmployerProfile).join(
+                    EmployerProfile, EmployerProfile.user_id == User.id
+                ).where(User.email.in_({item["employer_email"] for item in demo_vacancies}))
+            )).all()
+        }
+        candidate_by_email = {
+            email: profile
+            for email, profile in (await db.execute(
+                select(User.email, CandidateProfile).join(
+                    CandidateProfile, CandidateProfile.user_id == User.id
+                ).where(User.email.in_({item["applicant_email"] for item in demo_vacancies}))
+            )).all()
+        }
+        for item in demo_vacancies:
+            employer = employer_by_email.get(item["employer_email"])
+            candidate = candidate_by_email.get(item["applicant_email"])
+            if employer is None or candidate is None:
+                continue
+            vacancy = await db.scalar(select(Vacancy).where(
+                Vacancy.employer_id == employer.id,
+                Vacancy.title == item["title"],
+            ))
+            if vacancy is None:
+                vacancy = Vacancy(
+                    employer_id=employer.id,
+                    title=item["title"],
+                    specialization=item["specialization"],
+                    required_grade=item["required_grade"],
+                    required_skills=item["required_skills"],
+                    salary_min=item["salary_min"],
+                    salary_max=item["salary_max"],
+                    salary_tax_type=item["salary_tax_type"],
+                    currency="RUB",
+                    work_format=item["work_format"],
+                    city=item["city"],
+                    description=item["description"],
+                    is_published=True,
+                )
+                db.add(vacancy)
+                await db.flush()
+            application = await db.scalar(select(VacancyApplication.id).where(
+                VacancyApplication.vacancy_id == vacancy.id,
+                VacancyApplication.candidate_id == candidate.id,
+            ))
+            if application is None:
+                db.add(VacancyApplication(
+                    vacancy_id=vacancy.id,
+                    candidate_id=candidate.id,
+                    cover_letter=f"Демонстрационный отклик на вакансию «{vacancy.title}».",
+                    status="pending",
+                    status_updated_at=now,
+                ))
         await db.commit()
 
         # 4. Seed sample invitations

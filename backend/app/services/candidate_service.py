@@ -19,6 +19,7 @@ from app.core.assessment_catalog import SKILL_LABELS
 from app.schemas.fsp import FSPAchievementSchema
 from app.services.fsp_service import fsp_service
 from app.services.resume_versions import work_history_lines
+from app.services.profile_completeness import calculate_profile_completeness
 
 
 class CandidateService:
@@ -382,8 +383,6 @@ class CandidateService:
         email_verified: bool,
         additional_skills: list[AdditionalSkillResultItem] | None = None,
     ) -> CandidateProfileResponse:
-        from app.services.profile_completeness import calculate_profile_completeness
-
         return CandidateProfileResponse(
             id=profile.id,
             user_id=profile.user_id,

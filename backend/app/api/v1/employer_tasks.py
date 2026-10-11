@@ -106,10 +106,13 @@ async def download_task_attachment(
             )
     if not allowed:
         raise HTTPException(status_code=403, detail="Нет доступа к вложению")
+    file_name = attachment.file_name
+    if file_name.startswith("fsp-diploma--"):
+        file_name = file_name.split("--", 2)[-1]
     return Response(
         content=attachment.content,
         media_type=attachment.content_type,
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(attachment.file_name)}"},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(file_name)}"},
     )
 
 

@@ -143,7 +143,6 @@ def _match_item(
     from app.services.trust_score_service import calculate_trust_score
     from app.services.resume_versions import labeled_work_entries
     trust_score_val, trust_flags_val = calculate_trust_score(candidate)
-
     return CandidateMatchItem(
         candidate_id=candidate.id,
         profile_completeness=calculate_profile_completeness(candidate, email_verified=candidate.user.is_verified),

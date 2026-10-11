@@ -281,7 +281,7 @@ async def test_matching_weighted_skills_and_salary_tax(client: AsyncClient):
             headers=headers,
             json={
                 "first_name": "Test",
-                "last_name": email.split("@")[0],
+                "last_name": email.split("@")[0].replace("_", "-"),
                 "city": "Москва",
                 "specialization": "Backend",
                 "declared_grade": "senior",

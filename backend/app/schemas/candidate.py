@@ -1,10 +1,41 @@
 from datetime import datetime
+import re
+import unicodedata
 from typing import Any, Literal
 import uuid
 from pydantic import BaseModel, Field, field_validator
 from app.core.constants import Grade, WorkFormat
 from app.schemas.fsp import FSPAchievementSchema
 from app.schemas.profile_completeness import ProfileCompleteness
+
+
+def _validate_person_name(value: str | None) -> str | None:
+    if value is None:
+        return value
+
+    normalized = unicodedata.normalize("NFC", " ".join(value.split()))
+    if not normalized or not re.fullmatch(r"[^\W\d_]+(?:[ '\u2019-][^\W\d_]+)*", normalized, re.UNICODE):
+        raise ValueError("Имя должно содержать только буквы, пробелы, дефис или апостроф.")
+    if re.search(r"(.)\1{3,}", normalized, re.IGNORECASE):
+        raise ValueError("Проверьте имя: оно похоже на случайный набор символов.")
+
+    compact = re.sub(r"[ '\u2019-]", "", normalized).lower()
+    if re.search(r"(?:qwer|asdf|zxcv|йцук|фыва|ячсм)", compact):
+        raise ValueError("Проверьте имя: оно похоже на случайный набор символов.")
+    if re.fullmatch(r"[a-z]+", compact) and len(compact) >= 4 and not re.search(r"[aeiouy]", compact):
+        raise ValueError("Проверьте имя: латинское написание похоже на случайный набор символов.")
+
+    return normalized
+
+
+def _validate_phone(value: str | None) -> str | None:
+    if value is None or not value.strip():
+        return None
+    normalized = value.strip()
+    digits = re.sub(r"\D", "", normalized)
+    if not re.fullmatch(r"\+?[\d()\-\s]+", normalized) or not 10 <= len(digits) <= 15:
+        raise ValueError("Укажите телефон в международном формате: от 10 до 15 цифр.")
+    return normalized
 
 
 class CandidateOnboardingRequest(BaseModel):
@@ -54,11 +85,21 @@ class CandidateOnboardingRequest(BaseModel):
     github_url: str | None = None
     skills: list[str] | None = Field(None, description="Ключевые навыки и стек технологий")
 
+    @field_validator("first_name", "last_name", "middle_name")
+    @classmethod
+    def validate_person_names(cls, value: str | None) -> str | None:
+        return _validate_person_name(value)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        return _validate_phone(value)
+
 
 class CandidateProfileUpdateRequest(BaseModel):
-    first_name: str | None = None
-    last_name: str | None = None
-    middle_name: str | None = None
+    first_name: str | None = Field(default=None, max_length=100)
+    last_name: str | None = Field(default=None, max_length=100)
+    middle_name: str | None = Field(default=None, max_length=100)
     phone: str | None = None
     telegram: str | None = None
     bio: str | None = None
@@ -95,6 +136,16 @@ class CandidateProfileUpdateRequest(BaseModel):
             if clean in ("net", "на руки", "на руки (net)"):
                 return "net"
         return v
+
+    @field_validator("first_name", "last_name", "middle_name")
+    @classmethod
+    def validate_person_names(cls, value: str | None) -> str | None:
+        return _validate_person_name(value)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        return _validate_phone(value)
 
 
 class AdditionalSkillResultItem(BaseModel):

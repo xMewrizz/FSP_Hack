@@ -105,7 +105,8 @@ async def test_osint_consent_from_registration_survives_onboarding_and_can_be_re
     verified = await client.post("/api/v1/auth/verify-email", json={
         "email": "consent@example.com", "code": registered.json()["verification_code"],
     })
-    headers = {"Authorization": f"Bearer {verified.json()['access_token']}"}
+    assert verified.status_code == 200
+    headers = {"Authorization": "Bearer " + verified.json()["access_token"]}
     onboarding = await client.post("/api/v1/candidate/onboarding", headers=headers, json={
         "agreed_152_fz": True, "specialization": "Backend",
         "declared_grade": "junior", "work_format": "remote", "city": "Москва",
@@ -117,6 +118,76 @@ async def test_osint_consent_from_registration_survives_onboarding_and_can_be_re
     revoked = await client.put("/api/v1/candidate/profile", headers=headers, json={"agreed_osint": False})
     assert revoked.status_code == 200
     assert revoked.json()["agreed_osint"] is False
+
+
+@pytest.mark.asyncio
+async def test_candidate_onboarding_rejects_obvious_name_keysmashes(client: AsyncClient):
+    reg_resp = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "name-check@example.com", "password": "Password123!", "role": "candidate"},
+    )
+    assert reg_resp.status_code == 201
+    verification = await client.post(
+        "/api/v1/auth/verify-email",
+        json={"email": "name-check@example.com", "code": reg_resp.json()["verification_code"]},
+    )
+    headers = {"Authorization": "Bearer " + verification.json()["access_token"]}
+
+    response = await client.post(
+        "/api/v1/candidate/onboarding",
+        headers=headers,
+        json={
+            "agreed_152_fz": True,
+            "specialization": "Backend",
+            "declared_grade": "middle",
+            "city": "Москва",
+            "first_name": "asdfgh",
+            "last_name": "Иванов",
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_candidate_can_attach_and_remove_olympiad_pdf(client: AsyncClient):
+    registered = await client.post("/api/v1/auth/register", json={
+        "email": "diploma@example.com", "password": "Password123!", "role": "candidate",
+    })
+    assert registered.status_code == 201
+    verified = await client.post("/api/v1/auth/verify-email", json={
+        "email": "diploma@example.com", "code": registered.json()["verification_code"],
+    })
+    assert verified.status_code == 200
+    headers = {"Authorization": "Bearer " + verified.json()["access_token"]}
+    onboarding = await client.post("/api/v1/candidate/onboarding", headers=headers, json={
+        "agreed_152_fz": True,
+        "specialization": "Backend",
+        "declared_grade": "junior",
+        "work_format": "remote",
+        "city": "Moscow",
+        "first_name": "Ivan",
+        "last_name": "Ivanov",
+    })
+    assert onboarding.status_code == 200
+
+    uploaded = await client.post(
+        "/api/v1/candidate/olympiad-diplomas",
+        headers=headers,
+        files={"file": ("diploma.pdf", b"%PDF-1.4\nsample diploma", "application/pdf")},
+    )
+    assert uploaded.status_code == 201
+    diploma = uploaded.json()
+    assert diploma["file_name"] == "diploma.pdf"
+
+    listed = await client.get("/api/v1/candidate/olympiad-diplomas", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json() == [diploma]
+
+    removed = await client.delete(f"/api/v1/candidate/olympiad-diplomas/{diploma['id']}", headers=headers)
+    assert removed.status_code == 204
+    listed_again = await client.get("/api/v1/candidate/olympiad-diplomas", headers=headers)
+    assert listed_again.status_code == 200
+    assert listed_again.json() == []
 
 
 @pytest.mark.asyncio

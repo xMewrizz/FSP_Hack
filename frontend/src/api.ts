@@ -35,7 +35,10 @@ function errorMessage(payload: unknown, fallback: string) {
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  if (window.localStorage.getItem("fsp-offline-demo") === "true") {
+  if (
+    window.localStorage.getItem("fsp-offline-demo") === "true"
+    || window.localStorage.getItem("fsp-demo-session") === "true"
+  ) {
     return requestDemoApi<T>(path, options);
   }
 

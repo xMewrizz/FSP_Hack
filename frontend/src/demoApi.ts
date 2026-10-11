@@ -2,6 +2,7 @@ type DemoRole = "candidate" | "employer";
 
 type DemoCandidate = {
   candidate_id: string;
+  profile_completeness?: { score: number; status: "insufficient" | "partial" | "complete" };
   first_name: string;
   last_name: string;
   specialization: string;
@@ -137,6 +138,7 @@ const candidateProfile = {
   hobbies: "Бег, шахматы и волонтёрство",
   city: "Москва",
   specialization: "Backend",
+  programming_language: "Python",
   declared_grade: "middle",
   verified_grade: "middle",
   work_format: "remote",
@@ -150,6 +152,7 @@ const candidateProfile = {
   agreed_152_fz: true,
   agreed_publication: true,
   agreed_fsp_id_link: true,
+  agreed_test_confidentiality: false,
   visibility_public: true,
   agreed_osint: true,
   mentor_available: false,
@@ -411,6 +414,34 @@ const invitations: DemoInvitation[] = [
 invitations[1].status = "accepted";
 invitations[1].accepted_at = "2026-10-04T15:30:00Z";
 invitations[1].candidate_contacts = { email: "alexey.demo@example.ru", phone: "+7 900 000-00-01", telegram: "@alexey_demo" };
+invitations.push(
+  ...[
+    { id: "demo-invitation-3", candidate: candidates[1], status: "sent", company: "Яндекс Практикум", need: "Backend-разработчик", description: "Будем рады обсудить задачи платформенной команды и ваш опыт с Go и очередями." },
+    { id: "demo-invitation-4", candidate: candidates[2], status: "viewed", company: "NovaTech", need: "Backend-разработчик", description: "Приглашаем познакомиться с командой и обсудить развитие API." },
+    { id: "demo-invitation-5", candidate: candidates[3], status: "rejected", company: "Т-Банк Финтех", need: "Backend-разработчик", description: "Предлагаем обсудить высоконагруженные сервисы и архитектуру платежей." },
+    { id: "demo-invitation-6", candidate: candidates[4], status: "accepted", company: "NovaTech", need: "Инженер платформы данных", description: "Ищем инженера для развития конвейеров данных и продуктовой аналитики." },
+    { id: "demo-invitation-7", candidate: candidates[5], status: "sent", company: "Яндекс Практикум", need: "Frontend-разработчик", description: "Приглашаем обсудить интерфейсы внутренних продуктов и дизайн-систему." },
+    { id: "demo-invitation-8", candidate: candidates[0], status: "viewed", company: "Т-Банк Финтех", need: "Backend-разработчик", description: "Ваш опыт с Python и PostgreSQL заинтересовал команду платформы." },
+  ].map((item, index): DemoInvitation => ({
+    ...invitations[0],
+    id: item.id,
+    employer_id: "demo-employer",
+    company_name: item.company,
+    candidate_id: item.candidate.candidate_id,
+    candidate_name: item.candidate.candidate_id === "demo-candidate-alex"
+      ? `${candidateProfile.first_name} ${candidateProfile.last_name}`
+      : `${item.candidate.first_name} ${item.candidate.last_name}`,
+    need_title: item.need,
+    offer_description: item.description,
+    contact_method: "Почта: team@example.ru",
+    status: item.status,
+    created_at: `2026-10-${String(6 + index).padStart(2, "0")}T12:00:00Z`,
+    accepted_at: item.status === "accepted" ? `2026-10-${String(6 + index).padStart(2, "0")}T15:00:00Z` : null,
+    candidate_contacts: item.status === "accepted"
+      ? { email: `${item.candidate.candidate_id}@example.ru`, phone: "+7 900 000-00-10", telegram: "@candidate_demo" }
+      : null,
+  })),
+);
 
 const invitationMessages: DemoInvitationMessage[] = [
   {
@@ -463,6 +494,22 @@ const vacancies: DemoVacancy[] = [
     company: { id: "demo-company", company_name: "NovaTech", industry: "FinTech", website: "https://example.com", city: "Москва" },
   },
 ];
+const extraVacancySeeds = [
+  { id: "demo-vacancy-3", employer_id: "demo-partner-yandex", title: "Frontend-разработчик React", specialization: "Frontend", required_grade: "middle", required_skills: ["TypeScript", "React", "Vite", "Playwright"], salary_min: 200000, salary_max: 280000, salary_tax_type: "gross" as const, work_format: "hybrid", city: "Москва", description: "Развивайте интерфейсы внутренних продуктов, дизайн-систему и доступность сервисов.", company: { id: "demo-yandex", company_name: "Яндекс Практикум", industry: "Образование и технологии", website: "https://example.com", city: "Москва" } },
+  { id: "demo-vacancy-4", employer_id: "demo-partner-tbank", title: "Инженер по автоматизации тестирования", specialization: "QA / Testing", required_grade: "middle", required_skills: ["Python", "Pytest", "Playwright", "API testing"], salary_min: 180000, salary_max: 260000, salary_tax_type: "gross" as const, work_format: "remote", city: "Санкт-Петербург", description: "Создавайте автотесты веб-продуктов и помогайте командам быстрее находить регрессии.", company: { id: "demo-tbank", company_name: "Т-Банк Финтех", industry: "Финансовые технологии", website: "https://example.com", city: "Санкт-Петербург" } },
+  { id: "demo-vacancy-5", employer_id: "demo-partner-yandex", title: "DevOps-инженер", specialization: "DevOps / SRE", required_grade: "senior", required_skills: ["Linux", "Kubernetes", "CI/CD", "Prometheus"], salary_min: 250000, salary_max: 360000, salary_tax_type: "net" as const, work_format: "hybrid", city: "Москва", description: "Улучшайте наблюдаемость платформы, автоматизируйте релизы и развивайте инфраструктуру.", company: { id: "demo-yandex", company_name: "Яндекс Практикум", industry: "Образование и технологии", website: "https://example.com", city: "Москва" } },
+  { id: "demo-vacancy-6", employer_id: "demo-partner-tbank", title: "Backend-разработчик Java", specialization: "Backend", required_grade: "senior", required_skills: ["Java", "Spring", "Kafka", "PostgreSQL"], salary_min: 300000, salary_max: 420000, salary_tax_type: "net" as const, work_format: "hybrid", city: "Москва", description: "Проектируйте сервисы платежей и развивайте потоковую обработку для финтех-продуктов.", company: { id: "demo-tbank", company_name: "Т-Банк Финтех", industry: "Финансовые технологии", website: "https://example.com", city: "Москва" } },
+  { id: "demo-vacancy-7", employer_id: "demo-employer", title: "QA-инженер продуктовой платформы", specialization: "QA / Testing", required_grade: "middle", required_skills: ["Python", "Pytest", "API testing", "PostgreSQL"], salary_min: 170000, salary_max: 240000, salary_tax_type: "gross" as const, work_format: "remote", city: "Москва", description: "Развивайте проверку API и помогайте команде выпускать надёжные обновления.", company: { id: "demo-company", company_name: "NovaTech", industry: "FinTech", website: "https://example.com", city: "Москва" } },
+  { id: "demo-vacancy-8", employer_id: "demo-employer", title: "Инженер мобильных приложений", specialization: "Mobile", required_grade: "middle", required_skills: ["Kotlin", "Android", "REST", "Git"], salary_min: 190000, salary_max: 270000, salary_tax_type: "gross" as const, work_format: "hybrid", city: "Москва", description: "Создавайте мобильные сценарии для управления финансовыми продуктами.", company: { id: "demo-company", company_name: "NovaTech", industry: "FinTech", website: "https://example.com", city: "Москва" } },
+  { id: "demo-vacancy-9", employer_id: "demo-employer", title: "Аналитик данных продукта", specialization: "Data Science / ML", required_grade: "junior", required_skills: ["SQL", "Python", "Airflow", "ClickHouse"], salary_min: 150000, salary_max: 220000, salary_tax_type: "net" as const, work_format: "hybrid", city: "Казань", description: "Исследуйте продуктовые данные и помогайте командам принимать решения на основе метрик.", company: { id: "demo-company", company_name: "NovaTech", industry: "FinTech", website: "https://example.com", city: "Казань" } },
+];
+vacancies.push(...extraVacancySeeds.map((item): DemoVacancy => ({
+  ...item,
+  currency: "RUB",
+  is_published: true,
+  created_at: "2026-10-03T10:00:00Z",
+  updated_at: "2026-10-03T10:00:00Z",
+})));
 
 const vacancyApplications: DemoVacancyApplication[] = [{
   id: "demo-application-seed-1",
@@ -509,6 +556,7 @@ vacancyApplications.push({
 vacancyApplications.push(...candidates.slice(4).map((candidate, index) => ({
   ...vacancyApplications[0],
   id: `demo-application-profile-${index + 1}`,
+  vacancy_id: vacancies[(index + 2) % vacancies.length].id,
   status: index % 3 === 0 ? "reviewed" as const : "pending" as const,
   candidate_id: candidate.candidate_id,
   candidate: {
@@ -522,7 +570,41 @@ vacancyApplications.push(...candidates.slice(4).map((candidate, index) => ({
     verified_grade: candidate.verified_grade,
     skills: candidate.skills,
   },
-  vacancy_title: `${candidate.verified_grade} ${candidate.specialization}`,
+  vacancy_title: vacancies[(index + 2) % vacancies.length].title,
+  company_name: vacancies[(index + 2) % vacancies.length].company.company_name,
+  salary_min: vacancies[(index + 2) % vacancies.length].salary_min,
+  salary_max: vacancies[(index + 2) % vacancies.length].salary_max,
+  salary_tax_type: vacancies[(index + 2) % vacancies.length].salary_tax_type,
+})));
+vacancyApplications.push(...[
+  { vacancy: vacancies[2], status: "pending" as const, letter: "Создаю интерфейсы на React и TypeScript, уделяю внимание производительности и доступности." },
+  { vacancy: vacancies[3], status: "reviewed" as const, letter: "Автоматизирую проверки на Python и Playwright, умею проектировать стабильные тестовые сценарии." },
+  { vacancy: vacancies[4], status: "accepted" as const, letter: "Развиваю инфраструктуру и CI/CD, работаю с Kubernetes и метриками наблюдаемости." },
+].map(({ vacancy, status, letter }, index): DemoVacancyApplication => ({
+  ...vacancyApplications[0],
+  id: `demo-application-alex-${index + 1}`,
+  vacancy_id: vacancy.id,
+  status,
+  cover_letter: letter,
+  created_at: `2026-10-${String(7 + index).padStart(2, "0")}T10:00:00Z`,
+  status_updated_at: status === "pending" ? null : `2026-10-${String(7 + index).padStart(2, "0")}T13:00:00Z`,
+  candidate_id: "demo-candidate-alex",
+  candidate: {
+    first_name: candidateProfile.first_name,
+    last_name: candidateProfile.last_name,
+    email: candidateProfile.email,
+    phone: candidateProfile.phone,
+    telegram: candidateProfile.telegram,
+    city: candidateProfile.city,
+    specialization: candidateProfile.specialization,
+    verified_grade: candidateProfile.verified_grade,
+    skills: candidates[0].skills,
+  },
+  vacancy_title: vacancy.title,
+  company_name: vacancy.company.company_name,
+  salary_min: vacancy.salary_min,
+  salary_max: vacancy.salary_max,
+  salary_tax_type: vacancy.salary_tax_type,
 })));
 const vacancyApplicationMessages: Record<string, DemoInvitationMessage[]> = {
   "demo-application-seed-1": [
@@ -576,6 +658,82 @@ let testHistory: Array<Record<string, unknown>> = [
   { id: "demo-test-history-1", specialization: "Backend", target_grade: "middle", percentage: 82, passed: true, grade_confirmed: true, status: "completed", created_at: "2026-10-01T09:30:00Z", completed_at: "2026-10-01T10:15:00Z", skill_code: null, assessment_id: "demo-assessment-backend-middle" },
   { id: "demo-test-history-2", specialization: "Backend", target_grade: "senior", percentage: 68, passed: false, grade_confirmed: false, status: "completed", created_at: "2026-09-25T11:00:00Z", completed_at: "2026-09-25T11:45:00Z", skill_code: null, assessment_id: null },
 ];
+const demoRoadmap = {
+  id: "demo-assessment-backend-middle",
+  specialization: "Backend",
+  programming_language: "Python",
+  target_grade: "middle",
+  status: "completed",
+  skills: [
+    { code: "BE-PY", label: "Python и структуры данных", status: "completed", percentage: 86, level_out_of_ten: 8.6, session_id: "demo-skill-python" },
+    { code: "BE-DB", label: "Базы данных и SQL", status: "completed", percentage: 78, level_out_of_ten: 7.8, session_id: "demo-skill-sql" },
+    { code: "BE-API", label: "Проектирование API", status: "completed", percentage: 82, level_out_of_ten: 8.2, session_id: "demo-skill-api" },
+    { code: "BE-TEST", label: "Тестирование сервисов", status: "completed", percentage: 82, level_out_of_ten: 8.2, session_id: "demo-skill-tests" },
+  ],
+  open_questions: [],
+  percentage: 82,
+  passed: true,
+  stopped_early: false,
+  failed_skill: null,
+  grade_confirmed: true,
+  verified_grade: "middle",
+  suggested_grade: null,
+  expires_at: null,
+  retake_used: false,
+  retry_available_at: null,
+  promotion_available_at: null,
+};
+const demoFrontendRoadmap = {
+  id: "demo-assessment-frontend-middle",
+  specialization: "Frontend",
+  programming_language: "TypeScript",
+  target_grade: "middle",
+  status: "completed",
+  skills: [
+    { code: "FE-LANG", label: "JavaScript и TypeScript", status: "completed", percentage: 86, level_out_of_ten: 8.6, session_id: "demo-skill-frontend-language" },
+    { code: "FE-UI", label: "Компоненты интерфейса и доступность", status: "completed", percentage: 76, level_out_of_ten: 7.6, session_id: "demo-skill-frontend-ui" },
+    { code: "FE-ARCH", label: "Проектирование frontend-приложений", status: "completed", percentage: 80, level_out_of_ten: 8.0, session_id: "demo-skill-frontend-architecture" },
+    { code: "FE-TEST", label: "Тестирование интерфейсов", status: "completed", percentage: 82, level_out_of_ten: 8.2, session_id: "demo-skill-frontend-tests" },
+    { code: "FE-PERF", label: "Производительность браузера", status: "completed", percentage: 74, level_out_of_ten: 7.4, session_id: "demo-skill-frontend-performance" },
+  ],
+  open_questions: [],
+  percentage: 80,
+  passed: true,
+  stopped_early: false,
+  failed_skill: null,
+  grade_confirmed: true,
+  verified_grade: "middle",
+  suggested_grade: null,
+  expires_at: null,
+  retake_used: false,
+  retry_available_at: null,
+  promotion_available_at: null,
+};
+const demoDevOpsRoadmap = {
+  id: "demo-assessment-devops-middle",
+  specialization: "DevOps / SRE",
+  programming_language: null,
+  target_grade: "middle",
+  status: "completed",
+  skills: [
+    { code: "DO-LINUX", label: "Linux и основы сетей", status: "completed", percentage: 82, level_out_of_ten: 8.2, session_id: "demo-skill-devops-linux" },
+    { code: "DO-CICD", label: "CI/CD и автоматизация релизов", status: "completed", percentage: 78, level_out_of_ten: 7.8, session_id: "demo-skill-devops-cicd" },
+    { code: "DO-INFRA", label: "Контейнерная инфраструктура", status: "completed", percentage: 84, level_out_of_ten: 8.4, session_id: "demo-skill-devops-infrastructure" },
+    { code: "DO-OBS", label: "Наблюдаемость систем", status: "completed", percentage: 76, level_out_of_ten: 7.6, session_id: "demo-skill-devops-observability" },
+  ],
+  open_questions: [],
+  percentage: 80,
+  passed: true,
+  stopped_early: false,
+  failed_skill: null,
+  grade_confirmed: true,
+  verified_grade: "middle",
+  suggested_grade: null,
+  expires_at: null,
+  retake_used: false,
+  retry_available_at: null,
+  promotion_available_at: null,
+};
 let activeTestId: string | null = null;
 let currentCandidateProfile = { ...candidateProfile };
 let currentCandidatePhoto: Blob | null = null;
@@ -672,19 +830,72 @@ function invitationsForCandidate() {
   return invitations.filter((item) => item.candidate_name.includes(currentCandidateProfile.first_name));
 }
 
+function demoProfileCompleteness(profile: {
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  specialization?: string | null;
+  programming_language?: string | null;
+  declared_grade?: string | null;
+  work_format?: string | null;
+  salary_expectation?: number | null;
+  skills?: string[] | null;
+  verified_grade?: string | null;
+}) {
+  const checks: Array<[string, number, boolean]> = [
+    ["имя и фамилию", 5, Boolean(profile.first_name?.trim() && profile.last_name?.trim())],
+    ["подтверждение email", 20, true],
+    ["номер телефона", 30, Boolean(profile.phone?.trim())],
+    ["специализацию, язык и заявленный грейд", 10, Boolean(profile.specialization?.trim() && profile.programming_language?.trim() && profile.declared_grade?.trim())],
+    ["город, формат и ожидания по зарплате", 5, Boolean(profile.city?.trim() && profile.work_format?.trim() && profile.salary_expectation && profile.salary_expectation > 0)],
+    ["навыки", 5, Boolean(profile.skills?.length)],
+    ["подтверждение грейда тестом", 25, Boolean(profile.verified_grade?.trim())],
+  ];
+  const percent = checks.reduce((total, [, points, complete]) => total + (complete ? points : 0), 0);
+  return {
+    profile_completeness: {
+      score: percent,
+      status: percent < 40 ? "insufficient" as const : percent < 100 ? "partial" as const : "complete" as const,
+      missing: checks.filter(([, , complete]) => !complete).map(([label]) => label),
+    },
+    email_verified: true,
+  };
+}
+
+function withDemoProfileCompleteness<T extends object>(profile: T) {
+  return { ...profile, ...demoProfileCompleteness(profile) };
+}
+
+type DemoDiploma = { id: string; file_name: string; download_url: string };
+const demoDiplomaStorageKey = "fsp-demo-olympiad-diplomas";
+
+function readDemoDiplomas(): DemoDiploma[] {
+  const serialized = window.localStorage.getItem(demoDiplomaStorageKey);
+  if (!serialized) return [];
+  const diplomas: unknown = JSON.parse(serialized);
+  if (!Array.isArray(diplomas) || !diplomas.every((item) =>
+    item && typeof item.id === "string" && typeof item.file_name === "string" && typeof item.download_url === "string",
+  )) {
+    throw new Error("Локальный список PDF-дипломов повреждён. Очистите данные демо-режима и попробуйте снова.");
+  }
+  return diplomas as DemoDiploma[];
+}
+
 function matchingCandidatesWithPhotos(items: DemoCandidate[]) {
-  return items.map((item) => item.candidate_id === "demo-candidate-alex"
-    ? {
-      ...item,
-      fsp_verified: currentCandidateProfile.fsp_verified,
-      achievements_count: currentCandidateProfile.fsp_verified ? item.achievements_count : 0,
-      hobbies: currentCandidateProfile.hobbies,
-      education_level: currentCandidateProfile.education_level,
-      university_course: currentCandidateProfile.university_course,
-      birth_year: currentCandidateProfile.birth_year,
-      photo_url: currentCandidateProfile.photo_url ? `/candidate/${item.candidate_id}/photo` : null,
-    }
-    : item);
+  return items.map((item) => {
+    const candidate = item.candidate_id === "demo-candidate-alex"
+      ? {
+        ...item,
+        ...currentCandidateProfile,
+        photo_url: currentCandidateProfile.photo_url ? `/candidate/${item.candidate_id}/photo` : null,
+      }
+      : item;
+    return {
+      ...candidate,
+      ...demoProfileCompleteness(candidate),
+    };
+  });
 }
 
 function createDemoProfilePdf() {
@@ -725,10 +936,27 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       role,
       email: role === "candidate" ? candidateProfile.email : currentEmployerProfile.email,
       onboarding_completed: true,
-      profile,
+      profile: role === "candidate" ? withDemoProfileCompleteness(profile) : profile,
     } as T;
   }
   if (route === "/auth/logout" && method === "POST") return { message: "Успешный выход из демо-режима" } as T;
+
+  if (route === "/candidate/olympiad-diplomas" && method === "GET") return readDemoDiplomas() as T;
+  if (route === "/candidate/olympiad-diplomas" && method === "POST") {
+    const file = options.body instanceof FormData ? options.body.get("file") : null;
+    if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".pdf")) throw new Error("Прикрепить можно только PDF-файл.");
+    if (file.size === 0 || file.size > 10 * 1024 * 1024) throw new Error("Размер PDF должен быть от 1 байта до 10 МБ.");
+    const id = crypto.randomUUID();
+    const diploma = { id, file_name: file.name, download_url: `/tasks/attachments/${id}` };
+    window.localStorage.setItem(demoDiplomaStorageKey, JSON.stringify([...readDemoDiplomas(), diploma]));
+    return diploma as T;
+  }
+  const demoDiplomaMatch = route.match(/^\/candidate\/olympiad-diplomas\/([^/]+)$/);
+  if (demoDiplomaMatch && method === "DELETE") {
+    const remaining = readDemoDiplomas().filter((item) => item.id !== demoDiplomaMatch[1]);
+    window.localStorage.setItem(demoDiplomaStorageKey, JSON.stringify(remaining));
+    return undefined as T;
+  }
 
   if (route === "/candidate/profile/photo" && method === "POST") {
     const file = options.body instanceof FormData ? options.body.get("file") : null;
@@ -737,12 +965,12 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Загрузите JPG, PNG или WebP.");
     currentCandidatePhoto = file;
     currentCandidateProfile.photo_url = "/candidate/profile/photo";
-    return { ...currentCandidateProfile } as T;
+    return withDemoProfileCompleteness(currentCandidateProfile) as T;
   }
   if (route === "/candidate/profile/photo" && method === "DELETE") {
     currentCandidatePhoto = null;
     currentCandidateProfile.photo_url = null;
-    return { ...currentCandidateProfile } as T;
+    return withDemoProfileCompleteness(currentCandidateProfile) as T;
   }
   if (route === "/candidate/profile/photo" && method === "GET") {
     if (currentRole() !== "candidate" || !currentCandidatePhoto) throw new Error("Фото не найдено.");
@@ -758,23 +986,32 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     return currentCandidatePhoto as T;
   }
 
-  if (["/candidate/profile", "/candidates/profile"].includes(route) && method === "GET") return { ...currentCandidateProfile } as T;
+  if (["/candidate/profile", "/candidates/profile"].includes(route) && method === "GET") {
+    currentCandidateProfile = {
+      ...currentCandidateProfile,
+      agreed_test_confidentiality: window.localStorage.getItem("fsp-demo-test-confidentiality") === "true",
+    };
+    return withDemoProfileCompleteness(currentCandidateProfile) as T;
+  }
   if (["/candidate/profile", "/candidates/profile"].includes(route) && method === "PUT") {
     currentCandidateProfile = { ...currentCandidateProfile, ...body } as typeof currentCandidateProfile;
+    if (typeof body.agreed_test_confidentiality === "boolean") {
+      window.localStorage.setItem("fsp-demo-test-confidentiality", String(body.agreed_test_confidentiality));
+    }
     if (body.agreed_fsp_id_link === false) {
       currentCandidateProfile.fsp_id = null;
       currentCandidateProfile.fsp_verified = false;
     }
-    return { ...currentCandidateProfile } as T;
+    return withDemoProfileCompleteness(currentCandidateProfile) as T;
   }
   if (["/candidate/onboarding", "/candidates/onboarding"].includes(route) && method === "POST") {
     currentCandidateProfile = { ...currentCandidateProfile, ...body, onboarding_completed: true } as typeof currentCandidateProfile;
-    return { ...currentCandidateProfile } as T;
+    return withDemoProfileCompleteness(currentCandidateProfile) as T;
   }
   if (route === "/candidate/link-fsp" && method === "POST") {
     if (!currentCandidateProfile.agreed_fsp_id_link) throw new Error("Для привязки ID участника ФСП необходимо отдельное согласие.");
     currentCandidateProfile = { ...currentCandidateProfile, fsp_id: String(body.fsp_id ?? ""), fsp_verified: true };
-    return { ...currentCandidateProfile } as T;
+    return withDemoProfileCompleteness(currentCandidateProfile) as T;
   }
   if (route === "/candidate/resume/upload" && method === "POST") {
     return {
@@ -1145,11 +1382,34 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
     })) as T;
   }
 
-  if (route === "/testing/roadmap/current" && method === "GET") return null as T;
-  if (route === "/testing/additional" && method === "GET") return [
-    { code: "BE-SQL", label: "Оптимизация SQL", target_grade: "middle", latest_percentage: 78, level_out_of_ten: 7.8, latest_session_id: "demo-skill-test-sql" },
-    { code: "BE-ARCH", label: "Архитектура сервисов", target_grade: "middle", latest_percentage: 64, level_out_of_ten: 6.4, latest_session_id: "demo-skill-test-architecture" },
+  if (route === "/testing/roadmap/current" && method === "GET") {
+    const specialization = url.searchParams.get("specialization");
+    return (!specialization || specialization === demoRoadmap.specialization
+      ? demoRoadmap
+      : specialization === demoFrontendRoadmap.specialization ? demoFrontendRoadmap
+      : specialization === demoDevOpsRoadmap.specialization ? demoDevOpsRoadmap : null) as T;
+  }
+  if (route === "/testing/specializations" && method === "GET") return [
+    { specialization: "Backend", status: "verified", test_available: false, availability_reason: null, verified_grade: "middle", assessment_id: demoRoadmap.id },
+    { specialization: "Frontend", status: "verified", test_available: true, availability_reason: null, verified_grade: "middle", assessment_id: demoFrontendRoadmap.id },
+    { specialization: "DevOps / SRE", status: "verified", test_available: true, availability_reason: null, verified_grade: "middle", assessment_id: demoDevOpsRoadmap.id },
   ] as T;
+  if (route === `/testing/roadmap/${demoRoadmap.id}` && method === "GET") return demoRoadmap as T;
+  if (route === `/testing/roadmap/${demoFrontendRoadmap.id}` && method === "GET") return demoFrontendRoadmap as T;
+  if (route === `/testing/roadmap/${demoDevOpsRoadmap.id}` && method === "GET") return demoDevOpsRoadmap as T;
+  if (route === "/testing/additional" && method === "GET") {
+    const specialization = url.searchParams.get("specialization");
+    return (specialization === demoFrontendRoadmap.specialization ? [
+      { code: "FE-A11Y", label: "Доступность интерфейсов", target_grade: "middle", latest_percentage: 84, level_out_of_ten: 8.4, latest_session_id: "demo-skill-test-accessibility" },
+      { code: "FE-PERF", label: "Оптимизация загрузки", target_grade: "middle", latest_percentage: 77, level_out_of_ten: 7.7, latest_session_id: "demo-skill-test-frontend-performance" },
+    ] : specialization === demoDevOpsRoadmap.specialization ? [
+      { code: "DO-SEC", label: "Безопасность инфраструктуры", target_grade: "middle", latest_percentage: 81, level_out_of_ten: 8.1, latest_session_id: "demo-skill-test-devops-security" },
+      { code: "DO-COST", label: "Оптимизация облачных затрат", target_grade: "middle", latest_percentage: 74, level_out_of_ten: 7.4, latest_session_id: "demo-skill-test-devops-cost" },
+    ] : [
+      { code: "BE-SQL", label: "Оптимизация SQL", target_grade: "middle", latest_percentage: 78, level_out_of_ten: 7.8, latest_session_id: "demo-skill-test-sql" },
+      { code: "BE-ARCH", label: "Архитектура сервисов", target_grade: "middle", latest_percentage: 64, level_out_of_ten: 6.4, latest_session_id: "demo-skill-test-architecture" },
+    ]) as T;
+  }
   if (route === "/invitations/sent" && method === "GET") return invitations as T;
   if (route === "/invitations/my" && method === "GET") return invitationsForCandidate() as T;
   if (route === "/network/mentors" && method === "GET") {
