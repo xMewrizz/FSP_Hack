@@ -80,6 +80,7 @@ class CandidateProfileUpdateRequest(BaseModel):
     agreed_publication: bool | None = None
     agreed_fsp_id_link: bool | None = None
     agreed_test_confidentiality: bool | None = None
+    agreed_osint: bool | None = None
     visibility_public: bool | None = None
     mentor_available: bool | None = None
 

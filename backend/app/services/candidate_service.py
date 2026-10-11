@@ -226,6 +226,9 @@ class CandidateService:
         if "agreed_test_confidentiality" in update_dict:
             consent = update_dict["agreed_test_confidentiality"]
             profile.agreed_test_confidentiality_at = datetime.now(timezone.utc) if consent else None
+        if "agreed_osint" in update_dict:
+            consent = update_dict["agreed_osint"]
+            profile.agreed_osint_at = datetime.now(timezone.utc) if consent else None
         if "resume_text" in update_dict and (update_dict["resume_text"] or "") != (profile.resume_text or ""):
             previous = await db.scalar(
                 select(ResumeVersion).where(ResumeVersion.candidate_profile_id == profile.id)
