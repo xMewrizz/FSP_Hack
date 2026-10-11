@@ -1,0 +1,317 @@
+[
+  {
+    "id": "vac-001",
+    "company_id": "northline",
+    "company_name": "Нордлайн",
+    "title": "Backend, junior",
+    "specialization": "Backend",
+    "required_grade": "junior",
+    "required_skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "salary_min": 120000,
+    "salary_max": 220000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "remote",
+    "city": null,
+    "description": "Вакансия junior по направлению Backend. Компания Нордлайн.",
+    "is_published": true
+  },
+  {
+    "id": "vac-002",
+    "company_id": "vectorlab",
+    "company_name": "Векторлаб",
+    "title": "Backend, junior",
+    "specialization": "Backend",
+    "required_grade": "junior",
+    "required_skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "salary_min": 120000,
+    "salary_max": 220000,
+    "salary_tax_type": "net",
+    "currency": "RUB",
+    "work_format": "hybrid",
+    "city": "Казань",
+    "description": "Вакансия junior по направлению Backend. Компания Векторлаб.",
+    "is_published": true
+  },
+  {
+    "id": "vac-003",
+    "company_id": "harbor",
+    "company_name": "Харбор",
+    "title": "Backend, junior",
+    "specialization": "Backend",
+    "required_grade": "junior",
+    "required_skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "salary_min": 120000,
+    "salary_max": 220000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "office",
+    "city": null,
+    "description": "Вакансия junior по направлению Backend. Компания Харбор.",
+    "is_published": true
+  },
+  {
+    "id": "vac-004",
+    "company_id": "lumen",
+    "company_name": "Люмен",
+    "title": "Backend, middle",
+    "specialization": "Backend",
+    "required_grade": "middle",
+    "required_skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "salary_min": 190000,
+    "salary_max": 290000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "remote",
+    "city": null,
+    "description": "Вакансия middle по направлению Backend. Компания Люмен.",
+    "is_published": true
+  },
+  {
+    "id": "vac-005",
+    "company_id": "kiln",
+    "company_name": "Килн",
+    "title": "Backend, middle",
+    "specialization": "Backend",
+    "required_grade": "middle",
+    "required_skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "salary_min": 190000,
+    "salary_max": 290000,
+    "salary_tax_type": "net",
+    "currency": "RUB",
+    "work_format": "hybrid",
+    "city": "Екатеринбург",
+    "description": "Вакансия middle по направлению Backend. Компания Килн.",
+    "is_published": true
+  },
+  {
+    "id": "vac-006",
+    "company_id": "fieldnote",
+    "company_name": "Филдноут",
+    "title": "Backend, senior",
+    "specialization": "Backend",
+    "required_grade": "senior",
+    "required_skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "salary_min": 270000,
+    "salary_max": 370000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "remote",
+    "city": null,
+    "description": "Вакансия senior по направлению Backend. Компания Филдноут.",
+    "is_published": true
+  },
+  {
+    "id": "vac-007",
+    "company_id": "relay",
+    "company_name": "Релей",
+    "title": "Backend, senior",
+    "specialization": "Backend",
+    "required_grade": "senior",
+    "required_skills": [
+      "Python для Backend",
+      "SQL и работа с данными",
+      "HTTP API и интеграция"
+    ],
+    "salary_min": 270000,
+    "salary_max": 370000,
+    "salary_tax_type": "net",
+    "currency": "RUB",
+    "work_format": "hybrid",
+    "city": "Пермь",
+    "description": "Вакансия senior по направлению Backend. Компания Релей.",
+    "is_published": true
+  },
+  {
+    "id": "vac-008",
+    "company_id": "vectorlab",
+    "company_name": "Векторлаб",
+    "title": "Data Science / ML, junior",
+    "specialization": "Data Science / ML",
+    "required_grade": "junior",
+    "required_skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "salary_min": 120000,
+    "salary_max": 220000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "remote",
+    "city": null,
+    "description": "Вакансия junior по направлению Data Science / ML. Компания Векторлаб.",
+    "is_published": true
+  },
+  {
+    "id": "vac-009",
+    "company_id": "harbor",
+    "company_name": "Харбор",
+    "title": "Data Science / ML, junior",
+    "specialization": "Data Science / ML",
+    "required_grade": "junior",
+    "required_skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "salary_min": 120000,
+    "salary_max": 220000,
+    "salary_tax_type": "net",
+    "currency": "RUB",
+    "work_format": "hybrid",
+    "city": "Санкт-Петербург",
+    "description": "Вакансия junior по направлению Data Science / ML. Компания Харбор.",
+    "is_published": true
+  },
+  {
+    "id": "vac-010",
+    "company_id": "lumen",
+    "company_name": "Люмен",
+    "title": "Data Science / ML, junior",
+    "specialization": "Data Science / ML",
+    "required_grade": "junior",
+    "required_skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "salary_min": 120000,
+    "salary_max": 220000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "office",
+    "city": null,
+    "description": "Вакансия junior по направлению Data Science / ML. Компания Люмен.",
+    "is_published": true
+  },
+  {
+    "id": "vac-011",
+    "company_id": "kiln",
+    "company_name": "Килн",
+    "title": "Data Science / ML, middle",
+    "specialization": "Data Science / ML",
+    "required_grade": "middle",
+    "required_skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "salary_min": 190000,
+    "salary_max": 290000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "remote",
+    "city": null,
+    "description": "Вакансия middle по направлению Data Science / ML. Компания Килн.",
+    "is_published": true
+  },
+  {
+    "id": "vac-012",
+    "company_id": "papertrail",
+    "company_name": "Пейпертрейл",
+    "title": "Data Science / ML, middle",
+    "specialization": "Data Science / ML",
+    "required_grade": "middle",
+    "required_skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "salary_min": 190000,
+    "salary_max": 290000,
+    "salary_tax_type": "net",
+    "currency": "RUB",
+    "work_format": "hybrid",
+    "city": "Самара",
+    "description": "Вакансия middle по направлению Data Science / ML. Компания Пейпертрейл.",
+    "is_published": true
+  },
+  {
+    "id": "vac-013",
+    "company_id": "fieldnote",
+    "company_name": "Филдноут",
+    "title": "Data Science / ML, middle",
+    "specialization": "Data Science / ML",
+    "required_grade": "middle",
+    "required_skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "salary_min": 190000,
+    "salary_max": 290000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "office",
+    "city": null,
+    "description": "Вакансия middle по направлению Data Science / ML. Компания Филдноут.",
+    "is_published": true
+  },
+  {
+    "id": "vac-014",
+    "company_id": "relay",
+    "company_name": "Релей",
+    "title": "Data Science / ML, senior",
+    "specialization": "Data Science / ML",
+    "required_grade": "senior",
+    "required_skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "salary_min": 270000,
+    "salary_max": 370000,
+    "salary_tax_type": "gross",
+    "currency": "RUB",
+    "work_format": "remote",
+    "city": null,
+    "description": "Вакансия senior по направлению Data Science / ML. Компания Релей.",
+    "is_published": true
+  },
+  {
+    "id": "vac-015",
+    "company_id": "northline",
+    "company_name": "Нордлайн",
+    "title": "Data Science / ML, senior",
+    "specialization": "Data Science / ML",
+    "required_grade": "senior",
+    "required_skills": [
+      "Python",
+      "Pandas",
+      "SQL"
+    ],
+    "salary_min": 270000,
+    "salary_max": 370000,
+    "salary_tax_type": "net",
+    "currency": "RUB",
+    "work_format": "hybrid",
+    "city": "Москва",
+    "description": "Вакансия senior по направлению Data Science / ML. Компания Нордлайн.",
+    "is_published": true
+  }
+]
