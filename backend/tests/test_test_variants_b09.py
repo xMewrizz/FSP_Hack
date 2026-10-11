@@ -71,6 +71,8 @@ async def test_retries_rotate_prepared_variants_and_save_answer_version(client: 
         for code in BACKEND_FAMILIES if code.startswith("BE-JR-")
         for variant in prepared_variants(code)
     }
+    assert any(question["options"][0]["id"] not in correct[question["code"]]
+               for question in second["questions"])
     answers = [
         {"question_id": question["id"], "selected_answers": correct[question["code"]]}
         for question in second["questions"]

@@ -784,6 +784,8 @@ class RoadmapService:
     @staticmethod
     def _snapshot_question(code: str, previous_attempts: int) -> dict:
         variant = variant_for_attempt(code, previous_attempts)
+        options = list(variant["options"])
+        secrets.SystemRandom().shuffle(options)
         return {
             "id": str(uuid.uuid4()),
             "code": variant["code"],
@@ -792,7 +794,7 @@ class RoadmapService:
             "topic": variant["topic"],
             "question_type": variant["question_type"],
             "question_text": variant["question_text"],
-            "options": variant["options"],
+            "options": options,
             "correct_answers": variant["correct_answers"],
             "weight": variant["weight"],
             "explanation": variant["explanation"],

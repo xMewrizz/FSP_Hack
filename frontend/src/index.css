@@ -10736,6 +10736,41 @@ select,
   gap: 1rem;
 }
 
+.app-shell .mentor-search-page {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.app-shell .mentor-search-page .mentor-finder,
+.app-shell .mentor-search-page .mentor-request-card {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 1.25rem;
+}
+
+.app-shell .mentor-search-page .mentor-finder {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.app-shell .mentor-search-page .mentor-finder > div:first-child,
+.app-shell .mentor-search-page .mentor-finder form,
+.app-shell .mentor-search-page .mentor-finder__hint {
+  grid-column: 1 / -1;
+}
+
+.app-shell .text-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--violet-brand);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
 .app-shell .dialogues-intro {
   display: flex;
   align-items: center;

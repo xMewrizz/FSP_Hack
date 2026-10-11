@@ -12,6 +12,7 @@ def profile(**changes):
         specialization="Backend", programming_language="Python",
         declared_grade="middle", city="Москва", work_format="remote",
         salary_expectation=150000, resume_text="Разрабатывала сервисы",
+        resume_url="attached.pdf",
         skills=["Python"], verified_grade="middle",
     )
     fields.update(changes)
@@ -31,24 +32,27 @@ def test_empty_and_unverified_profile():
     empty = profile(
         first_name="", last_name="", phone=None, specialization=None,
         programming_language=None, declared_grade=None, city=None,
-        work_format=None, salary_expectation=None, resume_text=None,
+        work_format=None, salary_expectation=None, resume_text=None, resume_url=None,
         skills=[], verified_grade=None,
     )
     result = calculate_profile_completeness(empty, email_verified=False)
     assert result.score == 0
     assert result.status == "insufficient"
-    assert len(result.missing) == 7
+    assert len(result.missing) == 8
 
     result = calculate_profile_completeness(profile(), email_verified=False)
     assert result.score == 80
     assert result.status == "partial"
 
 
-def test_bio_and_resume_do_not_change_completeness():
+def test_attached_resume_adds_ten_points_but_text_alone_does_not():
     without_description = calculate_profile_completeness(
-        profile(resume_text=None), email_verified=True
+        profile(resume_text=None, resume_url=None), email_verified=True
     )
-    assert without_description.score == 100
+    assert without_description.score == 90
+    assert "прикреплённое резюме" in without_description.missing
+    assert calculate_profile_completeness(profile(resume_text=None), email_verified=True).score == 100
+    assert calculate_profile_completeness(profile(resume_url=None), email_verified=True).score == 90
 
 
 def test_employer_contract_omits_private_completion_hints():

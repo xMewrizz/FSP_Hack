@@ -219,6 +219,65 @@ async def test_b22_resume_upload_and_parse(client: AsyncClient):
     assert unchanged.status_code == 200
     assert unchanged.json()["skills"] == []
 
+    before_score = unchanged.json()["profile_completeness"]["score"]
+    attached = await client.post(
+        "/api/v1/candidates/resume/attach",
+        headers=cand_headers,
+        files={"file": ("my_resume.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert attached.status_code == 200
+    saved = await client.get("/api/v1/candidate/profile", headers=cand_headers)
+    assert saved.json()["profile_completeness"]["score"] == before_score + 10
+    assert saved.json()["resume_url"].endswith(".pdf")
+    own_file = await client.get("/api/v1/candidate/resume/file", headers=cand_headers)
+    assert own_file.status_code == 200
+    assert own_file.content == pdf_bytes
+    deleted = await client.delete("/api/v1/candidate/resume/versions", headers=cand_headers)
+    assert deleted.status_code == 204
+    assert (await client.get("/api/v1/candidate/resume/file", headers=cand_headers)).status_code == 404
+    assert (await client.get("/api/v1/candidate/profile", headers=cand_headers)).json()["profile_completeness"]["score"] == before_score
+
+
+@pytest.mark.asyncio
+async def test_resume_can_be_attached_before_onboarding_finishes(client: AsyncClient):
+    from io import BytesIO
+    from reportlab.pdfgen.canvas import Canvas
+
+    registered = await client.post("/api/v1/auth/register", json={
+        "email": "resume.onboarding@fsp.ru", "password": "Password123!", "role": "candidate",
+    })
+    verified = await client.post("/api/v1/auth/verify-email", json={
+        "email": "resume.onboarding@fsp.ru", "code": registered.json()["verification_code"],
+    })
+    headers = {"Authorization": f"Bearer {verified.json()['access_token']}"}
+    document = BytesIO()
+    canvas = Canvas(document)
+    canvas.drawString(60, 750, "Python Backend developer with SQL experience")
+    canvas.save()
+    pdf = document.getvalue()
+
+    attached = await client.post("/api/v1/candidate/resume/attach", headers=headers,
+                                 files={"file": ("resume.pdf", pdf, "application/pdf")})
+    assert attached.status_code == 200, attached.text
+    completed = await client.post("/api/v1/candidate/onboarding", headers=headers, json={
+        "first_name": "Иван", "last_name": "Иванов", "city": "Москва",
+        "specialization": "Backend", "declared_grade": "junior", "agreed_152_fz": True,
+    })
+    assert completed.status_code == 200, completed.text
+    assert completed.json()["resume_url"]
+    assert completed.json()["profile_completeness"]["score"] >= 10
+    assert (await client.get("/api/v1/candidate/resume/file", headers=headers)).content == pdf
+    employer_registered = await client.post("/api/v1/auth/register", json={
+        "email": "resume.hr@fsp.ru", "password": "Password123!", "role": "employer",
+    })
+    employer_verified = await client.post("/api/v1/auth/verify-email", json={
+        "email": "resume.hr@fsp.ru", "code": employer_registered.json()["verification_code"],
+    })
+    employer_headers = {"Authorization": f"Bearer {employer_verified.json()['access_token']}"}
+    blocked = await client.get(f"/api/v1/candidate/{completed.json()['id']}/resume/file", headers=employer_headers)
+    assert blocked.status_code == 404
+    await client.delete("/api/v1/candidate/resume/versions", headers=headers)
+
 
 @pytest.mark.asyncio
 async def test_b22_pdf_without_text_does_not_change_profile(client: AsyncClient):

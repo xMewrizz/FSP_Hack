@@ -610,6 +610,7 @@ type CandidateProfileData = {
   bio: string | null;
   hobbies?: string | null;
   photo_url: string | null;
+  resume_url?: string | null;
   resume_text?: string | null;
   city: string | null;
   specialization: string | null;
@@ -643,6 +644,18 @@ function profileCompletion(profile: CandidateProfileData | null): ProfileComplet
 
 function profileCompletenessLabel(status: PublicProfileCompleteness["status"]): string {
   return status === "complete" ? "Профиль заполнен" : status === "partial" ? "Частично заполнен" : "Недостаточно данных";
+}
+
+async function downloadAttachedResume(path: string): Promise<void> {
+  const file = await apiGet<Blob>(path);
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "resume.pdf";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 type ParsedResume = {
@@ -1451,10 +1464,12 @@ function SpecialtyRadarGallery({
   currentSpecialization,
   currentSkills,
   currentComplete,
+  comparisonRoadmap,
 }: {
   currentSpecialization?: string | null;
   currentSkills: GradeRoadmapData["skills"];
   currentComplete: boolean;
+  comparisonRoadmap?: GradeRoadmapData | null;
 }) {
   const samples = [...SPECIALTY_RADAR_SAMPLES].sort((left, right) =>
     left.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase() ? -1 : right.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase() ? 1 : 0,
@@ -1469,13 +1484,11 @@ function SpecialtyRadarGallery({
       <div className="specialty-radar-gallery__grid">
         {samples.map((sample) => {
           const isCurrent = sample.specialization.toLowerCase() === currentSpecialization?.trim().toLowerCase();
-          const hasResults = isCurrent && currentComplete;
-          const values = isCurrent && hasResults
-            ? currentSkills.map((skill) => skill.level_out_of_ten ?? 0)
-            : sample.values;
-          const axisLabels = isCurrent && hasResults
-            ? currentSkills.map((skill) => skill.label)
-            : sample.labels;
+          const shownSkills = isCurrent && currentComplete ? currentSkills
+            : comparisonRoadmap?.specialization.toLowerCase() === sample.specialization.toLowerCase() ? comparisonRoadmap.skills : null;
+          const hasResults = Boolean(shownSkills);
+          const values = shownSkills ? shownSkills.map((skill) => skill.level_out_of_ten ?? 0) : sample.values;
+          const axisLabels = shownSkills ? shownSkills.map((skill) => skill.label) : sample.labels;
           return (
             <article className={`specialty-radar-card${hasResults ? " specialty-radar-card--current" : ""}`} key={sample.specialization}>
               <div className="specialty-radar-card__head">
@@ -1519,7 +1532,7 @@ const pageCopy: Record<string, { eyebrow: string; title: string }> = {
   Подборка: { eyebrow: "ПОДБОР КАНДИДАТОВ", title: "Подборка кандидатов" },
   "Банк кандидатов": { eyebrow: "ВЕРИФИЦИРОВАННАЯ БАЗА", title: "Банк кандидатов" },
   Потребности: { eyebrow: "ЗАПРОС НА ПОДБОР", title: "Потребность" },
-  Приглашения: { eyebrow: "REVERSE RECRUITING", title: "Приглашения" },
+  Приглашения: { eyebrow: "ПРЕДЛОЖЕНИЯ РАБОТОДАТЕЛЕЙ", title: "Приглашения" },
   Диалоги: { eyebrow: "СООБЩЕСТВО И НЕТВОРКИНГ", title: "Диалоги" },
   "Поиск ментора": { eyebrow: "ПРОФЕССИОНАЛЬНЫЙ РОСТ", title: "Поиск ментора" },
   Аналитика: { eyebrow: "КАЧЕСТВО ПОДБОРА", title: "Аналитика" },
@@ -2973,6 +2986,7 @@ function DialogsScreen({
   initialTarget,
   initialMode,
   onClearInitialTarget,
+  onOpenDialogs,
   onNotify,
 }: {
   employer: boolean;
@@ -2980,6 +2994,7 @@ function DialogsScreen({
   initialTarget: string | null;
   initialMode: "chats" | "mentors";
   onClearInitialTarget: () => void;
+  onOpenDialogs: (target: string) => void;
   onNotify: (message: string, type?: "success" | "error") => void;
 }) {
   const [invitations, setInvitations] = useState<DialogueInvitation[]>([]);
@@ -2989,7 +3004,6 @@ function DialogsScreen({
   const [selectedTarget, setSelectedTarget] = useState<string | null>(initialTarget);
   const [skillQuery, setSkillQuery] = useState("");
   const [mentorTarget, setMentorTarget] = useState<MentorProfile | null>(null);
-  const [directoryMode, setDirectoryMode] = useState<"chats" | "mentors">(initialMode);
   const [requestMessage, setRequestMessage] = useState("");
   const [requestSending, setRequestSending] = useState(false);
   const [verifiedGrade, setVerifiedGrade] = useState<string | null>(null);
@@ -3057,11 +3071,10 @@ function DialogsScreen({
         message: requestMessage.trim(),
       });
       await refresh();
-      setSelectedTarget(`network:${conversation.id}`);
-      setDirectoryMode("chats");
       setMentorTarget(null);
       setRequestMessage("");
       onNotify("Запрос наставнику отправлен");
+      onOpenDialogs(`network:${conversation.id}`);
     } catch (requestError) {
       onNotify(requestError instanceof Error ? requestError.message : "Не удалось отправить запрос", "error");
     } finally {
@@ -3098,17 +3111,27 @@ function DialogsScreen({
     ].some((value) => value.toLocaleLowerCase().includes(normalizedConversationQuery)),
   );
 
+  if (!employer && initialMode === "mentors") {
+    return <div className="page-content mentor-search-page">
+      <div className="dialogues-intro"><div><span>ПРОФЕССИОНАЛЬНЫЙ РОСТ</span><strong>Найдите наставника по навыку</strong><p>Показываем кандидатов, которые подтвердили более высокий грейд и готовы помогать другим.</p></div><div className="dialogues-intro__icon"><Icon name="school" size={22} /></div></div>
+      {error && <div className="form-error" role="alert">{error}</div>}
+      <section className="mentor-finder">
+        <div><span>ПОИСК НАСТАВНИКА</span><strong>Какой навык хотите развить?</strong><p>{verifiedGrade ? "Поиск доступен для вашего подтверждённого уровня." : "Сначала подтвердите грейд в разделе «Мой грейд»."}</p></div>
+        <form onSubmit={(event) => void findMentors(event)}><label htmlFor="mentor-skill">Навык</label><div className="search-field"><Icon name="search" /><input id="mentor-skill" value={skillQuery} onChange={(event) => setSkillQuery(event.target.value)} placeholder="Например, PostgreSQL" /></div><Button type="submit" variant="outline" disabled={!verifiedGrade}><Icon name="search" /> Найти ментора</Button></form>
+        {mentors.map((mentor) => <article className="mentor-card" key={mentor.user_id}><div className="mentor-card__identity"><CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} photoUrl={mentor.photo_url} /><div><strong>{mentor.name}</strong><span>{mentor.specialization || "IT"} · {mentor.verified_grade}</span></div></div><div className="mini-tags">{mentor.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}</div><Button variant="outline" onClick={() => { setMentorTarget(mentor); setRequestMessage(`Здравствуйте! Хочу прокачать ${skillQuery.trim() || mentor.skills[0] || "навыки"} и подготовиться к следующему грейду. Будете готовы стать моим наставником?`); }}>Запросить поддержку</Button></article>)}
+        {mentors.length === 0 && <span className="mentor-finder__hint">Наставники появятся после поиска по навыку.</span>}
+      </section>
+      {mentorTarget && <form className="mentor-request-card" onSubmit={(event) => void sendMentorshipRequest(event)}><div><span>ЗАПРОС НА НАСТАВНИЧЕСТВО</span><strong>{mentorTarget.name}</strong><small>{mentorTarget.verified_grade} · фокус: {skillQuery.trim() || mentorTarget.skills[0]}</small></div><label htmlFor="mentor-request-message">Коротко расскажите, с чем нужна помощь</label><textarea id="mentor-request-message" value={requestMessage} maxLength={4000} onChange={(event) => setRequestMessage(event.target.value)} rows={5} /><div><Button type="button" variant="ghost" onClick={() => setMentorTarget(null)}>Отмена</Button><Button type="submit" disabled={!requestMessage.trim() || requestSending}>{requestSending ? "Отправляем…" : "Отправить запрос"} <Icon name="send" /></Button></div></form>}
+    </div>;
+  }
+
   return (
     <div className="page-content dialogues-page">
-      <div className="dialogues-intro"><div><span>ОБЩЕНИЕ БЕЗ ПОТЕРИ КОНТЕКСТА</span><strong>{employer ? "Компании и кандидаты — в одном месте" : "Рабочие контакты и рост в профессии"}</strong><p>{employer ? "Здесь собраны чаты только по принятым приглашениям." : "Обсуждайте принятые приглашения и находите наставников с подтверждённым более высоким грейдом."}</p></div><div className="dialogues-intro__icon"><Icon name="send" size={22} /></div></div>
+      <div className="dialogues-intro"><div><span>ВАШИ СООБЩЕНИЯ</span><strong>Диалоги</strong><p>Переписка по принятым приглашениям, откликам и запросам на наставничество.</p></div><div className="dialogues-intro__icon"><Icon name="send" size={22} /></div></div>
       {error && <div className="form-error" role="alert">{error}</div>}
-      {!employer && <div className="dialogues-mode-switch" role="tablist" aria-label="Разделы общения">
-        <button type="button" role="tab" aria-selected={directoryMode === "chats"} className={directoryMode === "chats" ? "active" : ""} onClick={() => setDirectoryMode("chats")}><Icon name="send" size={16} /> Диалоги <span>{invitations.length + networkConversations.length}</span></button>
-        <button type="button" role="tab" aria-selected={directoryMode === "mentors"} className={directoryMode === "mentors" ? "active" : ""} onClick={() => setDirectoryMode("mentors")}><Icon name="school" size={16} /> Найти ментора</button>
-      </div>}
       <div className={`dialogues-layout ${selectedTarget || mentorTarget ? "dialogues-layout--thread-open" : ""}`}>
         <aside className="dialogues-list">
-          {directoryMode === "chats" && <><div className="dialogues-list__heading"><strong>Ваши диалоги</strong><Button variant="ghost" onClick={() => void refresh()} aria-label="Обновить диалоги"><Icon name="refresh" size={15} /></Button></div>
+          <><div className="dialogues-list__heading"><strong>Ваши диалоги</strong><Button variant="ghost" onClick={() => void refresh()} aria-label="Обновить диалоги"><Icon name="refresh" size={15} /></Button></div>
           <label className="dialogues-search search-field">
             <Icon name="search" size={16} />
             <input
@@ -3144,13 +3167,7 @@ function DialogsScreen({
             </button>;
           })}
           {!loading && filteredInvitations.length === 0 && filteredApplicationChats.length === 0 && (employer || filteredNetworkConversations.length === 0) && <div className="dialogues-empty">{normalizedConversationQuery ? "Совпадений не найдено. Попробуйте изменить запрос." : "Пока нет диалогов. Принятые приглашения и отклики на вакансии появятся здесь."}</div>}
-          </>}
-          {!employer && directoryMode === "mentors" && <section className="mentor-finder">
-            <div><span>ПРОФЕССИОНАЛЬНЫЙ РОСТ</span><strong>Найти ментора</strong><p>{verifiedGrade ? "Показываем только тех, кто включил наставничество и подтвердил грейд выше вашего." : "Сначала подтвердите свой грейд — так мы найдём специалистов, которые действительно выше по уровню."}</p></div>
-            <form onSubmit={(event) => void findMentors(event)}><label htmlFor="mentor-skill">Какой навык прокачать?</label><div className="search-field"><Icon name="search" /><input id="mentor-skill" value={skillQuery} onChange={(event) => setSkillQuery(event.target.value)} placeholder="Например, PostgreSQL" /></div><Button type="submit" variant="outline" disabled={!verifiedGrade}><Icon name="search" /> Найти ментора</Button></form>
-            {mentors.map((mentor) => <article className="mentor-card" key={mentor.user_id}><div className="mentor-card__identity"><CandidateAvatar initials={mentor.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2)} photoUrl={mentor.photo_url} /><div><strong>{mentor.name}</strong><span>{mentor.specialization || "IT"} · {mentor.verified_grade}</span></div></div><div className="mini-tags">{mentor.skills.slice(0, 4).map((skill) => <span key={skill}>{skill}</span>)}</div><Button variant="outline" onClick={() => { setMentorTarget(mentor); setRequestMessage(`Здравствуйте! Хочу прокачать ${skillQuery.trim() || mentor.skills[0] || "навыки"} и подготовиться к следующему грейду. Будете готовы стать моим наставником?`); }}>Запросить поддержку</Button></article>)}
-            {mentors.length === 0 && <span className="mentor-finder__hint">Наставники появятся после поиска по навыку.</span>}
-          </section>}
+          </>
         </aside>
         <section className="dialogues-thread">
           {selectedInvitation && <InvitationChatDialog
@@ -3165,8 +3182,7 @@ function DialogsScreen({
             onRefresh={refresh}
           />}
           {selectedNetworkConversation && <NetworkChatPanel conversation={selectedNetworkConversation} onRefresh={refresh} onNotify={onNotify} />}
-          {mentorTarget && <form className="mentor-request-card" onSubmit={(event) => void sendMentorshipRequest(event)}><div><span>ЗАПРОС НА НАСТАВНИЧЕСТВО</span><strong>{mentorTarget.name}</strong><small>{mentorTarget.verified_grade} · фокус: {skillQuery.trim() || mentorTarget.skills[0]}</small></div><label htmlFor="mentor-request-message">Коротко расскажите, с чем нужна помощь</label><textarea id="mentor-request-message" value={requestMessage} maxLength={4000} onChange={(event) => setRequestMessage(event.target.value)} rows={5} /><div><Button type="button" variant="ghost" onClick={() => setMentorTarget(null)}>Отмена</Button><Button type="submit" disabled={!requestMessage.trim() || requestSending}>{requestSending ? "Отправляем…" : "Отправить запрос"} <Icon name="send" /></Button></div></form>}
-          {!selectedInvitation && !selectedNetworkConversation && !mentorTarget && <div className="dialogues-placeholder"><div><strong>Выберите диалог</strong><span>История, контекст приглашения и отправка сообщений будут здесь.</span></div></div>}
+          {!selectedInvitation && !selectedNetworkConversation && <div className="dialogues-placeholder"><div><strong>Выберите диалог</strong><span>История, контекст приглашения и отправка сообщений будут здесь.</span></div></div>}
         </section>
       </div>
     </div>
@@ -3575,11 +3591,16 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
 
   useEffect(() => {
     if (active !== "Тестирование" && active !== "Мой грейд") return;
+    if (active === "Мой грейд" && !profile?.specialization) return;
     let cancelled = false;
-    const specialization = active === "Тестирование" ? selectedSpecialization : "";
+    const specialization = active === "Тестирование" ? selectedSpecialization : (profile?.specialization ?? "");
     const specializationQuery = specialization
       ? `?specialization=${encodeURIComponent(specialization)}`
       : "";
+    if (active === "Мой грейд") {
+      setRoadmap(null);
+      setComparisonRoadmap(null);
+    }
     setTestingTrackLoading(true);
     Promise.all([
       apiGet<GradeRoadmapData | null>(`/testing/roadmap/current${specializationQuery}`),
@@ -3596,7 +3617,20 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       if (!cancelled) setTestingTrackLoading(false);
     });
     return () => { cancelled = true; };
-  }, [active, selectedSpecialization]);
+  }, [active, selectedSpecialization, profile?.specialization]);
+
+  useEffect(() => {
+    if (active !== "Мой грейд" || roadmap?.status !== "completed") return;
+    const other = specializationTracks.find((track) =>
+      track.status === "verified" && track.assessment_id && track.specialization !== roadmap.specialization,
+    );
+    if (!other?.assessment_id) return;
+    let cancelled = false;
+    apiGet<GradeRoadmapData>(`/testing/roadmap/${encodeURIComponent(other.assessment_id)}`)
+      .then((result) => { if (!cancelled && result.status === "completed" && result.passed) setComparisonRoadmap(result); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [active, roadmap?.id, specializationTracks]);
 
   useEffect(() => {
     if ((active !== "Тестирование" && active !== "Мой грейд") || !roadmap ||
@@ -3780,10 +3814,12 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     body.append("file", file);
     setResumeUploading(true);
     try {
-      const parsed = await apiRequest<ParsedResume>("/candidate/resume/upload", { method: "POST", body });
+      const parsed = await apiRequest<ParsedResume>("/candidate/resume/attach", { method: "POST", body });
       setParsedResume(parsed);
       setResumeDraft(resumeDraftFromParsed(parsed));
-      onNotify("Резюме распознано. Проверьте найденные поля, затем решите, какие использовать.");
+      setProfile(await apiGet<CandidateProfileData>("/candidate/profile"));
+      void apiGet<ResumeVersionItem[]>("/candidate/resume/versions").then(setResumeVersions).catch(() => undefined);
+      onNotify("PDF-резюме прикреплено. Проверьте найденные поля и при желании перенесите их в профиль.");
     } catch (error) {
       setParsedResume(null);
       setResumeDraft(null);
@@ -3857,8 +3893,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     try {
       await apiRequest("/candidate/resume/versions", { method: "DELETE" });
       setResumeVersions([]);
-      setProfile((current) => current ? { ...current, resume_text: null } : current);
-      onNotify("История резюме удалена");
+      setProfile((current) => current ? { ...current, resume_text: null, resume_url: null } : current);
+      onNotify("Прикреплённое резюме и его история удалены");
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось удалить историю резюме", "error");
     }
@@ -4240,7 +4276,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     return (
       <div className="page-content">
         {profileLoading && <div className="empty-state">Загружаем профиль…</div>}
-        {profile && <div className="notice-box" role="status"><strong>Заполненность профиля: {completion.score}/100</strong><span>{completion.missing.length ? `Чтобы повысить балл, добавьте: ${completion.missing.join(", ")}.` : "Ключевые сведения заполнены, email и грейд подтверждены."} Номер телефона учитывается как указанный контакт; его владение платформа пока не проверяет. Текст «О себе», резюме, необязательные согласия, фото и ФСП ID в балл не входят.</span><details><summary>Как считаются баллы</summary><p>Телефон — 30, подтверждённый грейд — 25, подтверждённый email — 20, специализация, язык и заявленный грейд — 10, город и условия работы — 5, имя — 5, навыки — 5.</p></details></div>}
+        {profile && <div className="notice-box" role="status"><strong>Заполненность профиля: {completion.score}/100</strong><span>{completion.missing.length ? `Чтобы повысить балл, добавьте: ${completion.missing.join(", ")}.` : "Ключевые сведения заполнены, email и грейд подтверждены."} Номер телефона учитывается как указанный контакт; его владение платформа пока не проверяет. Текст «О себе», необязательные согласия, фото и ФСП ID в балл не входят. Прикреплённое резюме добавляет баллы за полноту, но не подтверждает достоверность опыта.</span><details><summary>Как считаются баллы</summary><p>Телефон — 30, подтверждённый email — 20, подтверждённый грейд — 20, прикреплённое PDF-резюме — 10, специализация, язык и заявленный грейд — 5, город и условия работы — 5, имя — 5, навыки — 5.</p></details></div>}
         <div className="settings-layout settings-layout--profile">
           <section className="feature-card">
             <div className="profile-edit-head">
@@ -4343,10 +4379,10 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 aria-label="Загрузить PDF-резюме"
                 onChange={(event) => { void uploadResume(event.target.files?.[0]); event.currentTarget.value = ""; }}
               />
-              <small>Файл сам ничего не записывает в профиль. Поправьте найденные поля и перенесите их отдельной кнопкой.</small>
+              <small>PDF сохранится в профиле. Распознанные контакты и навыки изменятся только после вашего подтверждения.</small>
             </div>
             {parsedResume && resumeDraft && <div className="resume-entry" role="status" aria-live="polite">
-              <span>ПРЕДПРОСМОТР · ДАННЫЕ ЕЩЁ НЕ СОХРАНЕНЫ</span>
+              <span>ПРЕДПРОСМОТР ПОЛЕЙ · PDF СОХРАНЁН</span>
               {(parsedResume.warnings ?? []).length > 0 && <div className="resume-warnings" role="alert">
                 {(parsedResume.warnings ?? []).map((warning) => <p key={warning}>{warning}</p>)}
               </div>}
@@ -4408,8 +4444,9 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 {version.added.length === 0 && version.removed.length === 0 && version.role_changes.length === 0 && <p>Изменений в распознанных строках нет.</p>}
               </div>)}
               <p>Название или ИНН компании можно сверить в <a href="https://egrul.nalog.ru/" target="_blank" rel="noopener noreferrer">официальном поиске ФНС</a>. Совпадение названия ещё не подтверждает работу кандидата в этой компании.</p>
-              <Button variant="outline" onClick={() => void deleteSavedResumes()}>Удалить историю резюме</Button>
+              <Button variant="outline" onClick={() => void deleteSavedResumes()}>Удалить резюме и историю</Button>
             </details>}
+            {profile?.resume_url && <Button variant="outline" onClick={() => void downloadAttachedResume("/candidate/resume/file").catch((error) => onNotify(error instanceof Error ? error.message : "Не удалось скачать резюме", "error"))}>Скачать прикреплённое резюме</Button>}
             <p className="feature-description feature-description--left">PDF доступен после согласия на публикацию профиля. Контакты в PDF не входят.</p>
             <Button variant="outline" disabled={!profile?.agreed_publication} onClick={() => void downloadProfilePdf()}>Скачать PDF-профиль</Button>
           </section>
@@ -4503,7 +4540,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               }}><i />{option.text}</button>;
             })}</div>}</div>
           </div>
-          <div className="test-footer"><span>{testSubmitting ? "Проверяем развёрнутый ответ моделью; это может занять до двух минут" : "Ответы проверяются после завершения теста"}</span><Button disabled={testSubmitting || !(answer.trim() || selectedAnswers.length)} onClick={() => void submitCurrentAnswer()}>{testSubmitting ? "Проверяем…" : question + 1 === testSession?.total_questions ? "Завершить тест" : "Ответить и продолжить"} <Icon name="chevron" /></Button></div>
+          <div className="test-footer"><span>{testSubmitting ? currentQuestion.question_type === "open_answer" ? "Проверяем развёрнутый ответ; это может занять до двух минут" : "Сохраняем ответ…" : "Ответы проверяются после завершения теста"}</span><Button disabled={testSubmitting || !(answer.trim() || selectedAnswers.length)} onClick={() => void submitCurrentAnswer()}>{testSubmitting ? "Проверяем…" : question + 1 === testSession?.total_questions ? "Завершить тест" : "Ответить и продолжить"} <Icon name="chevron" /></Button></div>
         </div>
       );
     }
@@ -4684,7 +4721,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             <Button variant="outline" onClick={() => onNavigate("Тестирование")}>Перейти к тестам</Button>
           </section>
         </div>
-        <SpecialtyRadarGallery currentSpecialization={profile?.specialization} currentSkills={gradeSkills} currentComplete={baselineComplete} />
+        <SpecialtyRadarGallery currentSpecialization={profile?.specialization} currentSkills={gradeSkills} currentComplete={baselineComplete} comparisonRoadmap={comparisonRoadmap} />
         <section className="feature-card additional-specialization-card">
           <div className="feature-head"><div><span>МОИ СПЕЦИАЛИЗАЦИИ</span><strong>Добавьте специализацию и заявите грейд</strong></div></div>
           <p className="feature-description feature-description--left">По каждой специализации можно заявить свой грейд и подтвердить его отдельным набором тестов. Все подтверждённые направления участвуют в подборе.</p>
@@ -5199,10 +5236,44 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
   const [fspId, setFspId] = useState("");
   const [publication, setPublication] = useState(false);
   const [saving, setSaving] = useState(false);
-  const steps = ["Профиль", "Специализация", "Формат работы", "Резюме", "ФСП и проверка"];
+  const [resumeAttached, setResumeAttached] = useState(false);
+  const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeName, setResumeName] = useState("");
+  const [resumeError, setResumeError] = useState("");
+  useEffect(() => {
+    apiGet<CandidateProfileData>("/candidate/profile")
+      .then((existing) => {
+        if (existing.resume_url) {
+          setResumeAttached(true);
+          setResumeName("Ранее прикреплённое резюме");
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+  const steps = ["Профиль", "Специализация", "Формат работы", "Резюме и публикация"];
   const canContinue = step === 0
     ? consent && firstName.trim().length > 0 && lastName.trim().length > 0
-    : step !== 4 || !fspId.trim() || fspConsent;
+    : step !== 3 || (resumeAttached && !resumeUploading && (!fspId.trim() || fspConsent));
+  const attachResume = async (file?: File) => {
+    if (!file) return;
+    setResumeError("");
+    if (!file.name.toLowerCase().endsWith(".pdf") || file.size > 10 * 1024 * 1024) {
+      setResumeError("Выберите PDF-файл размером до 10 МБ.");
+      return;
+    }
+    const body = new FormData();
+    body.append("file", file);
+    setResumeUploading(true);
+    try {
+      await apiRequest<ParsedResume>("/candidate/resume/attach", { method: "POST", body });
+      setResumeName(file.name);
+      setResumeAttached(true);
+    } catch (error) {
+      setResumeError(error instanceof Error ? error.message : "Не удалось прикрепить резюме. Попробуйте снова.");
+    } finally {
+      setResumeUploading(false);
+    }
+  };
   const complete = async () => {
     setSaving(true);
     try {
@@ -5234,8 +5305,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
           {step === 0 && <><span>ШАГ 1</span><strong>Заполните профиль</strong><p>Укажите имя. Согласие на обработку данных подтвердите один раз ниже, перед созданием профиля.</p><div className="field-row field-row--flush"><label className="field"><span>ИМЯ</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" /></label><label className="field"><span>ФАМИЛИЯ</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" /></label></div><label className="consent-large"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Согласен(на) на обработку персональных данных по 152-ФЗ.</span></label></>}
           {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Грейд подтверждает только тест. Достижения ФСП влияют на порядок в подборке, но грейд не подтверждают. {TEST_AVAILABILITY_HINT}</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>{isTestablePair(specialization, grade) && <label className="field field--flush"><span>ЯЗЫК БАЗОВОГО ТЕСТА</span><select value="Python" disabled><option value="Python">Python</option></select><small>Сейчас для этого направления подготовлен базовый тест на Python.</small></label>}          {!isTestablePair(specialization, grade) && <p className="feature-description feature-description--left">Для пары «{specialization} · {grade}» базовое ядро пока недоступно. Профиль можно сохранить и добавить другие специализации в разделе «Мой грейд».</p>}</>}
           {step === 2 && <><span>ШАГ 3</span><strong>Где и как вы хотите работать</strong><div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={city} onChange={(event) => setCity(event.target.value)} /></label><label className="field"><span>ФОРМАТ</span><select value={format} onChange={(event) => setFormat(event.target.value)}><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div><ToggleRow title="Готов к переезду" detail="Работодатели смогут учитывать это при подборе" /></>}
-          {step === 3 && <><span>ШАГ 4</span><strong>Резюме и опыт</strong><p>После завершения настройки откройте раздел «Профиль», чтобы загрузить PDF. Распознанные данные можно проверить и исправить перед сохранением.</p><div className="notice-box">Для продолжения загрузка резюме не обязательна.</div></>}
-          {step === 4 && <><span>ШАГ 5</span><strong>Публикация и данные ФСП</strong><p>Профиль можно сохранить скрытым и открыть для работодателей позже в настройках.</p><label className="consent-large"><input type="checkbox" checked={publication} onChange={(event) => setPublication(event.target.checked)} /><span>Согласен(на) на обработку и публикацию данных профиля работодателям</span></label><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label>{fspId.trim() && <label className="consent-large"><input type="checkbox" checked={fspConsent} onChange={(event) => setFspConsent(event.target.checked)} /><span>Согласен(на) связать профиль с моим ID участника ФСП и использовать его для получения данных о достижениях</span></label>}</>}
+          {step === 3 && <><span>ШАГ 4</span><strong>Резюме и публикация</strong><p>Прикрепите своё PDF-резюме. Файл сохранится в профиле; распознанные сведения можно будет проверить и исправить в разделе «Профиль».</p><label className="field field--flush"><span>PDF-РЕЗЮМЕ · ДО 10 МБ</span><input type="file" accept="application/pdf,.pdf" disabled={resumeUploading} aria-label="Прикрепить PDF-резюме" onChange={(event) => { void attachResume(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label>{resumeUploading && <p role="status">Загружаем и распознаём резюме…</p>}{resumeAttached && <p role="status">Резюме прикреплено: {resumeName}</p>}{resumeError && <p role="alert">{resumeError}</p>}<p>Профиль можно сохранить скрытым и открыть для работодателей позже в настройках.</p><label className="consent-large"><input type="checkbox" checked={publication} onChange={(event) => setPublication(event.target.checked)} /><span>Согласен(на) на обработку и публикацию данных профиля работодателям</span></label><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label>{fspId.trim() && <label className="consent-large"><input type="checkbox" checked={fspConsent} onChange={(event) => setFspConsent(event.target.checked)} /><span>Согласен(на) связать профиль с моим ID участника ФСП и использовать его для получения данных о достижениях</span></label>}</>}
         </div>
         <div className="onboarding-actions"><Button variant="ghost" onClick={() => setStep(Math.max(0, step - 1))}>{step === 0 ? "Вернуться ко входу" : "Назад"}</Button><Button className={!canContinue || saving ? "button--disabled" : ""} onClick={() => { if (!canContinue || saving) return; if (step === steps.length - 1) void complete(); else setStep(step + 1); }}>{saving ? "Сохраняем…" : step === steps.length - 1 ? "Завершить настройку" : "Далее"} <Icon name="chevron" /></Button></div>
       </div>
@@ -5985,6 +6055,7 @@ function App() {
             initialTarget={selectedDialogueTarget}
             initialMode={active === "Поиск ментора" ? "mentors" : "chats"}
             onClearInitialTarget={() => setSelectedDialogueTarget(null)}
+            onOpenDialogs={(target) => navigateTo("Диалоги", target)}
             onNotify={showNotice}
           />
         ) : active === "Задания" ? (
@@ -6151,7 +6222,9 @@ function App() {
             <div className="profile-resume__meta" data-resume-top>
               <span>{selected.experience} опыта</span><span>{selected.salary}</span><span>{selected.location} · {selected.format}</span>
               {selected.githubUrl && <a href={selected.githubUrl} target="_blank" rel="noreferrer">GitHub ↗</a>}
-              {selected.resumeUrl && <a href={selected.resumeUrl} target="_blank" rel="noreferrer">Файл резюме ↗</a>}
+              {selected.resumeUrl && selected.backendId && /^[a-f0-9]{32}\.pdf$/.test(selected.resumeUrl)
+                ? <button type="button" className="text-link" onClick={() => void downloadAttachedResume(`/candidate/${selected.backendId}/resume/file`).catch((error) => showNotice(error instanceof Error ? error.message : "Не удалось скачать резюме", "error"))}>Файл резюме ↗</button>
+                : selected.resumeUrl && <a href={selected.resumeUrl} target="_blank" rel="noreferrer">Файл резюме ↗</a>}
             </div>
             <section className="profile-resume__section">
               <div className="section-title"><span>О КАНДИДАТЕ</span></div>

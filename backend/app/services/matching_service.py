@@ -171,7 +171,7 @@ def _match_item(
         resume_employers=list(dict.fromkeys(
             company for company, _role in labeled_work_entries(candidate.resume_text or "").values()
         )),
-        resume_url=candidate.resume_url,
+        resume_url=None,
         salary_expectation=candidate.salary_expectation,
         salary_tax_type=candidate.salary_tax_type,
         test_percentage=percentage,
@@ -221,6 +221,20 @@ async def _additional_specializations_by_candidate(
             ),
             "verified_grade": track.verified_grade,
         })
+    for candidate in candidates:
+        primary = candidate.verified_specialization or candidate.specialization
+        if not primary:
+            continue
+        item = {
+            "specialization": primary,
+            "declared_grade": candidate.declared_grade,
+            "status": "verified" if candidate.verified_grade else "requested",
+            "verified_grade": candidate.verified_grade,
+        }
+        candidate_items = result.setdefault(candidate.id, [])
+        candidate_items[:] = [track for track in candidate_items
+                              if track["specialization"].casefold() != primary.casefold()]
+        candidate_items.insert(0, item)
     return result
 
 
@@ -536,7 +550,7 @@ class MatchingService:
                     resume_employers=list(dict.fromkeys(
                         company for company, _role in labeled_work_entries(candidate.resume_text or "").values()
                     )),
-                    resume_url=candidate.resume_url,
+                    resume_url=None,
                     salary_expectation=candidate.salary_expectation,
                     salary_tax_type=candidate.salary_tax_type,
                     test_percentage=None,

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
+import secrets
 import uuid
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -209,6 +210,8 @@ class TestingService:
 
         for q, variant in selected_variants:
             question_id = str(q.id if variant["variant_id"] == "v1" else uuid.uuid5(q.id, variant["variant_id"]))
+            options = list(variant["options"])
+            secrets.SystemRandom().shuffle(options)
             snapshot.append({
                 "id": question_id,
                 "code": variant["code"],
@@ -218,7 +221,7 @@ class TestingService:
                 "topic": variant["topic"],
                 "question_type": variant["question_type"],
                 "question_text": variant["question_text"],
-                "options": variant["options"],
+                "options": options,
                 "correct_answers": variant["correct_answers"],
                 "weight": variant["weight"],
                 "explanation": variant["explanation"],
@@ -231,7 +234,7 @@ class TestingService:
                     topic=variant["topic"],
                     question_type=variant["question_type"],
                     question_text=variant["question_text"],
-                    options=[QuestionOptionResponse(**opt) for opt in variant["options"]],
+                    options=[QuestionOptionResponse(**opt) for opt in options],
                     weight=variant["weight"],
                 )
             )
