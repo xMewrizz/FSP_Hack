@@ -13,7 +13,7 @@ class CandidateOnboardingRequest(BaseModel):
     agreed_fsp_id_link: bool = Field(False, description="Согласие связать профиль с ID участника ФСП")
     visibility_public: bool = Field(False, description="Показывать профиль в поиске и подборке")
     # Согласие на OSINT
-    agreed_osint: bool = Field(False, description="Согласие на обогащение профиля открытыми данными (OSINT)")
+    agreed_osint: bool | None = Field(None, description="Согласие на поиск открытых резюме; если не передано, сохраняется выбор при регистрации")
     
     # IT-специализация и грейд
     specialization: str = Field(..., description="IT-специализация (Backend, Frontend, etc.)")
@@ -109,6 +109,7 @@ class CandidateProfileResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     email: str
+    email_verified: bool
     first_name: str
     last_name: str
     middle_name: str | None = None

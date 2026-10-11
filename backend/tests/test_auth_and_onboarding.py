@@ -96,6 +96,30 @@ async def test_candidate_registration_and_verification(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_osint_consent_from_registration_survives_onboarding_and_can_be_revoked(client: AsyncClient):
+    registered = await client.post("/api/v1/auth/register", json={
+        "email": "consent@example.com", "password": "Password123!",
+        "role": "candidate", "agreed_osint": True,
+    })
+    assert registered.status_code == 201
+    verified = await client.post("/api/v1/auth/verify-email", json={
+        "email": "consent@example.com", "code": registered.json()["verification_code"],
+    })
+    headers = {"Authorization": f"Bearer {verified.json()['access_token']}"}
+    onboarding = await client.post("/api/v1/candidate/onboarding", headers=headers, json={
+        "agreed_152_fz": True, "specialization": "Backend",
+        "declared_grade": "junior", "work_format": "remote", "city": "Москва",
+        "first_name": "Иван", "last_name": "Иванов",
+    })
+    assert onboarding.status_code == 200
+    assert onboarding.json()["agreed_osint"] is True
+    assert onboarding.json()["email_verified"] is True
+    revoked = await client.put("/api/v1/candidate/profile", headers=headers, json={"agreed_osint": False})
+    assert revoked.status_code == 200
+    assert revoked.json()["agreed_osint"] is False
+
+
+@pytest.mark.asyncio
 async def test_employer_flow(client: AsyncClient):
     # 1. Регистрация работодателя
     reg_resp = await client.post(

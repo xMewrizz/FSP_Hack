@@ -62,6 +62,8 @@ class AuthService:
                     user_id=user.id,
                     first_name="",
                     last_name="",
+                    agreed_osint=request.agreed_osint,
+                    agreed_osint_at=datetime.now(timezone.utc) if request.agreed_osint else None,
                     onboarding_completed=False,
                 )
             )

@@ -560,6 +560,7 @@ type CandidateProfileData = {
   first_name: string;
   last_name: string;
   email: string;
+  email_verified: boolean;
   phone: string | null;
   telegram: string | null;
   bio: string | null;
@@ -588,6 +589,25 @@ type CandidateProfileData = {
   mentor_available: boolean;
   agreed_osint: boolean;
 };
+
+function profileCompletion(profile: CandidateProfileData | null) {
+  if (!profile) return { score: 0, missing: [] as string[] };
+  const filled = (value: string | null | undefined) => Boolean(value?.trim());
+  const checks: Array<[string, number, boolean]> = [
+    ["имя и фамилию", 5, filled(profile.first_name) && filled(profile.last_name)],
+    ["подтверждение email", 5, profile.email_verified],
+    ["номер телефона", 30, filled(profile.phone)],
+    ["специализацию, язык и заявленный грейд", 10, filled(profile.specialization) && filled(profile.programming_language) && filled(profile.declared_grade)],
+    ["город, формат и ожидания по зарплате", 10, filled(profile.city) && filled(profile.work_format) && Number(profile.salary_expectation) > 0],
+    ["описание опыта в резюме", 15, filled(profile.resume_text)],
+    ["навыки", 5, (profile.skills?.length ?? 0) > 0],
+    ["подтверждение грейда тестом", 20, filled(profile.verified_grade)],
+  ];
+  return {
+    score: checks.reduce((total, [, points, done]) => total + (done ? points : 0), 0),
+    missing: checks.filter(([, , done]) => !done).map(([label]) => label),
+  };
+}
 
 type ParsedResume = {
   first_name: string | null;
@@ -3790,6 +3810,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
 
   if (active === "Обзор") {
     const pendingInvitations = candidateInvitations.filter((item) => item.status === "sent" || item.status === "viewed").length;
+    const completion = profileCompletion(profile);
     return (
       <div className="page-content">
         <div className="candidate-welcome" data-tour="candidate-dashboard">
@@ -3801,7 +3822,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <MetricCard label="ЗАПРОСЫ МЕНТОРАМ" value={String(candidateMentorRequestCount)} detail="Наставникам платформы" icon="users" />
           <MetricCard label="ЗАЯВЛЕННЫЙ УРОВЕНЬ" value={profile?.declared_grade ?? "—"} detail="Из профиля" icon="layers" />
           <MetricCard label="ПОДТВЕРЖДЁННЫЙ УРОВЕНЬ" value={profile?.verified_grade ?? "—"} detail={profile?.verified_grade ? "Тест пройден" : "Можно пройти тест"} icon="medal" />
-          <MetricCard label="ФСП ID" value={profile?.fsp_verified ? "Демо-запись" : "Не привязан"} detail={profile?.fsp_id ?? ""} icon="shield" />
+          <MetricCard label="ЗАПОЛНЕННОСТЬ ПРОФИЛЯ" value={`${completion.score}/100`} detail="Ключевые сведения и подтверждения" icon="check" />
         </div>
         <section className="feature-card candidate-overview-radar">
           <div className="feature-head"><div><span>КАРТА НАВЫКОВ</span><strong>Результаты обязательных навыков</strong></div></div>
@@ -3862,7 +3883,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
             <div className="feature-head"><div><span>ТРЕБУЕТ ВНИМАНИЯ</span><strong>Следующие действия</strong></div></div>
             <div className="action-list">
               {pendingInvitations > 0 && <div><div className="action-number">01</div><div><strong>Ответьте на приглашения</strong><span>{pendingInvitations} ожидают вашего решения</span></div><Button onClick={() => onNavigate("Приглашения")}>Открыть</Button></div>}
-              <div><div className="action-number">{pendingInvitations > 0 ? "02" : "01"}</div><div><strong>Обновите профиль</strong><span>Измените контакты, опыт и условия работы</span></div><Button variant="outline" onClick={() => onNavigate("Профиль")}>Профиль</Button></div>
+              <div><div className="action-number">{pendingInvitations > 0 ? "02" : "01"}</div><div><strong>Дополните профиль</strong><span>{completion.score}/100 · {completion.missing.length ? `Добавьте: ${completion.missing.slice(0, 2).join(", ")}` : "Ключевые сведения заполнены"}</span></div><Button variant="outline" onClick={() => onNavigate("Профиль")}>Профиль</Button></div>
             </div>
           </section>
           <section className="feature-card feature-card--fsp" data-tour="fsp-tools">
@@ -3877,9 +3898,11 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   }
 
   if (active === "Профиль") {
+    const completion = profileCompletion(profile);
     return (
       <div className="page-content">
         {profileLoading && <div className="empty-state">Загружаем профиль…</div>}
+        {profile && <div className="notice-box" role="status"><strong>Заполненность профиля: {completion.score}/100</strong><span>{completion.missing.length ? `Чтобы повысить балл, добавьте: ${completion.missing.join(", ")}.` : "Ключевые сведения заполнены, email и грейд подтверждены."} Номер телефона учитывается как указанный контакт; его владение платформа пока не проверяет. Необязательные согласия, фото и ФСП ID в балл не входят.</span><details><summary>Как считаются баллы</summary><p>Телефон — 30, подтверждённый грейд — 20, опыт в резюме — 15, специализация и заявленный грейд — 10, город и условия работы — 10, имя — 5, подтверждённый email — 5, навыки — 5.</p></details></div>}
         <div className="settings-layout settings-layout--profile">
           <section className="feature-card">
             <div className="profile-edit-head">
@@ -4646,13 +4669,14 @@ function AuthScreen({
   onDemoLogin,
 }: {
   onLogin: (email: string, password: string) => Promise<void>;
-  onRegister: (email: string, password: string, role: "employer" | "candidate") => Promise<string | undefined>;
+  onRegister: (email: string, password: string, role: "employer" | "candidate", agreedOsint: boolean) => Promise<string | undefined>;
   onVerify: (email: string, code: string) => Promise<void>;
   onDemoLogin: (role: "candidate" | "employer") => Promise<void>;
 }) {
   const publicTestStand = import.meta.env.VITE_PUBLIC_TEST_STAND === "true";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [selectedRole, setSelectedRole] = useState<"employer" | "candidate">("candidate");
+  const [agreedOsint, setAgreedOsint] = useState(false);
   const [email, setEmail] = useState<string>(publicTestStand ? "" : DEMO_ACCOUNTS.candidate);
   const [password, setPassword] = useState<string>(publicTestStand ? "" : DEMO_PASSWORD);
   const [emailSent, setEmailSent] = useState(false);
@@ -4667,7 +4691,7 @@ function AuthScreen({
     setError("");
     try {
       if (mode === "register") {
-        setDemoCode((await onRegister(email, password, selectedRole)) ?? "");
+        setDemoCode((await onRegister(email, password, selectedRole, agreedOsint)) ?? "");
         setEmailSent(true);
       } else {
         await onLogin(email, password);
@@ -4729,6 +4753,7 @@ function AuthScreen({
           <>
             <label className="field field--flush"><span>EMAIL</span><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="username" /></label>
             <label className="field field--flush"><span>ПАРОЛЬ</span><input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
+            {mode === "register" && selectedRole === "candidate" && <label className="consent-large"><input type="checkbox" checked={agreedOsint} onChange={(event) => setAgreedOsint(event.target.checked)} /><span>Согласен(на) на поиск и сравнение моих открытых резюме на внешних площадках. Согласие необязательно и его можно отозвать в настройках.</span></label>}
             <Button className={busy || !email || !password ? "button--disabled" : ""} onClick={submitCredentials}>
               {busy ? "Подождите…" : mode === "login" ? "Войти в кабинет" : "Создать аккаунт"} <Icon name="chevron" />
             </Button>
@@ -4770,7 +4795,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
   agreed_publication: boolean;
   agreed_fsp_id_link: boolean;
   visibility_public: boolean;
-  agreed_osint: boolean;
+  agreed_osint?: boolean;
 }) => Promise<void> }) {
   const [step, setStep] = useState(0);
   const [consent, setConsent] = useState(false);
@@ -4804,7 +4829,6 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
         agreed_publication: publication,
         agreed_fsp_id_link: fspConsent,
         visibility_public: publication,
-        agreed_osint: false,
       });
     } finally {
       setSaving(false);
@@ -5341,11 +5365,12 @@ function App() {
     enterWithSession(response);
   };
 
-  const register = async (email: string, password: string, selectedRole: "employer" | "candidate") => {
+  const register = async (email: string, password: string, selectedRole: "employer" | "candidate", agreedOsint: boolean) => {
     const result = await apiPost<{ verification_code?: string }>("/auth/register", {
       email,
       password,
       role: selectedRole,
+      agreed_osint: selectedRole === "candidate" && agreedOsint,
     });
     return result.verification_code;
   };

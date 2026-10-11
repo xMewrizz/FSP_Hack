@@ -97,8 +97,9 @@ class CandidateService:
         profile.visibility_public = data.visibility_public and data.agreed_publication
         profile.agreed_fsp_id_link = data.agreed_fsp_id_link
         profile.agreed_fsp_id_link_at = now if data.agreed_fsp_id_link else None
-        profile.agreed_osint = data.agreed_osint
-        profile.agreed_osint_at = now if data.agreed_osint else None
+        if data.agreed_osint is not None:
+            profile.agreed_osint = data.agreed_osint
+            profile.agreed_osint_at = now if data.agreed_osint else None
 
         if data.fsp_id and data.fsp_id.strip():
             fsp_clean = data.fsp_id.strip().upper()
@@ -138,7 +139,7 @@ class CandidateService:
         res_reload = await db.execute(stmt_reload)
         fresh_profile = res_reload.scalar_one()
         extra_skills = await CandidateService._load_additional_skills(db, fresh_profile.id)
-        return CandidateService._build_response(fresh_profile, user.email, extra_skills)
+        return CandidateService._build_response(fresh_profile, user.email, user.is_verified, extra_skills)
 
     @staticmethod
     async def get_profile(db: AsyncSession, user: User) -> CandidateProfileResponse:
@@ -157,7 +158,7 @@ class CandidateService:
             )
 
         extra_skills = await CandidateService._load_additional_skills(db, profile.id)
-        return CandidateService._build_response(profile, user.email, extra_skills)
+        return CandidateService._build_response(profile, user.email, user.is_verified, extra_skills)
 
     @staticmethod
     async def update_profile(
@@ -261,7 +262,7 @@ class CandidateService:
         )
         refreshed_prof = refreshed.scalar_one()
         extra_skills = await CandidateService._load_additional_skills(db, refreshed_prof.id)
-        return CandidateService._build_response(refreshed_prof, user.email, extra_skills)
+        return CandidateService._build_response(refreshed_prof, user.email, user.is_verified, extra_skills)
 
     @staticmethod
     async def link_fsp_id(
@@ -320,7 +321,7 @@ class CandidateService:
         )
         refreshed_prof = refreshed.scalar_one()
         extra_skills = await CandidateService._load_additional_skills(db, refreshed_prof.id)
-        return CandidateService._build_response(refreshed_prof, user.email, extra_skills)
+        return CandidateService._build_response(refreshed_prof, user.email, user.is_verified, extra_skills)
 
     @staticmethod
     async def unlink_fsp_id(db: AsyncSession, user: User) -> CandidateProfileResponse:
@@ -338,7 +339,7 @@ class CandidateService:
         )
         refreshed_prof = refreshed.scalar_one()
         extra_skills = await CandidateService._load_additional_skills(db, refreshed_prof.id)
-        return CandidateService._build_response(refreshed_prof, user.email, extra_skills)
+        return CandidateService._build_response(refreshed_prof, user.email, user.is_verified, extra_skills)
 
     @staticmethod
     async def _load_additional_skills(
@@ -378,12 +379,14 @@ class CandidateService:
     def _build_response(
         profile: CandidateProfile,
         email: str,
+        email_verified: bool,
         additional_skills: list[AdditionalSkillResultItem] | None = None,
     ) -> CandidateProfileResponse:
         return CandidateProfileResponse(
             id=profile.id,
             user_id=profile.user_id,
             email=email,
+            email_verified=email_verified,
             first_name=profile.first_name,
             last_name=profile.last_name,
             middle_name=profile.middle_name,

@@ -7,6 +7,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6, max_length=128)
     role: UserRole = UserRole.CANDIDATE
+    agreed_osint: bool = False
 
 
 class VerifyEmailRequest(BaseModel):
