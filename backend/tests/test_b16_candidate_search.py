@@ -140,6 +140,13 @@ async def test_search_declared_grade_does_not_open_profile_b16(client: AsyncClie
     found_item = next(item for item in search_mid.json() if item["candidate_id"] == sergey_id)
     assert found_item["verified_grade"] == "middle"
     assert found_item["declared_grade"] == "senior"
+    own_profile = await client.get("/api/v1/candidates/profile", headers=sergey_headers)
+    assert own_profile.status_code == 200
+    assert found_item["profile_completeness"] == {
+        key: own_profile.json()["profile_completeness"][key]
+        for key in ("score", "status")
+    }
+    assert "missing" not in found_item["profile_completeness"]
 
 
 @pytest.mark.asyncio

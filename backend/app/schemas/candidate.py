@@ -4,6 +4,7 @@ import uuid
 from pydantic import BaseModel, Field, field_validator
 from app.core.constants import Grade, WorkFormat
 from app.schemas.fsp import FSPAchievementSchema
+from app.schemas.profile_completeness import ProfileCompleteness
 
 
 class CandidateOnboardingRequest(BaseModel):
@@ -110,6 +111,7 @@ class CandidateProfileResponse(BaseModel):
     user_id: uuid.UUID
     email: str
     email_verified: bool
+    profile_completeness: ProfileCompleteness
     first_name: str
     last_name: str
     middle_name: str | None = None

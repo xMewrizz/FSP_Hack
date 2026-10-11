@@ -382,11 +382,14 @@ class CandidateService:
         email_verified: bool,
         additional_skills: list[AdditionalSkillResultItem] | None = None,
     ) -> CandidateProfileResponse:
+        from app.services.profile_completeness import calculate_profile_completeness
+
         return CandidateProfileResponse(
             id=profile.id,
             user_id=profile.user_id,
             email=email,
             email_verified=email_verified,
+            profile_completeness=calculate_profile_completeness(profile, email_verified=email_verified),
             first_name=profile.first_name,
             last_name=profile.last_name,
             middle_name=profile.middle_name,

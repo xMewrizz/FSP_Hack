@@ -19,6 +19,7 @@ from app.models.need import EmployerNeed
 from app.models.test import GradeAssessment, TestSession
 from app.models.user import User
 from app.schemas.matching import CandidateMatchItem, MatchExplanation, MatchingCandidatesResponse, RequestedSkillTestResult
+from app.services.profile_completeness import calculate_profile_completeness
 
 
 def _parse_need_requirements(need: EmployerNeed) -> dict[str, tuple[str, float]]:
@@ -144,6 +145,7 @@ def _match_item(
 
     return CandidateMatchItem(
         candidate_id=candidate.id,
+        profile_completeness=calculate_profile_completeness(candidate, email_verified=candidate.user.is_verified),
         first_name=candidate.first_name,
         last_name=candidate.last_name,
         specialization=candidate.specialization,
@@ -239,8 +241,8 @@ class MatchingService:
             select(CandidateProfile)
             .options(
                 joinedload(CandidateProfile.fsp_achievements),
+                joinedload(CandidateProfile.user),
                 selectinload(CandidateProfile.test_sessions),
-                defer(CandidateProfile.phone),
                 defer(CandidateProfile.telegram),
                 defer(CandidateProfile.middle_name),
             )
@@ -416,8 +418,8 @@ class MatchingService:
             select(CandidateProfile)
             .options(
                 joinedload(CandidateProfile.fsp_achievements),
+                joinedload(CandidateProfile.user),
                 selectinload(CandidateProfile.test_sessions),
-                defer(CandidateProfile.phone),
                 defer(CandidateProfile.telegram),
                 defer(CandidateProfile.middle_name),
             )
@@ -477,6 +479,7 @@ class MatchingService:
             items.append(
                 CandidateMatchItem(
                     candidate_id=candidate.id,
+                    profile_completeness=calculate_profile_completeness(candidate, email_verified=candidate.user.is_verified),
                     first_name=candidate.first_name,
                     last_name=candidate.last_name,
                     specialization=candidate.specialization,

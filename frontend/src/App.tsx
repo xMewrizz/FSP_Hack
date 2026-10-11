@@ -12,6 +12,7 @@ import {
 type Candidate = {
   id: number;
   backendId?: string;
+  profileCompleteness?: PublicProfileCompleteness;
   achievementsCount?: number;
   fspVerified?: boolean;
   verifiedGrade?: boolean;
@@ -375,6 +376,7 @@ function formatSalaryRange(minimum: number, maximum: number) {
 
 type MatchingCandidate = {
   candidate_id: string;
+  profile_completeness: PublicProfileCompleteness;
   first_name: string;
   last_name: string;
   specialization: string | null;
@@ -561,6 +563,7 @@ type CandidateProfileData = {
   last_name: string;
   email: string;
   email_verified: boolean;
+  profile_completeness: ProfileCompleteness;
   phone: string | null;
   telegram: string | null;
   bio: string | null;
@@ -590,23 +593,15 @@ type CandidateProfileData = {
   agreed_osint: boolean;
 };
 
-function profileCompletion(profile: CandidateProfileData | null) {
-  if (!profile) return { score: 0, missing: [] as string[] };
-  const filled = (value: string | null | undefined) => Boolean(value?.trim());
-  const checks: Array<[string, number, boolean]> = [
-    ["имя и фамилию", 5, filled(profile.first_name) && filled(profile.last_name)],
-    ["подтверждение email", 5, profile.email_verified],
-    ["номер телефона", 30, filled(profile.phone)],
-    ["специализацию, язык и заявленный грейд", 10, filled(profile.specialization) && filled(profile.programming_language) && filled(profile.declared_grade)],
-    ["город, формат и ожидания по зарплате", 10, filled(profile.city) && filled(profile.work_format) && Number(profile.salary_expectation) > 0],
-    ["описание опыта в резюме", 15, filled(profile.resume_text)],
-    ["навыки", 5, (profile.skills?.length ?? 0) > 0],
-    ["подтверждение грейда тестом", 20, filled(profile.verified_grade)],
-  ];
-  return {
-    score: checks.reduce((total, [, points, done]) => total + (done ? points : 0), 0),
-    missing: checks.filter(([, , done]) => !done).map(([label]) => label),
-  };
+type PublicProfileCompleteness = { score: number; status: "insufficient" | "partial" | "complete" };
+type ProfileCompleteness = PublicProfileCompleteness & { missing: string[] };
+
+function profileCompletion(profile: CandidateProfileData | null): ProfileCompleteness {
+  return profile?.profile_completeness ?? { score: 0, status: "insufficient", missing: [] };
+}
+
+function profileCompletenessLabel(status: PublicProfileCompleteness["status"]): string {
+  return status === "complete" ? "Профиль заполнен" : status === "partial" ? "Частично заполнен" : "Недостаточно данных";
 }
 
 type ParsedResume = {
@@ -838,6 +833,7 @@ function mapMatchToCandidate(item: MatchingCandidate, index: number, demoMode = 
   return {
     id: index + 1,
     backendId: item.candidate_id,
+    profileCompleteness: item.profile_completeness,
     achievementsCount: item.achievements_count,
     fspVerified: item.fsp_verified,
     verifiedGrade: Boolean(item.verified_grade),
@@ -3822,7 +3818,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           <MetricCard label="ЗАПРОСЫ МЕНТОРАМ" value={String(candidateMentorRequestCount)} detail="Наставникам платформы" icon="users" />
           <MetricCard label="ЗАЯВЛЕННЫЙ УРОВЕНЬ" value={profile?.declared_grade ?? "—"} detail="Из профиля" icon="layers" />
           <MetricCard label="ПОДТВЕРЖДЁННЫЙ УРОВЕНЬ" value={profile?.verified_grade ?? "—"} detail={profile?.verified_grade ? "Тест пройден" : "Можно пройти тест"} icon="medal" />
-          <MetricCard label="ЗАПОЛНЕННОСТЬ ПРОФИЛЯ" value={`${completion.score}/100`} detail="Ключевые сведения и подтверждения" icon="check" />
+          <MetricCard label="ЗАПОЛНЕННОСТЬ ПРОФИЛЯ" value={`${completion.score}/100`} detail={profileCompletenessLabel(completion.status)} icon="check" />
         </div>
         <section className="feature-card candidate-overview-radar">
           <div className="feature-head"><div><span>КАРТА НАВЫКОВ</span><strong>Результаты обязательных навыков</strong></div></div>
@@ -5771,7 +5767,7 @@ function App() {
               </div>
               <div className="grade-line__score">{selected.backendId ? `${formatMatchScore(selected.score)} в подборе` : "06.001 / ур. 6"}</div>
             </div>
-            {selected.backendId && <div className="profile-resume__meta"><span>АКТИВНОСТЬ · {selected.activityStatus}</span></div>}
+            {selected.backendId && <div className="profile-resume__meta"><span>АКТИВНОСТЬ · {selected.activityStatus}</span><span>ПРОФИЛЬ · {selected.profileCompleteness?.score ?? 0}/100 · {profileCompletenessLabel(selected.profileCompleteness?.status ?? "insufficient")}</span></div>}
             {selected.additionalSpecializations?.length ? <section className="profile-resume__section" aria-label="Дополнительные направления кандидата">
               <div className="section-title"><span>ДОПОЛНИТЕЛЬНЫЕ НАПРАВЛЕНИЯ</span></div>
               <div className="topic-summary">{selected.additionalSpecializations.map((track) => (

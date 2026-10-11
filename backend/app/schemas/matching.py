@@ -3,6 +3,7 @@ from typing import Any
 import uuid
 from pydantic import BaseModel, Field
 from app.core.constants import Grade, WorkFormat
+from app.schemas.profile_completeness import PublicProfileCompleteness
 
 
 class MatchExplanation(BaseModel):
@@ -38,6 +39,7 @@ class TrustFlagItem(BaseModel):
 
 class CandidateMatchItem(BaseModel):
     candidate_id: uuid.UUID
+    profile_completeness: PublicProfileCompleteness
     first_name: str
     last_name: str
     specialization: str | None
