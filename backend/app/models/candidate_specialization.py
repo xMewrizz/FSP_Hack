@@ -26,5 +26,6 @@ class CandidateSpecializationTrack(Base, TimestampMixin):
         nullable=False,
     )
     specialization: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    declared_grade: Mapped[str] = mapped_column(String(50), nullable=False)
     verified_grade: Mapped[str | None] = mapped_column(String(50), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

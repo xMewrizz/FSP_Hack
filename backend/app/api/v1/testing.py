@@ -81,7 +81,7 @@ async def request_candidate_specialization(
     current_user: User = Depends(get_current_candidate),
     db: AsyncSession = Depends(get_db),
 ):
-    return await roadmap_service.request_specialization(db, current_user, data.specialization)
+    return await roadmap_service.request_specialization(db, current_user, data.specialization, data.declared_grade.value)
 
 
 @router.get("/additional", response_model=list[AdditionalSkillTestResponse])

@@ -165,10 +165,11 @@ async def test_additional_specialization_has_independent_grade_roadmap(
 
     requested = await client.post(
         "/api/v1/testing/specializations", headers=headers,
-        json={"specialization": additional},
+        json={"specialization": additional, "declared_grade": "middle"},
     )
     assert requested.status_code == 201, requested.text
     assert requested.json()["test_available"] is True
+    assert requested.json()["declared_grade"] == "middle"
     available_skills = await client.get(
         "/api/v1/testing/additional", headers=headers,
         params={"specialization": additional},
@@ -178,13 +179,15 @@ async def test_additional_specialization_has_independent_grade_roadmap(
     primary_roadmap = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
     additional_roadmap = await client.post(
         "/api/v1/testing/roadmap", headers=headers,
-        json={"specialization": additional, "target_grade": "junior"},
+        json={"specialization": additional},
     )
     assert primary_roadmap.status_code == 201, primary_roadmap.text
     assert additional_roadmap.status_code == 201, additional_roadmap.text
     primary_id = primary_roadmap.json()["id"]
     additional_id = additional_roadmap.json()["id"]
     assert primary_id != additional_id
+    assert primary_roadmap.json()["target_grade"] == "junior"
+    assert additional_roadmap.json()["target_grade"] == "middle"
     assert len(primary_roadmap.json()["skills"]) == (4 if primary == "Backend" else 6)
     assert len(additional_roadmap.json()["skills"]) == (4 if additional == "Backend" else 6)
 
@@ -201,17 +204,51 @@ async def test_additional_specialization_has_independent_grade_roadmap(
     tracks = await client.get("/api/v1/testing/specializations", headers=headers)
     profile = await client.get("/api/v1/candidates/profile", headers=headers)
     assert completed.json()["id"] == additional_id
-    assert completed.json()["verified_grade"] == "junior"
+    assert completed.json()["verified_grade"] == "middle"
     assert completed.json()["passed"] is True
     assert untouched.json()["id"] == primary_id
     assert untouched.json()["status"] == "in_progress"
     assert profile.json()["verified_grade"] is None
-    assert tracks.json()[0]["verified_grade"] == "junior"
+    assert tracks.json()[0]["verified_grade"] == "middle"
     assert tracks.json()[0]["assessment_id"] == additional_id
 
     primary_skill = primary_roadmap.json()["skills"][0]["code"]
     result = await finish_skill(client, headers, primary_id, primary_skill, 10)
     assert result["specialization"] == primary
+
+
+@pytest.mark.asyncio
+async def test_declared_grade_of_specialization_can_change_before_test(client: AsyncClient):
+    headers = await candidate(client, "change-track-grade@example.com")
+    url = "/api/v1/testing/specializations"
+    created = await client.post(url, headers=headers, json={
+        "specialization": "Data Science / ML", "declared_grade": "junior",
+    })
+    assert created.status_code == 201
+    changed = await client.post(url, headers=headers, json={
+        "specialization": "Data Science / ML", "declared_grade": "middle",
+    })
+    assert changed.status_code == 201
+    assert changed.json()["declared_grade"] == "middle"
+    started = await client.post("/api/v1/testing/roadmap", headers=headers, json={
+        "specialization": "Data Science / ML",
+    })
+    assert started.status_code == 201
+    assert started.json()["target_grade"] == "middle"
+    blocked = await client.post(url, headers=headers, json={
+        "specialization": "Data Science / ML", "declared_grade": "senior",
+    })
+    assert blocked.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_specialization_grade_without_bank_is_not_marked_testable(client: AsyncClient):
+    headers = await candidate(client, "lead-track@example.com")
+    created = await client.post("/api/v1/testing/specializations", headers=headers, json={
+        "specialization": "Data Science / ML", "declared_grade": "lead",
+    })
+    assert created.status_code == 201
+    assert created.json()["test_available"] is False
 
 
 @pytest.mark.asyncio

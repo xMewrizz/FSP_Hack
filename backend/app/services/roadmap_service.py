@@ -13,7 +13,7 @@ from app.core.assessment_catalog import (
 from app.core.assessment_catalog_ds import DS_QUESTION_CODES, DS_REQUIRED_SKILLS
 from app.core.additional_skill_bank import ADDITIONAL_SKILLS, ADDITIONAL_ALTERNATES
 from app.core.assessment_bank import active_bank_id
-from app.core.catalog import ALL_SPECIALIZATIONS, CatalogError, is_testable, normalize_specialization, validate_test_pair
+from app.core.catalog import ALL_SPECIALIZATIONS, ALL_GRADES, CatalogError, is_testable, normalize_specialization, validate_test_pair
 from app.core.grade_policy import OVERALL_MINIMUM, SKILL_MINIMUM, SkillResult, assess_grade
 from app.core.open_question_bank import GRADE_OPEN_CODES, GRADE_RETAKE_OPEN_CODES, get_open_question_by_code
 from app.core.question_variants import variant_for_attempt
@@ -57,7 +57,7 @@ def assessment_is_expired(assessment: GradeAssessment) -> bool:
 class RoadmapService:
     @staticmethod
     async def request_specialization(
-        db: AsyncSession, user: User, specialization: str,
+        db: AsyncSession, user: User, specialization: str, declared_grade: str,
     ) -> CandidateSpecializationTrackResponse:
         profile = await db.scalar(select(CandidateProfile).where(CandidateProfile.user_id == user.id))
         if profile is None:
@@ -65,8 +65,10 @@ class RoadmapService:
         canonical = normalize_specialization(specialization)
         if canonical not in ALL_SPECIALIZATIONS:
             raise HTTPException(400, "Выберите специализацию из каталога")
+        if declared_grade not in ALL_GRADES:
+            raise HTTPException(400, "Выберите грейд из каталога")
         if canonical == profile.specialization:
-            raise HTTPException(409, "Это основная специализация профиля")
+            raise HTTPException(409, "Эта специализация уже указана в профиле")
         track = await db.scalar(select(CandidateSpecializationTrack).where(
             CandidateSpecializationTrack.candidate_profile_id == profile.id,
             CandidateSpecializationTrack.specialization == canonical,
@@ -75,10 +77,27 @@ class RoadmapService:
             track = CandidateSpecializationTrack(
                 candidate_profile_id=profile.id,
                 specialization=canonical,
+                declared_grade=declared_grade,
             )
             db.add(track)
             await db.commit()
             await db.refresh(track)
+        elif track.declared_grade != declared_grade:
+            if track.verified_grade in GRADE_ORDER and declared_grade in GRADE_ORDER and (
+                GRADE_ORDER.index(declared_grade) not in (
+                    GRADE_ORDER.index(track.verified_grade), GRADE_ORDER.index(track.verified_grade) + 1
+                )
+            ):
+                raise HTTPException(400, "После подтверждения можно выбрать текущий или следующий грейд")
+            active_assessment = await db.scalar(select(GradeAssessment.id).where(
+                GradeAssessment.candidate_profile_id == profile.id,
+                GradeAssessment.specialization == canonical,
+                GradeAssessment.status.in_(("in_progress", "pending_review")),
+            ).limit(1))
+            if active_assessment is not None:
+                raise HTTPException(409, "Сначала завершите начатый набор этой специализации")
+            track.declared_grade = declared_grade
+            await db.commit()
         return await RoadmapService._track_response(db, track)
 
     @staticmethod
@@ -110,7 +129,7 @@ class RoadmapService:
                 GradeAssessment.status == "completed",
                 GradeAssessment.passed.is_(True),
             ).order_by(GradeAssessment.created_at.desc()).limit(1))
-        available = any(is_testable(track.specialization, grade) for grade in GRADE_ORDER)
+        available = is_testable(track.specialization, track.declared_grade)
         status = (
             "verified" if track.verified_grade else
             "in_progress" if assessment else
@@ -118,10 +137,11 @@ class RoadmapService:
         )
         return CandidateSpecializationTrackResponse(
             specialization=track.specialization,
+            declared_grade=track.declared_grade,
             status=status,
             test_available=available,
             availability_reason=None if available else (
-                "Базовый банк тестов для этого направления ещё готовится."
+                "Базовый банк тестов для выбранной специализации и грейда ещё готовится."
             ),
             verified_grade=track.verified_grade,
             assessment_id=assessment.id if assessment else None,
@@ -158,8 +178,10 @@ class RoadmapService:
                 CandidateSpecializationTrack.specialization == requested_specialization,
             ).with_for_update())
             if specialty_track is None:
-                raise HTTPException(409, "Сначала запросите дополнительное направление")
-        raw_grade = data.target_grade.value if data.target_grade else profile.declared_grade
+                raise HTTPException(409, "Сначала добавьте специализацию в профиль")
+        raw_grade = data.target_grade.value if data.target_grade else (
+            specialty_track.declared_grade if specialty_track else profile.declared_grade
+        )
         try:
             specialization, grade = validate_test_pair(requested_specialization, raw_grade)
         except CatalogError as error:
@@ -621,7 +643,7 @@ class RoadmapService:
                 CandidateSpecializationTrack.specialization == selected_specialization,
             )
         ):
-            raise HTTPException(409, "Сначала запросите дополнительное направление")
+            raise HTTPException(409, "Сначала добавьте специализацию в профиль")
         available = available_extra_skills(selected_specialization or "")
         sessions = (await db.execute(select(TestSession).where(
             TestSession.user_id == user.id,
@@ -657,7 +679,7 @@ class RoadmapService:
                 CandidateSpecializationTrack.specialization == selected_specialization,
             )
         ):
-            raise HTTPException(409, "Сначала запросите дополнительное направление")
+            raise HTTPException(409, "Сначала добавьте специализацию в профиль")
         if skill_code not in {code for code, _, _ in available_extra_skills(selected_specialization or "")}:
             raise HTTPException(400, "Для этого дополнительного навыка тест пока недоступен")
         existing = await db.scalar(select(TestSession).where(

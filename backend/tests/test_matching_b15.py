@@ -7,11 +7,76 @@ from app.core.constants import UserRole
 from app.core.ranking import rank_candidates
 from app.core.security import create_access_token
 from app.models.candidate import CandidateProfile
+from app.models.candidate_specialization import CandidateSpecializationTrack
 from app.models.employer import EmployerProfile
 from app.models.need import EmployerNeed
 from app.models.test import GradeAssessment, TestSession as CandidateTestSession
 from app.models.user import User
 from conftest import TestingSessionLocal
+
+
+@pytest.mark.asyncio
+async def test_each_verified_specialization_is_searchable_and_matchable(client: AsyncClient):
+    async with TestingSessionLocal() as db:
+        employer_user = User(email="multi-track-owner@example.test", hashed_password="unused", role=UserRole.EMPLOYER, is_verified=True)
+        candidate_user = User(email="multi-track-candidate@example.test", hashed_password="unused", role=UserRole.CANDIDATE, is_verified=True)
+        db.add_all([employer_user, candidate_user])
+        await db.flush()
+        employer = EmployerProfile(user_id=employer_user.id, company_name="Компания", onboarding_completed=True)
+        profile = CandidateProfile(
+            user_id=candidate_user.id, first_name="Мария", last_name="Тестовая",
+            specialization="Backend", verified_specialization="Backend",
+            declared_grade="junior", verified_grade="junior",
+            skills=["Python", "Pandas"], work_format="remote",
+            onboarding_completed=True, agreed_publication=True, visibility_public=True,
+        )
+        db.add_all([employer, profile])
+        await db.flush()
+        need = EmployerNeed(
+            employer_id=employer.id, title="Data Scientist Middle", specialization="Data Science / ML",
+            required_grade="middle", required_skills=[{"name": "Pandas", "weight": 5}],
+            salary_min=100000, salary_max=300000, salary_tax_type="gross", work_format="remote",
+        )
+        track = CandidateSpecializationTrack(
+            candidate_profile_id=profile.id, specialization="Data Science / ML",
+            declared_grade="middle", verified_grade="middle",
+        )
+        db.add_all([need, track])
+        await db.flush()
+        assessment = GradeAssessment(
+            user_id=candidate_user.id, candidate_profile_id=profile.id,
+            specialization="Data Science / ML", target_grade="middle",
+            required_skills=[], question_codes={}, question_snapshots={}, retake_question_snapshots={},
+            scoring_policy={}, status="completed", passed=True, percentage=88,
+        )
+        db.add(assessment)
+        await db.flush()
+        db.add(CandidateTestSession(
+            user_id=candidate_user.id, candidate_profile_id=profile.id,
+            assessment_id=assessment.id, specialization="Data Science / ML", target_grade="middle",
+            skill_code="ds_pandas", status="completed", percentage=90,
+        ))
+        await db.commit()
+        need_id, employer_id, candidate_id = need.id, employer_user.id, profile.id
+
+    headers = {"Authorization": f"Bearer {create_access_token({'sub': str(employer_id)})}"}
+    matched = await client.get(f"/api/v1/matching/for-need/{need_id}", headers=headers)
+    assert matched.status_code == 200, matched.text
+    assert matched.json()["total"] == 1
+    item = matched.json()["candidates"][0]
+    assert item["candidate_id"] == str(candidate_id)
+    assert (item["specialization"], item["verified_grade"], item["test_percentage"]) == ("Data Science / ML", "middle", 88)
+    assert item["requested_skill_tests"][0]["percentage"] == 90
+    assert "Data Science / ML" in item["match_explanation"]["summary"]
+
+    search = await client.get("/api/v1/matching/search?specialization=Data%20Science%20%2F%20ML&grade=middle", headers=headers)
+    assert search.status_code == 200, search.text
+    assert [(row["candidate_id"], row["specialization"], row["verified_grade"]) for row in search.json()] == [
+        (str(candidate_id), "Data Science / ML", "middle")
+    ]
+    backend_search = await client.get("/api/v1/matching/search?specialization=Backend&grade=junior", headers=headers)
+    assert backend_search.status_code == 200
+    assert backend_search.json()[0]["candidate_id"] == str(candidate_id)
 
 
 @pytest.mark.asyncio

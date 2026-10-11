@@ -158,10 +158,12 @@ class AdditionalSkillTestResponse(BaseModel):
 
 class CandidateSpecializationTrackRequest(BaseModel):
     specialization: str
+    declared_grade: Grade
 
 
 class CandidateSpecializationTrackResponse(BaseModel):
     specialization: str
+    declared_grade: str
     status: str
     test_available: bool
     availability_reason: str | None = None

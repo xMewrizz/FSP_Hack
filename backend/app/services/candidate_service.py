@@ -70,10 +70,12 @@ class CandidateService:
             profile.verified_grade_updated_at = None
             await db.execute(update(GradeAssessment).where(
                 GradeAssessment.candidate_profile_id == profile.id,
+                GradeAssessment.specialization == profile.specialization,
                 GradeAssessment.status == "in_progress",
             ).values(status="cancelled"))
             await db.execute(update(TestSession).where(
                 TestSession.candidate_profile_id == profile.id,
+                TestSession.specialization == profile.specialization,
                 TestSession.assessment_id.is_not(None),
                 TestSession.status == "in_progress",
             ).values(status="cancelled"))

@@ -448,7 +448,7 @@ type MatchingCandidate = {
   resume_url?: string | null;
   match_score: number;
   requested_skill_tests: RequestedSkillTest[];
-  additional_specializations: Array<{ specialization: string; status: "requested" | "in_progress" | "verified"; verified_grade: string | null }>;
+  additional_specializations: Array<{ specialization: string; status: "requested" | "in_progress" | "verified"; declared_grade?: string | null; verified_grade: string | null }>;
   match_explanation: {
     summary: string;
     matched_skills: string[];
@@ -804,6 +804,7 @@ type AdditionalSkillTestData = {
 
 type CandidateSpecializationTrackData = {
   specialization: string;
+  declared_grade: string;
   status: "requested" | "in_progress" | "verified";
   test_available: boolean;
   availability_reason: string | null;
@@ -3465,6 +3466,8 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [selectedSpecialization, setSelectedSpecialization] = useState("");
   const [testingTrackLoading, setTestingTrackLoading] = useState(false);
   const [requestedSpecialization, setRequestedSpecialization] = useState("");
+  const [requestedSpecializationGrade, setRequestedSpecializationGrade] = useState("");
+  const [specializationGradeDrafts, setSpecializationGradeDrafts] = useState<Record<string, string>>({});
   const [testStarting, setTestStarting] = useState(false);
   const [testSubmitting, setTestSubmitting] = useState(false);
   const [testDone, setTestDone] = useState(false);
@@ -3918,22 +3921,42 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   };
 
   const requestSpecializationTrack = async () => {
-    if (!requestedSpecialization) return;
+    if (!requestedSpecialization || !requestedSpecializationGrade) return;
     setTestStarting(true);
     try {
       const track = await apiPost<CandidateSpecializationTrackData>("/testing/specializations", {
         specialization: requestedSpecialization,
+        declared_grade: requestedSpecializationGrade,
       });
       setSpecializationTracks((current) => [
         ...current.filter((item) => item.specialization !== track.specialization),
         track,
       ]);
       setRequestedSpecialization("");
+      setRequestedSpecializationGrade("");
       onNotify(track.test_available
         ? `Направление «${track.specialization}» добавлено. Можно пройти его базовое ядро.`
         : `Направление «${track.specialization}» добавлено. Базовый тест станет доступен после подготовки банка заданий.`);
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось добавить специализацию", "error");
+    } finally {
+      setTestStarting(false);
+    }
+  };
+
+  const updateSpecializationGrade = async (track: CandidateSpecializationTrackData) => {
+    const declaredGrade = specializationGradeDrafts[track.specialization];
+    if (!declaredGrade || declaredGrade === track.declared_grade) return;
+    setTestStarting(true);
+    try {
+      const updated = await apiPost<CandidateSpecializationTrackData>("/testing/specializations", {
+        specialization: track.specialization,
+        declared_grade: declaredGrade,
+      });
+      setSpecializationTracks((current) => current.map((item) => item.specialization === updated.specialization ? updated : item));
+      onNotify(`Заявленный грейд «${updated.specialization}» изменён на ${updated.declared_grade}. Начатый тест сохраняет прежний уровень.`);
+    } catch (error) {
+      onNotify(error instanceof Error ? error.message : "Не удалось изменить грейд", "error");
     } finally {
       setTestStarting(false);
     }
@@ -3965,7 +3988,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       setComparisonRoadmap(result);
       window.setTimeout(() => document.getElementById("grade-radar-card")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
     } catch (error) {
-      onNotify(error instanceof Error ? error.message : "Не удалось загрузить карту дополнительного направления", "error");
+      onNotify(error instanceof Error ? error.message : "Не удалось загрузить карту специализации", "error");
     } finally {
       setComparisonLoading(null);
     }
@@ -4504,13 +4527,14 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
           .map((specialization) => {
             const isPrimary = specialization === profile?.specialization;
             const activeTrack = isPrimary ? !selectedSpecialization : selectedSpecialization === specialization;
+            const declaredGrade = isPrimary ? profile?.declared_grade : specializationTracks.find((track) => track.specialization === specialization)?.declared_grade;
             return <button key={specialization} type="button" role="tab" aria-selected={activeTrack} className={activeTrack ? "active" : ""} onClick={() => {
               if (activeTrack) return;
               setSelectedSpecialization(isPrimary ? "" : specialization);
               setRoadmap(null);
               setAdditionalTests([]);
               setTestPurpose("grade");
-            }}>{specialization}{isPrimary ? " · основная" : " · дополнительная"}</button>;
+            }}>{specialization}{declaredGrade ? ` · ${declaredGrade}` : ""}</button>;
           })}
       </div>
       <div className="assessment-mode" role="group" aria-label="Режим проверки">
@@ -4662,15 +4686,24 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         </div>
         <SpecialtyRadarGallery currentSpecialization={profile?.specialization} currentSkills={gradeSkills} currentComplete={baselineComplete} />
         <section className="feature-card additional-specialization-card">
-          <div className="feature-head"><div><span>ДОПОЛНИТЕЛЬНОЕ НАПРАВЛЕНИЕ</span><strong>Подтвердите ещё одну специализацию</strong></div></div>
-          <p className="feature-description feature-description--left">Основная специализация и её грейд останутся без изменений. Для дополнительного направления ведётся отдельный запрос и отдельный результат.</p>
-          <div className="field-row">
+          <div className="feature-head"><div><span>МОИ СПЕЦИАЛИЗАЦИИ</span><strong>Добавьте специализацию и заявите грейд</strong></div></div>
+          <p className="feature-description feature-description--left">По каждой специализации можно заявить свой грейд и подтвердить его отдельным набором тестов. Все подтверждённые направления участвуют в подборе.</p>
+          <div className="field-row specialization-add-form">
             <label className="field"><span>Направление</span><select value={requestedSpecialization} onChange={(event) => setRequestedSpecialization(event.target.value)}><option value="">Выберите специализацию</option>{SPECIALIZATION_OPTIONS.filter((item) => item !== profile?.specialization && !specializationTracks.some((track) => track.specialization === item)).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-            <Button disabled={!requestedSpecialization || testStarting} onClick={() => void requestSpecializationTrack()}>{testStarting ? "Добавляем…" : "Запросить направление"}</Button>
+            <label className="field"><span>Заявленный грейд</span><select value={requestedSpecializationGrade} onChange={(event) => setRequestedSpecializationGrade(event.target.value)}><option value="">Выберите грейд</option>{ALL_GRADES.map((grade) => <option key={grade.value} value={grade.value}>{grade.label}</option>)}</select></label>
+            <Button disabled={!requestedSpecialization || !requestedSpecializationGrade || testStarting} onClick={() => void requestSpecializationTrack()}>{testStarting ? "Добавляем…" : "Добавить специализацию"}</Button>
           </div>
-          {specializationTracks.filter((track) => track.specialization !== profile?.specialization).length > 0 ? <div className="topic-summary">{specializationTracks.filter((track) => track.specialization !== profile?.specialization).map((track) => (
+          <div className="topic-summary specialization-track-list">
+            {profile?.specialization && <div>
+              <span>{profile.specialization}</span>
+              <strong>Заявлен {profile.declared_grade ?? "—"}{profile.verified_grade ? ` · подтверждён ${profile.verified_grade}` : ""}</strong>
+              <Button variant="outline" onClick={() => { setSelectedSpecialization(""); onNavigate("Тестирование"); }}>Открыть тесты</Button>
+            </div>}
+            {specializationTracks.filter((track) => track.specialization !== profile?.specialization).map((track) => (
             <div key={track.specialization}>
               <span>{track.specialization}</span>
+              <label className="field"><span>Заявленный грейд</span><select value={specializationGradeDrafts[track.specialization] ?? track.declared_grade} onChange={(event) => setSpecializationGradeDrafts((current) => ({ ...current, [track.specialization]: event.target.value }))}>{ALL_GRADES.map((grade) => <option key={grade.value} value={grade.value}>{grade.label}</option>)}</select></label>
+              {specializationGradeDrafts[track.specialization] && specializationGradeDrafts[track.specialization] !== track.declared_grade && <Button variant="outline" disabled={testStarting} onClick={() => void updateSpecializationGrade(track)}>Сохранить грейд</Button>}
               {track.status === "verified" ? <button
                 type="button"
                 className={`additional-specialization-grade${comparisonRoadmap?.specialization === track.specialization ? " is-selected" : ""}`}
@@ -4682,7 +4715,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 ? <Button variant="outline" disabled={testStarting || !profile?.agreed_test_confidentiality} onClick={() => void beginSpecializationTrack(track.specialization)}>{track.status === "in_progress" ? "Продолжить ядро" : track.status === "verified" ? "Пересдать / повысить" : "Пройти базовое ядро"}</Button>
                 : <small>{track.availability_reason}</small>}
             </div>
-          ))}</div> : <div className="empty-state">Пока нет дополнительных направлений.</div>}
+          ))}</div>
         </section>
         <section className="feature-card grade-history-card">
           <div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Результаты проверок</strong></div><Button onClick={() => onNavigate("Тестирование")}>Пройти тест</Button></div>
@@ -5199,7 +5232,7 @@ function CandidateOnboarding({ onComplete }: { onComplete: (payload: {
         <div className="onboarding-progress">{steps.map((item, index) => <div key={item} className={index <= step ? "active" : ""}><b>{index + 1}</b><span>{item}</span></div>)}</div>
         <div className="onboarding-content">
           {step === 0 && <><span>ШАГ 1</span><strong>Заполните профиль</strong><p>Укажите имя. Согласие на обработку данных подтвердите один раз ниже, перед созданием профиля.</p><div className="field-row field-row--flush"><label className="field"><span>ИМЯ</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" /></label><label className="field"><span>ФАМИЛИЯ</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" /></label></div><label className="consent-large"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Согласен(на) на обработку персональных данных по 152-ФЗ.</span></label></>}
-          {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Грейд подтверждает только тест. Достижения ФСП влияют на порядок в подборке, но грейд не подтверждают. {TEST_AVAILABILITY_HINT}</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>{isTestablePair(specialization, grade) && <label className="field field--flush"><span>ЯЗЫК БАЗОВОГО ТЕСТА</span><select value="Python" disabled><option value="Python">Python</option></select><small>Сейчас для этого направления подготовлен базовый тест на Python.</small></label>}          {!isTestablePair(specialization, grade) && <p className="feature-description feature-description--left">Для пары «{specialization} · {grade}» базовое ядро пока недоступно. Профиль можно сохранить; запросить дополнительное направление и проверить доступность ядра можно в разделе «Мой грейд».</p>}</>}
+          {step === 1 && <><span>ШАГ 2</span><strong>Выберите направление и уровень</strong><p>Грейд подтверждает только тест. Достижения ФСП влияют на порядок в подборке, но грейд не подтверждают. {TEST_AVAILABILITY_HINT}</p><div className="field-row field-row--flush"><label className="field"><span>СПЕЦИАЛИЗАЦИЯ</span><select value={specialization} onChange={(event) => setSpecialization(event.target.value)}>{ALL_SPECIALIZATIONS.map((item) => <option key={item}>{item}</option>)}</select></label><label className="field"><span>ПРЕДПОЛАГАЕМЫЙ УРОВЕНЬ</span><select value={grade} onChange={(event) => setGrade(event.target.value)}>{ALL_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>{isTestablePair(specialization, grade) && <label className="field field--flush"><span>ЯЗЫК БАЗОВОГО ТЕСТА</span><select value="Python" disabled><option value="Python">Python</option></select><small>Сейчас для этого направления подготовлен базовый тест на Python.</small></label>}          {!isTestablePair(specialization, grade) && <p className="feature-description feature-description--left">Для пары «{specialization} · {grade}» базовое ядро пока недоступно. Профиль можно сохранить и добавить другие специализации в разделе «Мой грейд».</p>}</>}
           {step === 2 && <><span>ШАГ 3</span><strong>Где и как вы хотите работать</strong><div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={city} onChange={(event) => setCity(event.target.value)} /></label><label className="field"><span>ФОРМАТ</span><select value={format} onChange={(event) => setFormat(event.target.value)}><option>Удалённо</option><option>Гибрид</option><option>Офис</option></select></label></div><ToggleRow title="Готов к переезду" detail="Работодатели смогут учитывать это при подборе" /></>}
           {step === 3 && <><span>ШАГ 4</span><strong>Резюме и опыт</strong><p>После завершения настройки откройте раздел «Профиль», чтобы загрузить PDF. Распознанные данные можно проверить и исправить перед сохранением.</p><div className="notice-box">Для продолжения загрузка резюме не обязательна.</div></>}
           {step === 4 && <><span>ШАГ 5</span><strong>Публикация и данные ФСП</strong><p>Профиль можно сохранить скрытым и открыть для работодателей позже в настройках.</p><label className="consent-large"><input type="checkbox" checked={publication} onChange={(event) => setPublication(event.target.checked)} /><span>Согласен(на) на обработку и публикацию данных профиля работодателям</span></label><label className="field field--flush"><span>ФСП ID · НЕОБЯЗАТЕЛЬНО</span><input value={fspId} onChange={(event) => setFspId(event.target.value)} placeholder="Например, FSP-2025-00142" /></label>{fspId.trim() && <label className="consent-large"><input type="checkbox" checked={fspConsent} onChange={(event) => setFspConsent(event.target.checked)} /><span>Согласен(на) связать профиль с моим ID участника ФСП и использовать его для получения данных о достижениях</span></label>}</>}
@@ -6133,14 +6166,14 @@ function App() {
               <div className="grade-line__score">{selected.backendId ? `${formatMatchScore(selected.score)} в подборе` : "06.001 / ур. 6"}</div>
             </div>
             {selected.backendId && <div className="profile-resume__meta"><span>АКТИВНОСТЬ · {selected.activityStatus}</span><span>ПРОФИЛЬ · {selected.profileCompleteness?.score ?? 0}/100 · {profileCompletenessLabel(selected.profileCompleteness?.status ?? "insufficient")}</span></div>}
-            {selected.additionalSpecializations?.length ? <section className="profile-resume__section" aria-label="Дополнительные направления кандидата">
-              <div className="section-title"><span>ДОПОЛНИТЕЛЬНЫЕ НАПРАВЛЕНИЯ</span></div>
+            {selected.additionalSpecializations?.length ? <section className="profile-resume__section" aria-label="Специализации кандидата">
+              <div className="section-title"><span>СПЕЦИАЛИЗАЦИИ КАНДИДАТА</span></div>
               <div className="topic-summary">{selected.additionalSpecializations.map((track) => (
                 <div key={track.specialization}>
                   <span>{track.specialization}</span>
                   <strong>{track.status === "verified"
                     ? `Подтверждён ${track.verified_grade ?? "грейд"}`
-                    : track.status === "in_progress" ? "Проходит базовое ядро" : "Запросил(а) доступ к базовому ядру"}</strong>
+                    : track.status === "in_progress" ? `Проходит тест на ${track.declared_grade ?? "грейд"}` : `Заявлен ${track.declared_grade ?? "грейд"}`}</strong>
                 </div>
               ))}</div>
             </section> : null}

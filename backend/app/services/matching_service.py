@@ -61,11 +61,11 @@ def _requested_skill_tests_dict(
     return results
 
 
-def _candidate_data(candidate: CandidateProfile, percentage: float | None, requested_skill_tests: list[dict]) -> dict:
+def _candidate_data(candidate: CandidateProfile, percentage: float | None, requested_skill_tests: list[dict], specialization: str | None = None, grade: str | None = None) -> dict:
     return {
         "id": candidate.id,
-        "specialization": candidate.verified_specialization or candidate.specialization,
-        "verified_grade": candidate.verified_grade,
+        "specialization": specialization or candidate.verified_specialization or candidate.specialization,
+        "verified_grade": grade or candidate.verified_grade,
         "declared_grade": candidate.declared_grade,
         "skills": candidate.skills or [],
         "test_percentage": percentage,
@@ -103,6 +103,7 @@ def _match_item(
     need: EmployerNeed,
     requested_skill_tests: list[RequestedSkillTestResult],
     additional_specializations: list[dict[str, Any]],
+    declared_grade: str | None,
 ) -> CandidateMatchItem:
     tax_labels = {"gross": "до вычета НДФЛ", "net": "на руки"}
     candidate_tax = tax_labels.get(candidate.salary_tax_type, candidate.salary_tax_type)
@@ -118,7 +119,7 @@ def _match_item(
 
     matched = score["matched_skills"]
     missing = score["missing_skills"]
-    summary = [f"Подтверждён {candidate.verified_grade.capitalize()} по направлению {candidate.verified_specialization or candidate.specialization}."]
+    summary = [f"Подтверждён {need.required_grade.capitalize()} по направлению {need.specialization}."]
     if matched:
         summary.append(f"Совпали навыки: {', '.join(matched)}.")
     if missing:
@@ -148,9 +149,9 @@ def _match_item(
         profile_completeness=calculate_profile_completeness(candidate, email_verified=candidate.user.is_verified),
         first_name=candidate.first_name,
         last_name=candidate.last_name,
-        specialization=candidate.specialization,
-        verified_grade=candidate.verified_grade,
-        declared_grade=candidate.declared_grade,
+        specialization=need.specialization,
+        verified_grade=need.required_grade,
+        declared_grade=declared_grade,
         city=candidate.city,
         work_format=candidate.work_format,
         fsp_id=candidate.fsp_id,
@@ -214,6 +215,7 @@ async def _additional_specializations_by_candidate(
     for track in tracks:
         result.setdefault(track.candidate_profile_id, []).append({
             "specialization": track.specialization,
+            "declared_grade": track.declared_grade,
             "status": "verified" if track.verified_grade else (
                 "in_progress" if (track.candidate_profile_id, track.specialization) in active_keys else "requested"
             ),
@@ -237,6 +239,10 @@ class MatchingService:
         if current_user and need.employer and need.employer.user_id != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Чужая потребность недоступна")
 
+        matching_tracks = select(CandidateSpecializationTrack.candidate_profile_id).where(
+            func.lower(CandidateSpecializationTrack.specialization) == need.specialization.casefold(),
+            func.lower(CandidateSpecializationTrack.verified_grade) == need.required_grade.casefold(),
+        )
         candidates = (await db.scalars(
             select(CandidateProfile)
             .options(
@@ -250,13 +256,18 @@ class MatchingService:
                 CandidateProfile.onboarding_completed.is_(True),
                 CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
-                func.lower(CandidateProfile.verified_grade) == need.required_grade.casefold(),
                 or_(
-                    func.lower(CandidateProfile.verified_specialization) == need.specialization.casefold(),
                     and_(
-                        CandidateProfile.verified_specialization.is_(None),
-                        func.lower(CandidateProfile.specialization) == need.specialization.casefold(),
+                        func.lower(CandidateProfile.verified_grade) == need.required_grade.casefold(),
+                        or_(
+                            func.lower(CandidateProfile.verified_specialization) == need.specialization.casefold(),
+                            and_(
+                                CandidateProfile.verified_specialization.is_(None),
+                                func.lower(CandidateProfile.specialization) == need.specialization.casefold(),
+                            ),
+                        ),
                     ),
+                    CandidateProfile.id.in_(matching_tracks),
                 ),
             )
         )).unique().all()
@@ -265,6 +276,12 @@ class MatchingService:
 
         cand_ids = [item.id for item in candidates]
         by_id = {item.id: item for item in candidates}
+        matching_track_rows = (await db.scalars(select(CandidateSpecializationTrack).where(
+            CandidateSpecializationTrack.candidate_profile_id.in_(cand_ids),
+            func.lower(CandidateSpecializationTrack.specialization) == need.specialization.casefold(),
+            func.lower(CandidateSpecializationTrack.verified_grade) == need.required_grade.casefold(),
+        ))).all()
+        declared_by_candidate = {row.candidate_profile_id: row.declared_grade for row in matching_track_rows}
         assessments_rows = (await db.execute(
             select(
                 GradeAssessment.id,
@@ -287,8 +304,8 @@ class MatchingService:
             if (
                 candidate is not None
                 and candidate.id not in confirmed_results
-                and row.target_grade.casefold() == (candidate.verified_grade or "").casefold()
-                and row.specialization.casefold() == (candidate.verified_specialization or candidate.specialization or "").casefold()
+                and row.target_grade.casefold() == need.required_grade.casefold()
+                and row.specialization.casefold() == need.specialization.casefold()
             ):
                 confirmed_results[candidate.id] = row.percentage
                 confirmed_assessments[candidate.id] = row.id
@@ -315,8 +332,8 @@ class MatchingService:
                 if (
                     candidate is not None
                     and candidate.id not in confirmed_results
-                    and session.target_grade.casefold() == (candidate.verified_grade or "").casefold()
-                    and session.specialization.casefold() == (candidate.verified_specialization or candidate.specialization or "").casefold()
+                    and session.target_grade.casefold() == need.required_grade.casefold()
+                    and session.specialization.casefold() == need.specialization.casefold()
                 ):
                     confirmed_results[candidate.id] = session.percentage
 
@@ -356,9 +373,9 @@ class MatchingService:
         additional_by_candidate: dict[uuid.UUID, dict[str, Any]] = {}
         for session in sessions:
             candidate = by_id[session.candidate_profile_id]
-            if session.specialization.casefold() != (candidate.verified_specialization or candidate.specialization or "").casefold():
+            if session.specialization.casefold() != need.specialization.casefold():
                 continue
-            if session.assessment_id is not None and session.assessment_id == confirmed_assessments.get(candidate.id) and session.target_grade.casefold() == (candidate.verified_grade or "").casefold():
+            if session.assessment_id is not None and session.assessment_id == confirmed_assessments.get(candidate.id) and session.target_grade.casefold() == need.required_grade.casefold():
                 base_by_candidate.setdefault(candidate.id, {}).setdefault(session.skill_code, session)
             elif session.assessment_id is None and session.target_grade == "all" and session.passed:
                 additional_by_candidate.setdefault(candidate.id, {}).setdefault(session.skill_code, session)
@@ -384,13 +401,14 @@ class MatchingService:
         }
         ranked = rank_candidates(
             need_dict,
-            [_candidate_data(item, confirmed_results.get(item.id), skill_tests_by_candidate[item.id]) for item in candidates],
+            [_candidate_data(item, confirmed_results.get(item.id), skill_tests_by_candidate[item.id], need.specialization, need.required_grade) for item in candidates],
         )
         items = [
             _match_item(
                 by_id[result["candidate_id"]], result, confirmed_results.get(result["candidate_id"]), need,
                 [RequestedSkillTestResult(**r) for r in skill_tests_by_candidate[result["candidate_id"]]],
                 additional_specializations.get(result["candidate_id"], []),
+                declared_by_candidate.get(result["candidate_id"], by_id[result["candidate_id"]].declared_grade),
             )
             for result in ranked
         ]
@@ -412,6 +430,16 @@ class MatchingService:
         fsp_only: bool = False,
         verified_only: bool = False,
     ) -> list[CandidateMatchItem]:
+        track_query = select(CandidateSpecializationTrack.candidate_profile_id).where(
+            CandidateSpecializationTrack.verified_grade.is_not(None),
+        )
+        primary_filters = [CandidateProfile.verified_grade.is_not(None)]
+        if specialization:
+            track_query = track_query.where(func.lower(CandidateSpecializationTrack.specialization) == specialization.casefold())
+            primary_filters.append(func.lower(func.coalesce(CandidateProfile.verified_specialization, CandidateProfile.specialization)) == specialization.casefold())
+        if grade:
+            track_query = track_query.where(func.lower(CandidateSpecializationTrack.verified_grade) == grade.casefold())
+            primary_filters.append(func.lower(CandidateProfile.verified_grade) == grade.casefold())
         stmt = (
             select(CandidateProfile)
             .options(
@@ -425,13 +453,9 @@ class MatchingService:
                 CandidateProfile.onboarding_completed.is_(True),
                 CandidateProfile.agreed_publication.is_(True),
                 CandidateProfile.visibility_public.is_(True),
-                CandidateProfile.verified_grade.is_not(None),
+                or_(and_(*primary_filters), CandidateProfile.id.in_(track_query)),
             )
         )
-        if specialization:
-            stmt = stmt.where(CandidateProfile.specialization == specialization)
-        if grade:
-            stmt = stmt.where(CandidateProfile.verified_grade == grade)
         if work_format:
             stmt = stmt.where(CandidateProfile.work_format == work_format)
         if city:
@@ -473,6 +497,16 @@ class MatchingService:
         additional_specializations = await _additional_specializations_by_candidate(db, candidates)
         items = []
         for candidate in candidates:
+            primary_spec = candidate.verified_specialization or candidate.specialization
+            primary_matches = bool(candidate.verified_grade and (
+                not specialization or (primary_spec or "").casefold() == specialization.casefold()
+            ) and (not grade or candidate.verified_grade.casefold() == grade.casefold()))
+            track = next((item for item in additional_specializations.get(candidate.id, [])
+                if item["verified_grade"] and (not specialization or item["specialization"].casefold() == specialization.casefold())
+                and (not grade or item["verified_grade"].casefold() == grade.casefold())), None)
+            selected_spec = primary_spec if primary_matches else track["specialization"]
+            selected_grade = candidate.verified_grade if primary_matches else track["verified_grade"]
+            selected_declared = candidate.declared_grade if primary_matches else track["declared_grade"]
             trust_score_val, trust_flags_val = calculate_trust_score(candidate)
             items.append(
                 CandidateMatchItem(
@@ -480,9 +514,9 @@ class MatchingService:
                     profile_completeness=calculate_profile_completeness(candidate, email_verified=candidate.user.is_verified),
                     first_name=candidate.first_name,
                     last_name=candidate.last_name,
-                    specialization=candidate.specialization,
-                    verified_grade=candidate.verified_grade,
-                    declared_grade=candidate.declared_grade,
+                    specialization=selected_spec,
+                    verified_grade=selected_grade,
+                    declared_grade=selected_declared,
                     city=candidate.city,
                     work_format=candidate.work_format,
                     fsp_id=candidate.fsp_id,
