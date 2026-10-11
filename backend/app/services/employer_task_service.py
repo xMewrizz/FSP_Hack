@@ -13,6 +13,7 @@ from app.models.candidate_activity import CandidateActivity
 from app.models.candidate_specialization import CandidateSpecializationTrack
 from app.models.employer import EmployerProfile
 from app.models.employer_task import EmployerTask, EmployerTaskSubmission, TaskAttachment
+from app.models.user import User
 from app.models.vacancy import Vacancy
 from app.schemas.employer_task import (
     CandidateActivityResponse,
@@ -594,6 +595,12 @@ class EmployerTaskService:
         )
         if task is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задание не найдено или закрыто")
+        employer_user = await db.get(User, task.employer.user_id)
+        if employer_user and not employer_user.is_active and employer_user.email.endswith("@example.test"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Это демонстрационное задание. Его можно изучить, но ответ здесь не проверяется работодателем.",
+            )
 
         attachments = []
         if data.attachment_ids:

@@ -49,6 +49,11 @@ class InvitationService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Кандидат не найден",
             )
+        if not candidate.user.is_active and candidate.user.email.endswith("@example.test"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Это демонстрационный профиль. Для настоящего приглашения выберите действующего кандидата.",
+            )
 
         need_title = None
         if data.need_id:

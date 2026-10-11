@@ -1,0 +1,66 @@
+[
+  {
+    "id": "northline",
+    "company_name": "Нордлайн",
+    "industry": "Финтех",
+    "city": "Москва",
+    "website": "https://northline.example",
+    "contact_person": "Отдел найма"
+  },
+  {
+    "id": "vectorlab",
+    "company_name": "Векторлаб",
+    "industry": "Аналитика",
+    "city": "Казань",
+    "website": "https://vectorlab.example",
+    "contact_person": "Отдел найма"
+  },
+  {
+    "id": "harbor",
+    "company_name": "Харбор",
+    "industry": "Логистика",
+    "city": "Санкт-Петербург",
+    "website": "https://harbor.example",
+    "contact_person": "Отдел найма"
+  },
+  {
+    "id": "lumen",
+    "company_name": "Люмен",
+    "industry": "Медиа",
+    "city": "Новосибирск",
+    "website": "https://lumen.example",
+    "contact_person": "Отдел найма"
+  },
+  {
+    "id": "kiln",
+    "company_name": "Килн",
+    "industry": "Промышленный софт",
+    "city": "Екатеринбург",
+    "website": "https://kiln.example",
+    "contact_person": "Отдел найма"
+  },
+  {
+    "id": "papertrail",
+    "company_name": "Пейпертрейл",
+    "industry": "Документооборот",
+    "city": "Самара",
+    "website": "https://papertrail.example",
+    "contact_person": "Отдел найма"
+  },
+  {
+    "id": "fieldnote",
+    "company_name": "Филдноут",
+    "industry": "Исследования",
+    "city": "Томск",
+    "website": "https://fieldnote.example",
+    "contact_person": "Отдел найма"
+  },
+  {
+    "id": "relay",
+    "company_name": "Релей",
+    "industry": "Коммуникации",
+    "city": "Пермь",
+    "website": "https://relay.example",
+    "contact_person": "Отдел найма"
+  }
+]

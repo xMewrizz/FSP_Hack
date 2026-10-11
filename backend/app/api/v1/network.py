@@ -68,10 +68,12 @@ async def search_mentors(
 ):
     statement = (
         select(CandidateProfile)
+        .join(User, User.id == CandidateProfile.user_id)
         .where(
             CandidateProfile.mentor_available.is_(True),
             CandidateProfile.user_id != current_user.id,
             CandidateProfile.verified_grade.is_not(None),
+            User.is_active.is_(True),
         )
         .order_by(CandidateProfile.verified_grade, CandidateProfile.last_name)
         .limit(100)
@@ -161,10 +163,11 @@ async def request_mentorship(
     if data.mentor_user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Нельзя отправить запрос самому себе")
     mentor_result = await db.execute(
-        select(CandidateProfile).where(
+        select(CandidateProfile).join(User, User.id == CandidateProfile.user_id).where(
             CandidateProfile.user_id == data.mentor_user_id,
             CandidateProfile.mentor_available.is_(True),
             CandidateProfile.verified_grade.is_not(None),
+            User.is_active.is_(True),
         )
     )
     mentor = mentor_result.scalar_one_or_none()

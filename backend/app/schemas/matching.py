@@ -40,6 +40,7 @@ class TrustFlagItem(BaseModel):
 
 class CandidateMatchItem(BaseModel):
     candidate_id: uuid.UUID
+    is_demo: bool = False
     profile_completeness: PublicProfileCompleteness
     first_name: str
     last_name: str

@@ -302,6 +302,12 @@ class VacancyService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Вакансия в данный момент закрыта для откликов",
             )
+        employer_user = await db.get(User, vacancy.employer.user_id)
+        if employer_user and not employer_user.is_active and employer_user.email.endswith("@example.test"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Это демонстрационная вакансия. Для настоящего отклика выберите действующую компанию.",
+            )
 
         # Проверяем, не откликался ли уже кандидат
         existing = await db.execute(

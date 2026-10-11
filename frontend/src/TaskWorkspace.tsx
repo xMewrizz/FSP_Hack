@@ -502,7 +502,7 @@ export default function TaskWorkspace({
         {task.evaluation_criteria?.length ? <div className="task-workspace__criteria"><strong>На что обратят внимание</strong><div className="topic-summary">{task.evaluation_criteria.map((criterion) => <div key={criterion}><span>{criterion}</span></div>)}</div></div> : null}
         {task.resource_links?.map((link) => <a key={link} href={link} target="_blank" rel="noreferrer">{link}</a>)}
         {task.attachments?.map((file) => <button type="button" key={file.id} onClick={() => void downloadFile(file)}>{file.file_name}</button>)}
-        {task.my_submission ? <div className={`task-workspace__candidate-status task-workspace__candidate-status--${task.my_submission.status === "pending_review" ? "pending" : task.my_submission.passed ? "passed" : "needs-work"}`}>
+        {task.title.startsWith("Демо ·") ? <div className="task-workspace__candidate-status task-workspace__candidate-status--pending"><TaskIcon name="briefcase" size={17} /><span>Демонстрационное задание: условие и критерии доступны для просмотра, отправка решения закрыта.</span></div> : task.my_submission ? <div className={`task-workspace__candidate-status task-workspace__candidate-status--${task.my_submission.status === "pending_review" ? "pending" : task.my_submission.passed ? "passed" : "needs-work"}`}>
           <TaskIcon name={task.my_submission.status === "pending_review" ? "clock" : task.my_submission.passed ? "check" : "sparkle"} size={17} />
           <span>{task.my_submission.status === "pending_review"
             ? "Решение отправлено — работодатель скоро его проверит."
