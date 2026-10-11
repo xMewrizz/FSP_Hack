@@ -2076,8 +2076,8 @@ function EmployerScreen({
     && !skillItems.some((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase()),
   );
   const [needEntryMode, setNeedEntryMode] = useState<"manual" | "llm">("manual");
-  const [needDraft, setNeedDraft] = useState<NeedDraft | null>(null);
   const [needParsing, setNeedParsing] = useState(false);
+  const latestNeedDescription = useRef(needDescription);
 
   const handleAddSkill = (name = newSkillName) => {
     const trimmed = name.trim();
@@ -2372,44 +2372,29 @@ function EmployerScreen({
   };
 
   const parseNeedDescription = async () => {
-    if (needDescription.trim().length < 20) {
+    const description = needDescription.trim();
+    if (description.length < 20) {
       onNotify("Для разбора нужно описание хотя бы из 20 символов", "error");
       return;
     }
     setNeedParsing(true);
-    setNeedDraft(null);
     try {
-      const draft = await apiPost<NeedDraft>("/needs/parse", { text: needDescription.trim() });
-      setNeedDraft(draft);
+      const draft = await apiPost<NeedDraft>("/needs/parse", { text: description });
+      if (latestNeedDescription.current.trim() !== description) return;
+      if (draft.specialization) setNeedSpecialization(draft.specialization);
+      if (draft.required_grade) setNeedGrade(draft.required_grade);
+      setSkillItems(draft.required_skills);
+      if (draft.salary_min !== null) setNeedSalaryMin(draft.salary_min.toString());
+      if (draft.salary_max !== null) setNeedSalaryMax(draft.salary_max.toString());
+      if (draft.salary_tax_type) setNeedSalaryTaxType(draft.salary_tax_type);
+      if (draft.work_format) setNeedWorkFormat(draft.work_format);
+      setNeedEntryMode("manual");
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось разобрать описание", "error");
     } finally {
       setNeedParsing(false);
     }
   };
-
-  const applyNeedDraft = () => {
-    if (!needDraft) return;
-    if (needDraft.specialization) setNeedSpecialization(needDraft.specialization);
-    if (needDraft.required_grade) setNeedGrade(needDraft.required_grade);
-    if (needDraft.required_skills.length > 0) setSkillItems(needDraft.required_skills);
-    if (needDraft.salary_min !== null) setNeedSalaryMin(needDraft.salary_min.toString());
-    if (needDraft.salary_max !== null) setNeedSalaryMax(needDraft.salary_max.toString());
-    if (needDraft.salary_tax_type) setNeedSalaryTaxType(needDraft.salary_tax_type);
-    if (needDraft.work_format) setNeedWorkFormat(needDraft.work_format);
-    setNeedDraft(null);
-    setNeedEntryMode("manual");
-    onNotify("Найденные поля перенесены в форму. Проверьте их и заполните остальные.");
-  };
-
-  const needDraftSummary = needDraft ? [
-    needDraft.specialization && `Специализация: ${needDraft.specialization}`,
-    needDraft.required_grade && `Грейд: ${needDraft.required_grade}`,
-    needDraft.required_skills.length > 0 && `Навыки: ${needDraft.required_skills.map((skill) => `${skill.name} ${skill.weight}/5`).join(", ")}`,
-    needDraft.salary_min !== null && needDraft.salary_max !== null && `Зарплата: ${needDraft.salary_min}–${needDraft.salary_max} ₽`,
-    needDraft.salary_tax_type && `Зарплата: ${needDraft.salary_tax_type === "net" ? "на руки" : "до вычета"}`,
-    needDraft.work_format && `Формат: ${needDraft.work_format}`,
-  ].filter(Boolean) : [];
 
   const saveCompanyProfile = async () => {
     if (!companyProfile) return;
@@ -2578,7 +2563,7 @@ function EmployerScreen({
             <div className="field-row field-row--flush"><label className="field"><span>ГОРОД</span><input value={needCity} onChange={(event) => setNeedCity(event.target.value)} placeholder="Любой город" /></label><label className="field"><span>ФОРМАТ</span><select value={needWorkFormat} onChange={(event) => setNeedWorkFormat(event.target.value)}><option value="">Выберите формат</option><option value="remote">Удалённо</option><option value="hybrid">Гибрид</option><option value="office">Офис</option></select></label></div>
             <label className="field field--flush need-description-field">
               <span>{needEntryMode === "llm" ? "ОПИШИТЕ ПОТРЕБНОСТЬ ПРОМТОМ" : "ОПИСАНИЕ ПОТРЕБНОСТИ (НЕОБЯЗАТЕЛЬНО)"}</span>
-              <textarea value={needDescription} onChange={(event) => { setNeedDescription(event.target.value); setNeedDraft(null); }} placeholder="Опишите задачи команды, стек и приоритеты роли." />
+              <textarea value={needDescription} onChange={(event) => { latestNeedDescription.current = event.target.value; setNeedDescription(event.target.value); }} placeholder="Опишите задачи команды, стек и приоритеты роли." />
             </label>
           </section>
           <section className="feature-card skill-entry-card">
@@ -2647,16 +2632,12 @@ function EmployerScreen({
                 <Button variant="outline" onClick={() => handleAddSkill()}>+ Добавить</Button>
               </div>
             </> : <>
-              <p className="feature-description feature-description--left">Опишите задачи и стек в поле слева — мы предложим навыки и веса. Результат можно проверить и отредактировать перед сохранением.</p>
-              <Button variant="outline" disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing ? "Подбираем навыки…" : "Предложить навыки по описанию"}</Button>
-              {needDraft && <div className="need-draft" aria-label="Предложенные поля">
-                <p className="feature-description feature-description--left">{needDraftSummary.join(" · ")}</p>
-                <p className="feature-description feature-description--left">Проверьте предложенные навыки и значения весов перед переносом в форму.</p>
-                <Button variant="outline" onClick={applyNeedDraft}>Подставить навыки и поля</Button>
-              </div>}
+              <p className="feature-description feature-description--left">Опишите задачи и стек в поле слева. Предложенные навыки сразу появятся в редактируемой шкале.</p>
+              <Button variant="outline" className={needParsing ? "need-parse-button--loading" : ""} disabled={needParsing} onClick={() => void parseNeedDescription()}>{needParsing && <span className="need-parse-spinner" aria-hidden="true" />}{needParsing ? "Подбираем навыки…" : "Предложить навыки по описанию"}</Button>
+              {needParsing && <p className="feature-description feature-description--left" role="status">Анализируем описание. Это может занять до двух минут.</p>}
             </>}
                 <p className="feature-description feature-description--left">Требования и веса будут сохранены в потребности; подбор покажет кандидатов с объяснением совпадений.</p>
-                <Button disabled={needSaving} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
+                <Button disabled={needSaving || needParsing} className={needSaving ? "button--disabled" : ""} onClick={() => void createNeed()}>{needSaving ? "Сохраняем…" : "Сохранить и запустить подбор"} <Icon name="chevron" /></Button>
           </section>
         </div>
       </div>
