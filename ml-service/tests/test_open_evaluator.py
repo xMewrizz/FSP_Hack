@@ -63,6 +63,29 @@ class OpenEvaluatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.passed)
         self.assertIn(criteria[1], result.feedback)
 
+    async def test_partial_critical_credit_does_not_cap_working_answer(self):
+        criteria = ["План решения", "Проверка результата", "Безопасный запуск"]
+
+        def reply(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "score": 0.0, "passed": False,
+                "criteria_breakdown": [
+                    {"criterion": "1", "credit": 1, "met": True, "explanation": "Рабочий план"},
+                    {"criterion": "2", "credit": 0.5, "met": False, "explanation": "Есть проверка без деталей метрики"},
+                    {"criterion": "3", "credit": 1, "met": True, "explanation": "Есть canary"},
+                ],
+                "general_feedback": "Можно уточнить метрику",
+            })}})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            result = await evaluate_open_answer(
+                "OPEN-BE-WORK-MID-01", "free_text", "Вопрос", "Эталон", criteria,
+                "Сделаю фичу, проверю результат и выпущу через canary.", client,
+                critical_criteria=[2],
+            )
+        self.assertEqual(result.score, 0.83)
+        self.assertTrue(result.passed)
+
     async def test_numbered_criterion_text_is_recognized(self):
         criterion = "Объяснена проверка прав доступа"
 

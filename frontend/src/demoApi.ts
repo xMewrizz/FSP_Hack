@@ -1390,9 +1390,9 @@ export async function requestDemoApi<T>(path: string, options: RequestInit = {})
       : specialization === demoDevOpsRoadmap.specialization ? demoDevOpsRoadmap : null) as T;
   }
   if (route === "/testing/specializations" && method === "GET") return [
-    { specialization: "Backend", status: "verified", test_available: false, availability_reason: null, verified_grade: "middle", assessment_id: demoRoadmap.id },
-    { specialization: "Frontend", status: "verified", test_available: true, availability_reason: null, verified_grade: "middle", assessment_id: demoFrontendRoadmap.id },
-    { specialization: "DevOps / SRE", status: "verified", test_available: true, availability_reason: null, verified_grade: "middle", assessment_id: demoDevOpsRoadmap.id },
+    { specialization: "Backend", declared_grade: "middle", status: "verified", test_available: false, availability_reason: null, verified_grade: "middle", assessment_id: demoRoadmap.id },
+    { specialization: "Frontend", declared_grade: "middle", status: "verified", test_available: true, availability_reason: null, verified_grade: "middle", assessment_id: demoFrontendRoadmap.id },
+    { specialization: "DevOps / SRE", declared_grade: "middle", status: "verified", test_available: true, availability_reason: null, verified_grade: "middle", assessment_id: demoDevOpsRoadmap.id },
   ] as T;
   if (route === `/testing/roadmap/${demoRoadmap.id}` && method === "GET") return demoRoadmap as T;
   if (route === `/testing/roadmap/${demoFrontendRoadmap.id}` && method === "GET") return demoFrontendRoadmap as T;

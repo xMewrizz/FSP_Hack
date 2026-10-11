@@ -7002,6 +7002,28 @@ body {
   align-self: flex-start;
 }
 
+.skill-entry-card .need-parse-button--loading:disabled {
+  cursor: progress;
+  opacity: 1;
+}
+
+.need-parse-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 0.125rem solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: need-parse-spin 0.8s linear infinite;
+}
+
+@keyframes need-parse-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .need-parse-spinner { animation-duration: 2s; }
+}
+
 .need-draft {
   display: grid;
   gap: 0.75rem;
@@ -10714,6 +10736,60 @@ select,
   gap: 1rem;
 }
 
+.app-shell .mentor-search-page {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.app-shell .mentor-search-page .mentor-finder,
+.app-shell .mentor-search-page .mentor-requests,
+.app-shell .mentor-search-page .mentor-request-card {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 1.25rem;
+}
+
+.app-shell .mentor-requests {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.app-shell .mentor-requests__head,
+.app-shell .mentor-requests .mentor-request-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.app-shell .mentor-requests p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.app-shell .mentor-search-page .mentor-finder {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.app-shell .mentor-search-page .mentor-finder > div:first-child,
+.app-shell .mentor-search-page .mentor-finder form,
+.app-shell .mentor-search-page .mentor-finder__hint {
+  grid-column: 1 / -1;
+}
+
+.app-shell .text-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--violet-brand);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
 .app-shell .dialogues-intro {
   display: flex;
   align-items: center;
@@ -11436,6 +11512,30 @@ select,
   border: 1px solid var(--line);
   border-radius: 0.9rem;
   padding: 0.3rem;
+}
+
+.app-shell .assessment-specialization-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.app-shell .assessment-specialization-tabs button {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.7rem 1rem;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-shell .assessment-specialization-tabs button.active {
+  border-color: var(--brand-cobalt);
+  color: var(--brand-cobalt);
+  background: color-mix(in srgb, var(--brand-cobalt) 8%, var(--surface));
+  font-weight: 700;
 }
 
 .app-shell .assessment-mode button {
@@ -12219,6 +12319,20 @@ select,
   margin-bottom: var(--section-gap);
 }
 
+.app-shell .specialization-add-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+
+.app-shell .specialization-track-list > div {
+  flex-wrap: wrap;
+}
+
+.app-shell .specialization-track-list .field {
+  width: min(12rem, 100%);
+  margin: 0;
+}
+
 .app-shell .additional-specialization-grade {
   border: 0;
   border-radius: 0.5rem;
@@ -12408,6 +12522,10 @@ select,
 }
 
 @media (max-width: 38rem) {
+  .app-shell .specialization-add-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .app-shell .grade-radar-comparison__legend {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -15536,4 +15654,23 @@ select,
   .profile-completeness-card {
     padding: 16px;
   }
+}
+.app-shell .additional-open-answer {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  margin-top: 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--border, #d8dbe7);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.app-shell .additional-open-answer:focus {
+  outline: 2px solid #5743ff;
+  outline-offset: 2px;
 }

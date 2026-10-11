@@ -1,7 +1,8 @@
-"""Единый вызов JSON-ответов через локальную Ollama или OpenRouter."""
+"""Единый вызов JSON-ответов через Ollama и облачные API."""
 
 import os
 import time
+import asyncio
 from copy import deepcopy
 
 import httpx
@@ -9,8 +10,8 @@ import httpx
 
 def provider_name() -> str:
     provider = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
-    if provider not in {"ollama", "openrouter"}:
-        raise ValueError("LLM_PROVIDER должен быть ollama или openrouter")
+    if provider not in {"ollama", "openrouter", "listapi"}:
+        raise ValueError("LLM_PROVIDER должен быть ollama, openrouter или listapi")
     return provider
 
 
@@ -45,30 +46,44 @@ async def chat_json(
     metrics: dict | None = None,
 ) -> str:
     """Вернуть строку JSON; проверка содержимого остаётся за вызывающим кодом."""
-    if provider_name() == "openrouter":
-        api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
-        if not api_key:
-            raise ValueError("Для OpenRouter нужен OPENROUTER_API_KEY")
-        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
+    provider = provider_name()
+    if provider in {"openrouter", "listapi"}:
+        if provider == "openrouter":
+            api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+            if not api_key:
+                raise ValueError("Для OpenRouter нужен OPENROUTER_API_KEY")
+            base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
+            model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
+        else:
+            api_key = os.getenv("LIST_API_KEY", "").strip()
+            if not api_key:
+                raise ValueError("Для List API нужен LIST_API_KEY")
+            base_url = os.getenv("LIST_API_BASE_URL", "https://list-api.listapi.workers.dev/v1").rstrip("/")
+            model = os.getenv("LIST_API_MODEL", "gpt-5.6-sol")
         request_body = {
-            "model": os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash"),
+            "model": model,
             "messages": messages,
-            "temperature": 0,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": schema_name, "strict": True, "schema": _strict_schema(schema)},
             },
-            "provider": {"require_parameters": True},
         }
-        if reasoning_enabled is not None:
-            request_body["reasoning"] = {"enabled": reasoning_enabled}
+        if provider == "openrouter":
+            request_body["temperature"] = 0
+            request_body["provider"] = {"require_parameters": True}
+            if reasoning_enabled is not None:
+                request_body["reasoning"] = {"enabled": reasoning_enabled}
         started = time.perf_counter()
         try:
-            response = await client.post(
-                f"{base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json=request_body,
-            )
+            for attempt in range(2 if provider == "listapi" else 1):
+                response = await client.post(
+                    f"{base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json=request_body,
+                )
+                if provider != "listapi" or response.status_code not in {502, 503, 504} or attempt:
+                    break
+                await asyncio.sleep(1)
         finally:
             if metrics is not None:
                 metrics["request_ms"] = round((time.perf_counter() - started) * 1000, 1)

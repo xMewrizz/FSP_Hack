@@ -107,6 +107,50 @@ class NeedLlmTests(unittest.IsolatedAsyncioTestCase):
             draft = await suggest_need(text, client)
         self.assertEqual([item["name"] for item in draft["required_skills"]], ["Kotlin", "HTTP API"])
 
+    async def test_behavior_based_recommendation_keeps_functional_skills(self):
+        def reply(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "specialization": "Data Science / ML", "skills": [
+                    {"name": "Машинное обучение", "weight": 5},
+                    {"name": "Подготовка данных", "weight": 4},
+                    {"name": "Оценка моделей", "weight": 4},
+                    {"name": "Развёртывание моделей", "weight": 5},
+                    {"name": "Анализ данных", "weight": 4},
+                    {"name": "Продуктовые метрики", "weight": 3},
+                    {"name": "Рекомендательные системы", "weight": 5},
+                ],
+            })}})
+
+        text = ("Нужно внедрить ML-модель на сайт консалтинговой компании. Она будет "
+                "анализировать поведение пользователей на сайте и затем предлагать им подходящие услуги.")
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            draft = await suggest_need(text, client)
+        self.assertEqual(len(draft["required_skills"]), 7)
+        self.assertEqual(draft["required_skills"][-1], {"name": "Рекомендательные системы", "weight": 5})
+
+    async def test_short_russian_ml_scoring_request_keeps_task_skills(self):
+        def reply(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"message": {"content": json.dumps({
+                "specialization": "Data Science / ML", "skills": [
+                    {"name": "Машинное обучение", "weight": 5},
+                    {"name": "Подготовка данных", "weight": 5},
+                    {"name": "Оценка моделей", "weight": 5},
+                    {"name": "Развёртывание моделей", "weight": 5},
+                    {"name": "Анализ данных", "weight": 4},
+                    {"name": "HTTP API", "weight": 4},
+                    {"name": "Продуктовые метрики", "weight": 3},
+                    {"name": "Мониторинг", "weight": 3},
+                ],
+            })}})
+
+        text = "надо сделать мл сервис и внедрить на сайт по кредитному скорингу"
+        async with httpx.AsyncClient(transport=httpx.MockTransport(reply)) as client:
+            draft = await suggest_need(text, client)
+        self.assertEqual([skill["name"] for skill in draft["required_skills"]], [
+            "Машинное обучение", "Подготовка данных", "Оценка моделей",
+            "Развёртывание моделей", "Анализ данных", "HTTP API", "Мониторинг",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

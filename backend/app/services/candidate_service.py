@@ -70,10 +70,12 @@ class CandidateService:
             profile.verified_grade_updated_at = None
             await db.execute(update(GradeAssessment).where(
                 GradeAssessment.candidate_profile_id == profile.id,
+                GradeAssessment.specialization == profile.specialization,
                 GradeAssessment.status == "in_progress",
             ).values(status="cancelled"))
             await db.execute(update(TestSession).where(
                 TestSession.candidate_profile_id == profile.id,
+                TestSession.specialization == profile.specialization,
                 TestSession.assessment_id.is_not(None),
                 TestSession.status == "in_progress",
             ).values(status="cancelled"))
@@ -352,7 +354,9 @@ class CandidateService:
                 TestSession.candidate_profile_id == candidate_profile_id,
                 TestSession.assessment_id.is_(None),
                 TestSession.skill_code.is_not(None),
+                TestSession.target_grade == "all",
                 TestSession.status == "completed",
+                TestSession.passed.is_(True),
             )
             .order_by(TestSession.completed_at.desc(), TestSession.created_at.desc())
         )

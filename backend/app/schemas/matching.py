@@ -27,6 +27,7 @@ class RequestedSkillTestResult(BaseModel):
 
 class CandidateAdditionalSpecialization(BaseModel):
     specialization: str
+    declared_grade: str | None = None
     status: str
     verified_grade: str | None = None
 

@@ -229,8 +229,8 @@ async def test_submit_open_architecture_answer(client: AsyncClient):
     assert body["question_code"] == "OPEN-BE-ARCH-01"
     assert body["score"] >= 0.70
     assert body["passed"] is True
-    assert body["evaluator"] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter", "fallback_heuristic")
-    assert body["needs_manual_review"] is True or body["evaluator"] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter")
+    assert body["evaluator"] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter", "llm_listapi", "fallback_heuristic")
+    assert body["needs_manual_review"] is True or body["evaluator"] in ("llm_qwen3", "llm_ollama", "llm_openrouter_qwen3_14b", "llm_openrouter", "llm_listapi")
     assert len(body["criterion_scores"]) >= 3
 
     # Проверяем историю отправок

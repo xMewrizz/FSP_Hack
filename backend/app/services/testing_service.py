@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
+import secrets
 import uuid
 import httpx
 from fastapi import HTTPException, status
@@ -34,20 +35,26 @@ from app.schemas.testing import (
 def build_question_review(
     questions: list[dict[str, Any]], answers: list[dict[str, Any]]
 ) -> list[QuestionReview]:
-    selected_by_id = {answer["question_id"]: answer["selected_answers"] for answer in answers}
+    answers_by_id = {answer["question_id"]: answer for answer in answers}
     review = []
     for question in questions:
         option_text = {option["id"]: option["text"] for option in question["options"]}
-        selected = selected_by_id.get(question["id"], [])
+        answer = answers_by_id.get(question["id"], {})
+        selected = answer.get("selected_answers", [])
         correct = question.get("correct_answers", [])
+        open_score = answer.get("open_evaluation", {}).get("score")
+        weight = float(question.get("weight", 1.0))
+        is_choice_correct = bool(correct) and set(selected) == set(correct)
         review.append(QuestionReview(
             code=question["code"],
             topic=question["topic"],
             question_text=question["question_text"],
-            selected_answers=[option_text[choice] for choice in selected],
+            selected_answers=[answer.get("answer_text", "")] if question.get("question_type") == "open_answer" else [option_text[choice] for choice in selected],
             correct_answers=[option_text[choice] for choice in correct],
-            is_correct=bool(correct) and set(selected) == set(correct),
-            explanation=question.get("explanation", ""),
+            is_correct=(float(open_score) >= 0.75) if open_score is not None else is_choice_correct,
+            explanation=answer.get("open_evaluation", {}).get("feedback") or question.get("explanation", ""),
+            earned_score=round(float(open_score) * weight, 2) if open_score is not None else weight if is_choice_correct else 0.0,
+            max_score=weight,
         ))
     return review
 
@@ -259,6 +266,8 @@ class TestingService:
 
         for q, variant in selected_variants:
             question_id = str(q.id if variant["variant_id"] == "v1" else uuid.uuid5(q.id, variant["variant_id"]))
+            options = list(variant["options"])
+            secrets.SystemRandom().shuffle(options)
             snapshot.append({
                 "id": question_id,
                 "code": variant["code"],
@@ -268,7 +277,7 @@ class TestingService:
                 "topic": variant["topic"],
                 "question_type": variant["question_type"],
                 "question_text": variant["question_text"],
-                "options": variant["options"],
+                "options": options,
                 "correct_answers": variant["correct_answers"],
                 "weight": variant["weight"],
                 "explanation": variant["explanation"],
@@ -281,7 +290,7 @@ class TestingService:
                     topic=variant["topic"],
                     question_type=variant["question_type"],
                     question_text=variant["question_text"],
-                    options=[QuestionOptionResponse(**opt) for opt in variant["options"]],
+                    options=[QuestionOptionResponse(**opt) for opt in options],
                     weight=variant["weight"],
                 )
             )
@@ -337,16 +346,38 @@ class TestingService:
         if len(submitted_ids) != len(set(submitted_ids)) or any(question_id not in snapshot_by_id for question_id in submitted_ids):
             raise HTTPException(status_code=400, detail="Ответы содержат повтор или задание не из этой попытки")
         for answer in data.answers:
-            allowed = {option["id"] for option in snapshot_by_id[answer.question_id]["options"]}
+            question = snapshot_by_id[answer.question_id]
+            allowed = {option["id"] for option in question["options"]}
             if any(choice not in allowed for choice in answer.selected_answers):
                 raise HTTPException(status_code=400, detail="Ответ содержит неизвестный вариант выбора")
+            if question["question_type"] == "open_answer" and (answer.selected_answers or not (answer.answer_text or "").strip()):
+                raise HTTPException(status_code=400, detail="Напишите развёрнутый ответ")
+
+        additional = bool(session.skill_code and session.assessment_id is None)
+        if additional and (session.target_grade != "all" or len(session.questions_snapshot) < 5):
+            raise HTTPException(409, "Формат дополнительного теста обновился. Откройте новую попытку.")
+        if additional and set(submitted_ids) != set(snapshot_by_id):
+            raise HTTPException(status_code=400, detail="Ответьте на все задания дополнительного теста")
+        open_evaluations: dict[str, dict[str, Any]] = {}
+        if additional:
+            from app.services.open_question_service import evaluate_open_answer
+            for answer in data.answers:
+                question = snapshot_by_id[answer.question_id]
+                if question["question_type"] != "open_answer":
+                    continue
+                result = await evaluate_open_answer(question, answer.answer_text or "")
+                if result.get("needs_manual_review") or result.get("evaluator") == "fallback_heuristic":
+                    raise HTTPException(503, "Не удалось проверить ответ. Попробуйте снова.")
+                open_evaluations[answer.question_id] = result
 
         # Map answers
         user_answers_map = {ans.question_id: set(ans.selected_answers) for ans in data.answers}
-        review = build_question_review(
-            session.questions_snapshot,
-            [answer.model_dump() for answer in data.answers],
-        )
+        answer_records = [
+            {**answer.model_dump(), **({"open_evaluation": open_evaluations[answer.question_id]}
+                                     if answer.question_id in open_evaluations else {})}
+            for answer in data.answers
+        ]
+        review = build_question_review(session.questions_snapshot, answer_records)
         review_topics, review_topics_status = await load_review_topics(
             review,
             skill_code=session.skill_code,
@@ -374,9 +405,11 @@ class TestingService:
             topic_scores[topic]["count"] += 1
 
             user_set = user_answers_map.get(q_id, set())
-            if user_set == correct_set and len(correct_set) > 0:
-                total_score += weight
-                topic_scores[topic]["score"] += weight
+            earned = (float(open_evaluations[q_id]["score"]) * weight if q_id in open_evaluations
+                      else weight if user_set == correct_set and len(correct_set) > 0 else 0.0)
+            total_score += earned
+            topic_scores[topic]["score"] += earned
+            if earned >= weight * 0.75:
                 topic_scores[topic]["correct"] += 1
 
         percentage = round((total_score / max_score * 100.0) if max_score > 0 else 0.0, 1)
@@ -387,7 +420,7 @@ class TestingService:
         )
         passed = bool(review) and (
             total_score / max_score >= 0.50 if session.assessment_id
-            else False if session.skill_code else correct_count >= required_correct
+            else total_score / max_score >= 0.75 if session.skill_code else correct_count >= required_correct
         )
 
         # Build skill breakdown
@@ -413,12 +446,12 @@ class TestingService:
         session.skill_breakdown = [s.model_dump() for s in skill_breakdown]
         session.answers_data = [
             {
-                **answer.model_dump(),
+                **answer_records[index],
                 "code": snapshot_by_id[answer.question_id]["code"],
                 "family_code": snapshot_by_id[answer.question_id].get("family_code", snapshot_by_id[answer.question_id]["code"]),
                 "variant_id": snapshot_by_id[answer.question_id].get("variant_id", "v1"),
             }
-            for answer in data.answers
+            for index, answer in enumerate(data.answers)
         ]
 
         # Update candidate profile
@@ -460,8 +493,9 @@ class TestingService:
 
         if session.skill_code:
             session.feedback = (
-                f"Результат навыка сохранён: {percentage}% на уровне {session.target_grade}. "
-                "Дополнительный тест не влияет на грейд."
+                f"{'Навык подтверждён' if passed else 'Навык пока не подтверждён'}: "
+                f"{session.score} из {session.max_score} баллов ({percentage}%). "
+                "Для подтверждения нужно не менее 75%. Пересдача доступна через 7 дней."
             )
             await db.commit()
             await db.refresh(session)
@@ -475,7 +509,7 @@ class TestingService:
                 correct_count=correct_count,
                 total_questions=len(review),
                 required_correct=0,
-                passed=None,
+                passed=session.passed,
                 grade_confirmed=False,
                 verified_grade=profile.verified_grade,
                 skill_breakdown=skill_breakdown,
@@ -560,7 +594,7 @@ class TestingService:
                 (len(session.questions_snapshot) + 1) // 2 if session.assessment_id
                 else 0 if session.skill_code else required_correct_answers(len(session.questions_snapshot))
             ),
-            passed=None if session.skill_code and not session.assessment_id else session.passed,
+            passed=session.passed,
             grade_confirmed=bool(assessment and assessment.status == "completed" and assessment.passed),
             verified_grade=profile.verified_grade,
             skill_breakdown=breakdown,
@@ -601,7 +635,7 @@ class TestingService:
                 specialization=s.specialization,
                 target_grade=s.target_grade,
                 percentage=s.percentage,
-                passed=None if s.skill_code and not s.assessment_id else s.passed,
+                passed=s.passed,
                 grade_confirmed=bool(
                     s.assessment_id in assessments
                     and assessments[s.assessment_id].status == "completed"

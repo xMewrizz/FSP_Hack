@@ -235,7 +235,8 @@ def load_local_llm_settings() -> None:
         if not line or line.lstrip().startswith("#") or "=" not in line:
             continue
         name, value = line.split("=", 1)
-        if name in {"LLM_PROVIDER", "OPENROUTER_API_KEY", "OPENROUTER_MODEL", "OLLAMA_MODEL"}:
+        if name in {"LLM_PROVIDER", "OPENROUTER_API_KEY", "OPENROUTER_MODEL", "OLLAMA_MODEL",
+                    "LIST_API_KEY", "LIST_API_MODEL", "LIST_API_BASE_URL"}:
             os.environ.setdefault(name, value.strip().strip('"'))
 
 
@@ -271,8 +272,9 @@ async def main(case_ids: set[str] | None = None, model: str | None = None,
                 )
                 record = {
                     "id": case["id"], "question_code": question["code"],
-                    "model": os.getenv("OPENROUTER_MODEL") if os.getenv("LLM_PROVIDER") == "openrouter"
-                    else os.getenv("OLLAMA_MODEL"),
+                    "model": (os.getenv("OPENROUTER_MODEL") if os.getenv("LLM_PROVIDER") == "openrouter"
+                              else os.getenv("LIST_API_MODEL", "gpt-5.6-sol") if os.getenv("LLM_PROVIDER") == "listapi"
+                              else os.getenv("OLLAMA_MODEL")),
                     "category": case["category"],
                     "expected_score": case["ground_truth"]["score"],
                     "score": result.score, "expected_pass": case["ground_truth"]["passed"],

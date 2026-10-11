@@ -1,4 +1,4 @@
-"""Показать предложения локальной модели на разных описаниях потребности.
+"""Показать предложения настроенной модели на разных описаниях потребности.
 
 Запуск: python check_need_suggestions.py
 По умолчанию обращается к запущенному через Compose ML-сервису на порту 8001.
@@ -13,6 +13,11 @@ import httpx
 
 
 CASES = [
+    (
+        "Рекомендации услуг по поведению",
+        "Нужно внедрить ML-модель на сайт консалтинговой компании. Она будет анализировать "
+        "поведение пользователей на сайте и затем предлагать им подходящие услуги.",
+    ),
     (
         "Backend, явный стек",
         "Ищем Middle Backend-разработчика. Нужно делать API сервиса заказов на Python и FastAPI, "
@@ -56,9 +61,11 @@ CASES = [
 ]
 
 
-async def main(url: str, direct: bool = False) -> None:
+async def main(url: str, direct: bool = False, only: set[str] | None = None) -> None:
     async with httpx.AsyncClient(timeout=120.0) as client:
         for name, description in CASES:
+            if only and name not in only:
+                continue
             started = perf_counter()
             try:
                 if direct:
@@ -86,6 +93,7 @@ async def main(url: str, direct: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://localhost:8001/parse-need")
-    parser.add_argument("--direct", action="store_true", help="Проверить текущий код напрямую через Ollama без Compose")
+    parser.add_argument("--direct", action="store_true", help="Проверить настроенного провайдера напрямую без Compose")
+    parser.add_argument("--only", nargs="*", help="Проверить только выбранные названия кейсов")
     args = parser.parse_args()
-    asyncio.run(main(args.url, args.direct))
+    asyncio.run(main(args.url, args.direct, set(args.only) if args.only else None))

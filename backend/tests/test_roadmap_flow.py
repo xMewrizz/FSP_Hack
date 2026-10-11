@@ -144,6 +144,114 @@ async def test_data_science_full_roadmap_has_six_skills_and_open_work(client: As
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("primary,additional", (
+    ("Backend", "Data Science / ML"),
+    ("Data Science / ML", "Backend"),
+))
+async def test_additional_specialization_has_independent_grade_roadmap(
+    client: AsyncClient, primary: str, additional: str,
+):
+    headers = await candidate(client, f"two-tracks-{primary[:2]}@example.com", specialization=primary)
+    unrequested = await client.post(
+        "/api/v1/testing/roadmap", headers=headers,
+        json={"specialization": additional, "target_grade": "junior"},
+    )
+    assert unrequested.status_code == 409
+    unrequested_skills = await client.get(
+        "/api/v1/testing/additional", headers=headers,
+        params={"specialization": additional},
+    )
+    assert unrequested_skills.status_code == 409
+
+    requested = await client.post(
+        "/api/v1/testing/specializations", headers=headers,
+        json={"specialization": additional, "declared_grade": "middle"},
+    )
+    assert requested.status_code == 201, requested.text
+    assert requested.json()["test_available"] is True
+    assert requested.json()["declared_grade"] == "middle"
+    available_skills = await client.get(
+        "/api/v1/testing/additional", headers=headers,
+        params={"specialization": additional},
+    )
+    assert available_skills.status_code == 200
+
+    primary_roadmap = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
+    additional_roadmap = await client.post(
+        "/api/v1/testing/roadmap", headers=headers,
+        json={"specialization": additional},
+    )
+    assert primary_roadmap.status_code == 201, primary_roadmap.text
+    assert additional_roadmap.status_code == 201, additional_roadmap.text
+    primary_id = primary_roadmap.json()["id"]
+    additional_id = additional_roadmap.json()["id"]
+    assert primary_id != additional_id
+    assert primary_roadmap.json()["target_grade"] == "junior"
+    assert additional_roadmap.json()["target_grade"] == "middle"
+    assert len(primary_roadmap.json()["skills"]) == (4 if primary == "Backend" else 6)
+    assert len(additional_roadmap.json()["skills"]) == (4 if additional == "Backend" else 6)
+
+    for skill in additional_roadmap.json()["skills"]:
+        result = await finish_skill(client, headers, additional_id, skill["code"], 10)
+        assert result["specialization"] == additional
+    await finish_open_assessment(additional_id)
+
+    completed = await client.get(
+        "/api/v1/testing/roadmap/current", headers=headers,
+        params={"specialization": additional},
+    )
+    untouched = await client.get("/api/v1/testing/roadmap/current", headers=headers)
+    tracks = await client.get("/api/v1/testing/specializations", headers=headers)
+    profile = await client.get("/api/v1/candidates/profile", headers=headers)
+    assert completed.json()["id"] == additional_id
+    assert completed.json()["verified_grade"] == "middle"
+    assert completed.json()["passed"] is True
+    assert untouched.json()["id"] == primary_id
+    assert untouched.json()["status"] == "in_progress"
+    assert profile.json()["verified_grade"] is None
+    assert tracks.json()[0]["verified_grade"] == "middle"
+    assert tracks.json()[0]["assessment_id"] == additional_id
+
+    primary_skill = primary_roadmap.json()["skills"][0]["code"]
+    result = await finish_skill(client, headers, primary_id, primary_skill, 10)
+    assert result["specialization"] == primary
+
+
+@pytest.mark.asyncio
+async def test_declared_grade_of_specialization_can_change_before_test(client: AsyncClient):
+    headers = await candidate(client, "change-track-grade@example.com")
+    url = "/api/v1/testing/specializations"
+    created = await client.post(url, headers=headers, json={
+        "specialization": "Data Science / ML", "declared_grade": "junior",
+    })
+    assert created.status_code == 201
+    changed = await client.post(url, headers=headers, json={
+        "specialization": "Data Science / ML", "declared_grade": "middle",
+    })
+    assert changed.status_code == 201
+    assert changed.json()["declared_grade"] == "middle"
+    started = await client.post("/api/v1/testing/roadmap", headers=headers, json={
+        "specialization": "Data Science / ML",
+    })
+    assert started.status_code == 201
+    assert started.json()["target_grade"] == "middle"
+    blocked = await client.post(url, headers=headers, json={
+        "specialization": "Data Science / ML", "declared_grade": "senior",
+    })
+    assert blocked.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_specialization_grade_without_bank_is_not_marked_testable(client: AsyncClient):
+    headers = await candidate(client, "lead-track@example.com")
+    created = await client.post("/api/v1/testing/specializations", headers=headers, json={
+        "specialization": "Data Science / ML", "declared_grade": "lead",
+    })
+    assert created.status_code == 201
+    assert created.json()["test_available"] is False
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("specialization", ("Backend", "Data Science / ML"))
 @pytest.mark.parametrize("grade", ("junior", "middle", "senior"))
 async def test_failed_skill_retake_uses_other_questions_and_keeps_open_tasks(client: AsyncClient, specialization: str, grade: str):
@@ -413,48 +521,52 @@ async def test_additional_git_result_is_separate_from_grade(client: AsyncClient)
     headers = await candidate(client, "additional-git@example.com")
     available = await client.get("/api/v1/testing/additional", headers=headers)
     assert available.status_code == 200
-    assert available.json() == []
+    assert {item["code"] for item in available.json()} == {"git", "docker", "redis"}
     before_grade = await client.post(
         "/api/v1/testing/additional/git/start", headers=headers,
-        json={"target_grade": "junior"},
+        json={},
     )
-    assert before_grade.status_code == 409
+    assert before_grade.status_code == 201
 
     roadmap = (await client.post("/api/v1/testing/roadmap", headers=headers, json={})).json()
     for skill in roadmap["skills"]:
         await finish_skill(client, headers, roadmap["id"], skill["code"], 10)
     await finish_open_assessment(roadmap["id"])
     available = await client.get("/api/v1/testing/additional", headers=headers)
-    assert [(item["code"], item["target_grade"]) for item in available.json()] == [("git", "junior")]
+    assert [(item["code"], item["target_grade"]) for item in available.json()] == [("git", "all"), ("docker", "all"), ("redis", "all")]
 
     unsupported = await client.post(
-        "/api/v1/testing/additional/docker/start", headers=headers,
-        json={"target_grade": "junior"},
+        "/api/v1/testing/additional/unknown/start", headers=headers,
+        json={},
     )
     assert unsupported.status_code == 400
 
     started = await client.post(
         "/api/v1/testing/additional/git/start", headers=headers,
-        json={"target_grade": "junior"},
+        json={},
     )
     assert started.status_code == 201
     questions = started.json()["questions"]
-    assert len(questions) == 3
+    assert len(questions) == 5
     answers = []
     for question in questions:
-        variant = next(item for item in prepared_variants(question["code"].split("-V")[0]) if item["code"] == question["code"])
-        answers.append({"question_id": question["id"], "selected_answers": variant["correct_answers"]})
+        from app.core.additional_skill_bank import ADDITIONAL_SKILLS
+        variant = next(item for item in ADDITIONAL_SKILLS["git"]["questions"] if item["code"] == question["code"])
+        correct_text = next(item["text"] for item in variant["options"] if item["id"] in variant["correct_answers"])
+        answers.append({"question_id": question["id"], "selected_answers": [next(item["id"] for item in question["options"] if item["text"] == correct_text)]})
     submitted = await client.post(
         f"/api/v1/testing/{started.json()['session_id']}/submit",
         headers=headers, json={"answers": answers},
     )
     assert submitted.status_code == 200
-    assert submitted.json()["passed"] is None
+    assert submitted.json()["passed"] is True
     assert submitted.json()["grade_confirmed"] is False
     assert submitted.json()["verified_grade"] == "junior"
 
     available_after = await client.get("/api/v1/testing/additional", headers=headers)
     assert available_after.json()[0]["level_out_of_ten"] == 10.0
+    assert available_after.json()[0]["passed"] is True
+    assert (await client.post("/api/v1/testing/additional/git/start", headers=headers, json={})).status_code == 429
     assert (await client.get("/api/v1/testing/roadmap/current", headers=headers)).json()["id"] == roadmap["id"]
 
 

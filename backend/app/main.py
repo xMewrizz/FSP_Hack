@@ -56,6 +56,20 @@ async def lifespan(app: FastAPI):
             await conn.execute(text(
                 "ALTER TABLE candidate_profiles ADD COLUMN photo_filename VARCHAR(80)"
             ))
+        track_columns = await conn.run_sync(
+            lambda sync_conn: {column["name"] for column in inspect(sync_conn).get_columns("candidate_specialization_tracks")}
+        )
+        if "declared_grade" not in track_columns:
+            await conn.execute(text(
+                "ALTER TABLE candidate_specialization_tracks "
+                "ADD COLUMN declared_grade VARCHAR(50) NOT NULL DEFAULT 'junior'"
+            ))
+            await conn.execute(text(
+                "UPDATE candidate_specialization_tracks AS track "
+                "SET declared_grade = COALESCE(profile.declared_grade, 'junior') "
+                "FROM candidate_profiles AS profile "
+                "WHERE profile.id = track.candidate_profile_id"
+            ))
         employer_columns = await conn.run_sync(
             lambda sync_conn: {column["name"] for column in inspect(sync_conn).get_columns("employer_profiles")}
         )

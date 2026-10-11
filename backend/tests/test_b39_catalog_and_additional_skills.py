@@ -208,9 +208,10 @@ async def test_b39_additional_skill_appears_in_profile_without_altering_grade(cl
 
     answers = []
     for q in questions:
-        base_code = q["code"].split("-V")[0]
-        variant = next(item for item in prepared_variants(base_code) if item["code"] == q["code"])
-        answers.append({"question_id": q["id"], "selected_answers": variant["correct_answers"]})
+        from app.core.additional_skill_bank import ADDITIONAL_SKILLS
+        variant = next(item for item in ADDITIONAL_SKILLS["git"]["questions"] if item["code"] == q["code"])
+        correct_text = next(item["text"] for item in variant["options"] if item["id"] in variant["correct_answers"])
+        answers.append({"question_id": q["id"], "selected_answers": [next(item["id"] for item in q["options"] if item["text"] == correct_text)]})
 
     submit_extra = await client.post(
         f"/api/v1/testing/{session_id}/submit",
@@ -218,7 +219,7 @@ async def test_b39_additional_skill_appears_in_profile_without_altering_grade(cl
         json={"answers": answers},
     )
     assert submit_extra.status_code == 200
-    assert submit_extra.json()["passed"] is None  # Дополнительный навык не присваивает passed
+    assert submit_extra.json()["passed"] is True
 
     # Проверяем профиль кандидата:
     # 1. additional_skills содержит запись по Git
@@ -229,8 +230,8 @@ async def test_b39_additional_skill_appears_in_profile_without_altering_grade(cl
 
     git_res = prof_after["additional_skills"][0]
     assert git_res["code"] == "git"
-    assert git_res["label"] == "Git и контроль версий"
+    assert git_res["label"] == "Git"
     assert git_res["percentage"] == 100.0
     assert git_res["level_out_of_ten"] == 10.0
-    assert git_res["target_grade"] == "junior"
+    assert git_res["target_grade"] == "all"
     assert git_res["completed_at"] is not None

@@ -28,7 +28,7 @@ async def parse_need_draft(
     current_user: User = Depends(get_current_employer),
 ):
     try:
-        async with httpx.AsyncClient(timeout=95.0) as client:
+        async with httpx.AsyncClient(timeout=130.0) as client:
             response = await client.post(f"{settings.ML_SERVICE_URL.rstrip('/')}/parse-need", json={"text": data.text})
             response.raise_for_status()
         return NeedDraftResponse.model_validate(response.json())

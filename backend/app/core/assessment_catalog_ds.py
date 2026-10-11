@@ -26,6 +26,13 @@ DS_MATCHING_SKILL_CODES = {
     "machine learning": "ds_ml",
     "машинное обучение": "ds_ml",
     "ml": "ds_ml",
+    "git": "git",
+    "docker": "docker",
+    "подготовка данных": "data_preparation",
+    "оценка моделей": "model_evaluation",
+    "развёртывание моделей": "model_deployment",
+    "развертывание моделей": "model_deployment",
+    "анализ данных": "data_analysis",
 }
 
 DS_TARGET_QUESTIONS = {

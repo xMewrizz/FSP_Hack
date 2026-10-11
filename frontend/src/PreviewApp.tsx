@@ -510,7 +510,7 @@ const pageCopy: Record<string, { eyebrow: string; title: string }> = {
   Подборка: { eyebrow: "ПОДБОР КОМАНДЫ / BACKEND", title: "Подборка кандидатов" },
   "Банк кандидатов": { eyebrow: "ВЕРИФИЦИРОВАННАЯ БАЗА", title: "Банк кандидатов" },
   Потребности: { eyebrow: "МАТЧИНГ И КАТЕГОРИЗАЦИЯ", title: "Потребности команды" },
-  Приглашения: { eyebrow: "REVERSE RECRUITING", title: "Приглашения" },
+  Приглашения: { eyebrow: "ПРЕДЛОЖЕНИЯ РАБОТОДАТЕЛЕЙ", title: "Приглашения" },
   Аналитика: { eyebrow: "КАЧЕСТВО ПОДБОРА", title: "Аналитика" },
   Настройки: { eyebrow: "УПРАВЛЕНИЕ АККАУНТОМ", title: "Настройки" },
   Профиль: { eyebrow: "ЛИЧНЫЙ КАБИНЕТ", title: "Профиль и резюме" },
@@ -1027,7 +1027,7 @@ function CandidateScreen({
           </section>
           <section className="feature-card feature-card--wide"><div className="feature-head"><div><span>ДОСТИЖЕНИЯ ФСП</span><strong>Спортивное программирование</strong></div></div><div className="achievement-grid"><div><b>◆</b><strong>Призёр ИТМО 2024</strong><span>Алгоритмическое программирование</span></div><div><b>◆</b><strong>Финалист хакатона ФСП</strong><span>Продуктовое программирование</span></div></div></section>
           <section className="feature-card"><div className="feature-head"><div><span>ОЦЕНКА ДОВЕРИЯ</span><strong>Доверие к профилю</strong></div></div><div className="trust-large">0,92</div><p className="feature-description">Расхождений между версиями резюме не обнаружено.</p></section>
-          <section className="feature-card feature-card--wide"><div className="feature-head"><div><span>ДОПОЛНИТЕЛЬНЫЕ НАПРАВЛЕНИЯ</span><strong>Смежные карты навыков</strong></div></div><div className="secondary-radars"><div><Radar values={[6,7,5,6,8,5]} target={[6,6,6,6,6,6]} compact /><strong>Дизайн</strong></div><div><Radar values={[7,6,8,7,6,7]} target={[6,6,6,6,6,6]} compact /><strong>Управление проектами</strong></div></div></section>
+          <section className="feature-card feature-card--wide"><div className="feature-head"><div><span>МОИ НАПРАВЛЕНИЯ</span><strong>Карты навыков</strong></div></div><div className="secondary-radars"><div><Radar values={[6,7,5,6,8,5]} target={[6,6,6,6,6,6]} compact /><strong>Дизайн</strong></div><div><Radar values={[7,6,8,7,6,7]} target={[6,6,6,6,6,6]} compact /><strong>Управление проектами</strong></div></div></section>
           <section className="feature-card"><div className="feature-head"><div><span>ИСТОРИЯ ТЕСТОВ</span><strong>Последние результаты</strong></div></div><div className="history-table history-table--tests"><div><span>12.05.2025</span><strong>Middle</strong><b>Подтверждён</b><em>8,1</em></div><div><span>18.02.2025</span><strong>Middle</strong><b>Требуется развитие</b><em>6,4</em></div></div></section>
         </div>
         {historyOpen && (
