@@ -69,6 +69,8 @@ const formatMatchScore = (score: number) => {
   return `${score} ${form === "one" ? "балл" : form === "few" ? "балла" : "баллов"}`;
 };
 
+const formatTrueScore = (score: number) => Math.max(0, Math.min(1, score)).toFixed(2).replace(".", ",");
+
 const fspAchievementLabel = (candidate: Candidate) => {
   const count = candidate.achievementsCount ?? 0;
   if (!count) return "ФСП · нет достижений";
@@ -4740,7 +4742,7 @@ function ResumeModal({
             <aside className="resume-side">
               <section className="resume-section true-score-panel">
                 <span>TRUE SCORE · ПРОВЕРКА РЕЗЮМЕ</span>
-                {candidate.trueScore != null ? <><strong>{candidate.trueScore.toFixed(2).replace(".", ",")} из 1,00</strong><p>Сводный сигнал доверия, не вероятность достоверности.</p><p>Профиль обновлён: {candidate.updated}</p>{candidate.trueScoreFlags?.map((flag) => <div className={`true-score-flag true-score-flag--${flag.status}`} key={flag.label}><i /><div><strong>{flag.label}</strong><span>{flag.detail}</span></div></div>)}</> : <p>True Score не передаётся matching API. Не интерпретируйте отсутствие значения как подозрение.</p>}
+                {candidate.trueScore != null ? <><strong>{formatTrueScore(candidate.trueScore)} из 1,00</strong><p>Сводный сигнал доверия, не вероятность достоверности.</p><p>Профиль обновлён: {candidate.updated}</p>{candidate.trueScoreFlags?.map((flag) => <div className={`true-score-flag true-score-flag--${flag.status}`} key={flag.label}><i /><div><strong>{flag.label}</strong><span>{flag.detail}</span></div></div>)}</> : <p>True Score не передаётся matching API. Не интерпретируйте отсутствие значения как подозрение.</p>}
               </section>
               {candidate.resumeEmployers?.length ? <section className="resume-section">
                 <span>РАБОТОДАТЕЛИ ИЗ РЕЗЮМЕ</span>
@@ -6002,7 +6004,7 @@ function App() {
                 role="button"
                 tabIndex={0}
                 aria-pressed={selected.id === candidate.id}
-                aria-label={`Открыть резюме: ${candidate.name}, ${candidate.role}, балл подбора ${candidate.score} из 100, ${fspAchievementLabel(candidate)}`}
+                aria-label={`Открыть резюме: ${candidate.name}, ${candidate.role}, балл подбора ${candidate.score} из 100, True Score ${candidate.trueScore == null ? "нет данных" : `${formatTrueScore(candidate.trueScore)} из 1,00`}, ${fspAchievementLabel(candidate)}`}
                   onClick={() => chooseCandidate(candidate)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -6019,9 +6021,16 @@ function App() {
                   </div>
                   <div className="match" title="Балл соответствия активной потребности, из 100"><strong>{candidate.score}<small>/100</small></strong><span>БАЛЛ ПОДБОРА</span></div>
                 </div>
-                <span className={`candidate-card__fsp ${candidate.achievementsCount ? "candidate-card__fsp--present" : ""}`} title={candidate.isDemo && candidate.achievementsCount ? "Демонстрационные данные: личность и достижение не проверены" : undefined}>
-                  <Icon name="medal" size={14} /> {fspAchievementLabel(candidate)}
-                </span>
+                <div className="candidate-card__signals">
+                  <span className={`candidate-card__fsp ${candidate.achievementsCount ? "candidate-card__fsp--present" : ""}`} title={candidate.isDemo && candidate.achievementsCount ? "Демонстрационные данные: личность и достижение не проверены" : undefined}>
+                    <Icon name="medal" size={14} /> {fspAchievementLabel(candidate)}
+                  </span>
+                  <div className={`candidate-card__trust${candidate.trueScore == null ? " candidate-card__trust--empty" : ""}`} title="True Score — сводный сигнал доверия на основе данных профиля, тестов и резюме. Не вероятность достоверности.">
+                    <span>TRUE SCORE</span>
+                    <strong>{candidate.trueScore == null ? "Нет данных" : <>{formatTrueScore(candidate.trueScore)} <small>из 1,00</small></>}</strong>
+                    {candidate.trueScore != null && <div className="candidate-card__trust-track" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(1, candidate.trueScore)) * 100}%` }} /></div>}
+                  </div>
+                </div>
               </article>
             ))}
             {filtered.length === 0 && (
@@ -6108,7 +6117,7 @@ function App() {
               </div>
             </div>
             <div className="profile-metrics">
-              <div><span>СИГНАЛЫ ДОВЕРИЯ</span><strong>{selected.trueScoreFlags?.length ? "Есть данные" : "Нет данных"}</strong><small>{selected.trueScoreFlags?.length ? "Подробности — в резюме кандидата" : "Данных для проверки пока нет"}</small></div>
+              <div><span>TRUE SCORE</span><strong>{selected.trueScore == null ? "Нет данных" : `${formatTrueScore(selected.trueScore)} из 1,00`}</strong><small>{selected.trueScore == null ? "Данных для расчёта пока нет" : "Сводный сигнал доверия; подробности — в резюме"}</small></div>
               <div><span>ДОСТИЖЕНИЯ ФСП</span><strong>{fspAchievementLabel(selected).replace("ФСП · ", "")}</strong><small>{selected.isDemo && selected.achievementsCount ? "Демонстрационные данные; личность не проверена" : selected.achievementsCount ? "Указаны в профиле кандидата" : "Достижения не добавлены"}</small></div>
               <div><span>ОБНОВЛЕНИЕ ПРОФИЛЯ</span><strong>{selected.updated}</strong><small>По данным профиля</small></div>
             </div>

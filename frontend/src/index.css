@@ -13856,6 +13856,74 @@ select,
   color: var(--violet-brand);
 }
 
+.app-shell .candidate-card--compact .candidate-card__signals {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.app-shell .candidate-card--compact .candidate-card__signals .candidate-card__fsp {
+  align-self: center;
+  margin-top: 0;
+}
+
+.app-shell .candidate-card--compact .candidate-card__trust {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 0.65rem;
+  row-gap: 0.2rem;
+  min-width: 10rem;
+  border: 1px solid color-mix(in srgb, var(--violet-brand) 24%, var(--line));
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--violet-brand) 5%, var(--surface));
+  padding: 0.3rem 0.55rem;
+}
+
+.app-shell .candidate-card--compact .candidate-card__trust > span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.app-shell .candidate-card--compact .candidate-card__trust > strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.app-shell .candidate-card--compact .candidate-card__trust > strong small {
+  color: var(--muted);
+  font-size: 0.78em;
+  font-weight: 500;
+}
+
+.app-shell .candidate-card--compact .candidate-card__trust-track {
+  grid-column: 1 / -1;
+  height: 0.18rem;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--line);
+}
+
+.app-shell .candidate-card--compact .candidate-card__trust-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--violet-brand), #24b7c9);
+}
+
+.app-shell .candidate-card--compact .candidate-card__trust--empty {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
 .app-shell .candidate-card__match-track {
   height: 0.3rem;
   overflow: hidden;
