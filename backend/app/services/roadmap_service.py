@@ -102,6 +102,14 @@ class RoadmapService:
             GradeAssessment.specialization == track.specialization,
             GradeAssessment.status.in_(("in_progress", "pending_review")),
         ).order_by(GradeAssessment.created_at.desc()).limit(1))
+        if assessment is None and track.verified_grade:
+            assessment = await db.scalar(select(GradeAssessment).where(
+                GradeAssessment.candidate_profile_id == track.candidate_profile_id,
+                GradeAssessment.specialization == track.specialization,
+                GradeAssessment.target_grade == track.verified_grade,
+                GradeAssessment.status == "completed",
+                GradeAssessment.passed.is_(True),
+            ).order_by(GradeAssessment.created_at.desc()).limit(1))
         available = any(is_testable(track.specialization, grade) for grade in GRADE_ORDER)
         status = (
             "verified" if track.verified_grade else
@@ -547,8 +555,15 @@ class RoadmapService:
             ).values(status="expired"))
             await db.commit()
             raise HTTPException(409, "Срок набора истёк. Откройте новый набор тестов")
-        if profile is None or profile.specialization != assessment.specialization or (profile.programming_language or "Python") != assessment.programming_language:
+        if profile is None or (profile.programming_language or "Python") != assessment.programming_language:
             raise HTTPException(409, "Специализация профиля изменилась. Начните новый набор тестов")
+        if profile.specialization != assessment.specialization and not await db.scalar(
+            select(CandidateSpecializationTrack.id).where(
+                CandidateSpecializationTrack.candidate_profile_id == profile.id,
+                CandidateSpecializationTrack.specialization == assessment.specialization,
+            )
+        ):
+            raise HTTPException(409, "Запрошенное направление больше недоступно")
         if skill_code not in assessment.required_skills:
             raise HTTPException(400, "Навык не входит в обязательный набор")
         skill_sessions = (await db.execute(select(TestSession).where(
@@ -600,6 +615,13 @@ class RoadmapService:
         if profile is None:
             raise HTTPException(404, "Сначала заполните профиль кандидата")
         selected_specialization = normalize_specialization(specialization or profile.specialization)
+        if selected_specialization != profile.specialization and not await db.scalar(
+            select(CandidateSpecializationTrack.id).where(
+                CandidateSpecializationTrack.candidate_profile_id == profile.id,
+                CandidateSpecializationTrack.specialization == selected_specialization,
+            )
+        ):
+            raise HTTPException(409, "Сначала запросите дополнительное направление")
         available = available_extra_skills(selected_specialization or "")
         sessions = (await db.execute(select(TestSession).where(
             TestSession.user_id == user.id,
@@ -629,6 +651,13 @@ class RoadmapService:
         if profile is None:
             raise HTTPException(404, "Сначала заполните профиль кандидата")
         selected_specialization = normalize_specialization(specialization or profile.specialization)
+        if selected_specialization != profile.specialization and not await db.scalar(
+            select(CandidateSpecializationTrack.id).where(
+                CandidateSpecializationTrack.candidate_profile_id == profile.id,
+                CandidateSpecializationTrack.specialization == selected_specialization,
+            )
+        ):
+            raise HTTPException(409, "Сначала запросите дополнительное направление")
         if skill_code not in {code for code, _, _ in available_extra_skills(selected_specialization or "")}:
             raise HTTPException(400, "Для этого дополнительного навыка тест пока недоступен")
         existing = await db.scalar(select(TestSession).where(
@@ -784,8 +813,15 @@ class RoadmapService:
             ).values(status="expired"))
             await db.commit()
             raise HTTPException(409, "Срок набора истёк. Откройте новый набор тестов")
-        if profile.specialization != assessment.specialization or (profile.programming_language or "Python") != assessment.programming_language:
+        if (profile.programming_language or "Python") != assessment.programming_language:
             raise HTTPException(409, "Специализация профиля изменилась. Начните новый набор тестов")
+        if profile.specialization != assessment.specialization and not await db.scalar(
+            select(CandidateSpecializationTrack.id).where(
+                CandidateSpecializationTrack.candidate_profile_id == profile.id,
+                CandidateSpecializationTrack.specialization == assessment.specialization,
+            )
+        ):
+            raise HTTPException(409, "Запрошенное направление больше недоступно")
         sessions = (await db.execute(select(TestSession).where(
             TestSession.assessment_id == assessment.id,
             TestSession.status == "completed",

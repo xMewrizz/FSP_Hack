@@ -11460,6 +11460,30 @@ select,
   padding: 0.3rem;
 }
 
+.app-shell .assessment-specialization-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.app-shell .assessment-specialization-tabs button {
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.7rem 1rem;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-shell .assessment-specialization-tabs button.active {
+  border-color: var(--brand-cobalt);
+  color: var(--brand-cobalt);
+  background: color-mix(in srgb, var(--brand-cobalt) 8%, var(--surface));
+  font-weight: 700;
+}
+
 .app-shell .assessment-mode button {
   display: inline-flex;
   align-items: center;

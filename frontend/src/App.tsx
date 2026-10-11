@@ -11,6 +11,7 @@ import {
   ALL_GRADES,
   ALL_SPECIALIZATIONS,
   TEST_AVAILABILITY_HINT,
+  TESTABLE_SPECIALIZATIONS,
   isTestablePair,
 } from "./catalog";
 
@@ -3462,6 +3463,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
   const [additionalTests, setAdditionalTests] = useState<AdditionalSkillTestData[]>([]);
   const [specializationTracks, setSpecializationTracks] = useState<CandidateSpecializationTrackData[]>([]);
   const [selectedSpecialization, setSelectedSpecialization] = useState("");
+  const [testingTrackLoading, setTestingTrackLoading] = useState(false);
   const [requestedSpecialization, setRequestedSpecialization] = useState("");
   const [testStarting, setTestStarting] = useState(false);
   const [testSubmitting, setTestSubmitting] = useState(false);
@@ -3570,18 +3572,27 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
 
   useEffect(() => {
     if (active !== "Тестирование" && active !== "Мой грейд") return;
-    const specializationQuery = selectedSpecialization
-      ? `?specialization=${encodeURIComponent(selectedSpecialization)}`
+    let cancelled = false;
+    const specialization = active === "Тестирование" ? selectedSpecialization : "";
+    const specializationQuery = specialization
+      ? `?specialization=${encodeURIComponent(specialization)}`
       : "";
+    setTestingTrackLoading(true);
     Promise.all([
       apiGet<GradeRoadmapData | null>(`/testing/roadmap/current${specializationQuery}`),
       apiGet<AdditionalSkillTestData[]>(`/testing/additional${specializationQuery}`),
       apiGet<CandidateSpecializationTrackData[]>("/testing/specializations"),
     ]).then(([currentRoadmap, extra, tracks]) => {
+      if (cancelled) return;
       setRoadmap(currentRoadmap);
       setAdditionalTests(extra);
       setSpecializationTracks(tracks);
-    }).catch((error: unknown) => onNotify(error instanceof Error ? error.message : "Не удалось загрузить результаты тестов", "error"));
+    }).catch((error: unknown) => {
+      if (!cancelled) onNotify(error instanceof Error ? error.message : "Не удалось загрузить результаты тестов", "error");
+    }).finally(() => {
+      if (!cancelled) setTestingTrackLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [active, selectedSpecialization]);
 
   useEffect(() => {
@@ -3890,10 +3901,10 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
     try {
       const next = await apiPost<GradeRoadmapData>("/testing/roadmap", {
         ...(targetGrade ? { target_grade: targetGrade } : {}),
-        ...(specialization ? { specialization } : {}),
+        ...((specialization || selectedSpecialization) ? { specialization: specialization || selectedSpecialization } : {}),
       });
       setRoadmap(next);
-      setSelectedSpecialization(specialization ?? "");
+      if (specialization) setSelectedSpecialization(specialization);
       setTestDone(false);
       setTestResult(null);
       setRadarComparison(null);
@@ -3967,13 +3978,16 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
       if (roadmap.status === "in_progress") {
         await apiPost<GradeRoadmapData>(`/testing/roadmap/${roadmap.id}/stop`, {});
       }
-      const next = await apiPost<GradeRoadmapData>("/testing/roadmap", { target_grade: roadmap.suggested_grade });
+      const next = await apiPost<GradeRoadmapData>("/testing/roadmap", {
+        target_grade: roadmap.suggested_grade,
+        specialization: roadmap.specialization,
+      });
       setRoadmap(next);
       setTestDone(false);
       setTestResult(null);
     } catch (error) {
       onNotify(error instanceof Error ? error.message : "Не удалось открыть набор уровнем ниже", "error");
-      apiGet<GradeRoadmapData | null>("/testing/roadmap/current").then(setRoadmap).catch(() => undefined);
+      apiGet<GradeRoadmapData | null>(`/testing/roadmap/current?specialization=${encodeURIComponent(roadmap.specialization)}`).then(setRoadmap).catch(() => undefined);
     } finally {
       setTestStarting(false);
     }
@@ -4484,6 +4498,21 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
         <div><span>ТВОЙ ПУТЬ · НИТЬ ЗА НИТЬЮ</span><strong>Сплетай карту навыков по-своему</strong><p>Каждый пройденный тест добавляет в неё новую подтверждённую компетенцию.</p></div>
         <img src={spiderCode} alt="" aria-hidden="true" />
       </section>
+      <div className="assessment-specialization-tabs" role="tablist" aria-label="Специализация для тестирования">
+        {[profile?.specialization, ...specializationTracks.filter((track) => track.test_available).map((track) => track.specialization)]
+          .filter((specialization, index, all): specialization is string => Boolean(specialization) && TESTABLE_SPECIALIZATIONS.includes(specialization!) && all.indexOf(specialization) === index)
+          .map((specialization) => {
+            const isPrimary = specialization === profile?.specialization;
+            const activeTrack = isPrimary ? !selectedSpecialization : selectedSpecialization === specialization;
+            return <button key={specialization} type="button" role="tab" aria-selected={activeTrack} className={activeTrack ? "active" : ""} onClick={() => {
+              if (activeTrack) return;
+              setSelectedSpecialization(isPrimary ? "" : specialization);
+              setRoadmap(null);
+              setAdditionalTests([]);
+              setTestPurpose("grade");
+            }}>{specialization}{isPrimary ? " · основная" : " · дополнительная"}</button>;
+          })}
+      </div>
       <div className="assessment-mode" role="group" aria-label="Режим проверки">
         <button type="button" className={testPurpose === "grade" ? "active" : ""} onClick={() => setTestPurpose("grade")}><Icon name="medal" size={17} />Грейд</button>
         <button type="button" className={testPurpose === "open" ? "active" : ""} onClick={() => setTestPurpose("open")}><Icon name="listChecks" size={17} />Развёрнутые задания</button>
@@ -4499,7 +4528,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
                 <i />{roadmap.status === "completed" ? roadmap.passed ? "Грейд подтверждён" : canRetryFailedSkill ? "Нужна пересдача навыка" : "Набор завершён" : roadmap.status === "expired" ? "Срок истёк" : roadmap.status === "cancelled" ? "Набор прерван" : roadmap.status === "pending_review" ? "Ожидается оценка ответов" : "Набор открыт"}
               </div>}
             </div>
-            {roadmap ? <>
+            {testingTrackLoading ? <div className="assessment-roadmap__empty">Загружаем тесты выбранной специализации…</div> : roadmap ? <>
               <div className="assessment-roadmap__meta">
                 <span><Icon name="school" size={15} /> {roadmap.skills.length} {roadmap.skills.length % 10 === 1 && roadmap.skills.length % 100 !== 11 ? "обязательная компетенция" : roadmap.skills.length % 10 >= 2 && roadmap.skills.length % 10 <= 4 && (roadmap.skills.length % 100 < 12 || roadmap.skills.length % 100 > 14) ? "обязательные компетенции" : "обязательных компетенций"}</span>
                 {roadmap.status === "in_progress" ? <span><Icon name="clock" size={15} /> Набор доступен 3 дня с открытия</span> : null}
@@ -4546,7 +4575,7 @@ function CandidateScreen({ active, onNotify, onNavigate, demoMode }: { active: s
               </details>
             </> : <div className="assessment-roadmap__empty">
               <div><strong>Обязательные навыки — путь к подтверждённому уровню</strong><span>Проходите навыки в удобном темпе в течение трёх дней.</span></div>
-              <Button disabled={testStarting || !profile?.agreed_test_confidentiality} onClick={() => void beginRoadmap()}>{testStarting ? "Открываем…" : "Открыть маршрут"}</Button>
+              <Button disabled={testStarting || testingTrackLoading || !profile?.agreed_test_confidentiality} onClick={() => void beginRoadmap()}>{testStarting ? "Открываем…" : "Открыть маршрут"}</Button>
             </div>}
             {roadmap && <>
               {roadmap.status === "expired" && <div className="notice-box">Срок набора истёк. Результаты остались в истории, грейд по нему не присваивается.</div>}

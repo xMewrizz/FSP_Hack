@@ -144,6 +144,77 @@ async def test_data_science_full_roadmap_has_six_skills_and_open_work(client: As
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("primary,additional", (
+    ("Backend", "Data Science / ML"),
+    ("Data Science / ML", "Backend"),
+))
+async def test_additional_specialization_has_independent_grade_roadmap(
+    client: AsyncClient, primary: str, additional: str,
+):
+    headers = await candidate(client, f"two-tracks-{primary[:2]}@example.com", specialization=primary)
+    unrequested = await client.post(
+        "/api/v1/testing/roadmap", headers=headers,
+        json={"specialization": additional, "target_grade": "junior"},
+    )
+    assert unrequested.status_code == 409
+    unrequested_skills = await client.get(
+        "/api/v1/testing/additional", headers=headers,
+        params={"specialization": additional},
+    )
+    assert unrequested_skills.status_code == 409
+
+    requested = await client.post(
+        "/api/v1/testing/specializations", headers=headers,
+        json={"specialization": additional},
+    )
+    assert requested.status_code == 201, requested.text
+    assert requested.json()["test_available"] is True
+    available_skills = await client.get(
+        "/api/v1/testing/additional", headers=headers,
+        params={"specialization": additional},
+    )
+    assert available_skills.status_code == 200
+
+    primary_roadmap = await client.post("/api/v1/testing/roadmap", headers=headers, json={})
+    additional_roadmap = await client.post(
+        "/api/v1/testing/roadmap", headers=headers,
+        json={"specialization": additional, "target_grade": "junior"},
+    )
+    assert primary_roadmap.status_code == 201, primary_roadmap.text
+    assert additional_roadmap.status_code == 201, additional_roadmap.text
+    primary_id = primary_roadmap.json()["id"]
+    additional_id = additional_roadmap.json()["id"]
+    assert primary_id != additional_id
+    assert len(primary_roadmap.json()["skills"]) == (4 if primary == "Backend" else 6)
+    assert len(additional_roadmap.json()["skills"]) == (4 if additional == "Backend" else 6)
+
+    for skill in additional_roadmap.json()["skills"]:
+        result = await finish_skill(client, headers, additional_id, skill["code"], 10)
+        assert result["specialization"] == additional
+    await finish_open_assessment(additional_id)
+
+    completed = await client.get(
+        "/api/v1/testing/roadmap/current", headers=headers,
+        params={"specialization": additional},
+    )
+    untouched = await client.get("/api/v1/testing/roadmap/current", headers=headers)
+    tracks = await client.get("/api/v1/testing/specializations", headers=headers)
+    profile = await client.get("/api/v1/candidates/profile", headers=headers)
+    assert completed.json()["id"] == additional_id
+    assert completed.json()["verified_grade"] == "junior"
+    assert completed.json()["passed"] is True
+    assert untouched.json()["id"] == primary_id
+    assert untouched.json()["status"] == "in_progress"
+    assert profile.json()["verified_grade"] is None
+    assert tracks.json()[0]["verified_grade"] == "junior"
+    assert tracks.json()[0]["assessment_id"] == additional_id
+
+    primary_skill = primary_roadmap.json()["skills"][0]["code"]
+    result = await finish_skill(client, headers, primary_id, primary_skill, 10)
+    assert result["specialization"] == primary
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("specialization", ("Backend", "Data Science / ML"))
 @pytest.mark.parametrize("grade", ("junior", "middle", "senior"))
 async def test_failed_skill_retake_uses_other_questions_and_keeps_open_tasks(client: AsyncClient, specialization: str, grade: str):
